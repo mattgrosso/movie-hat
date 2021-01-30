@@ -9,7 +9,7 @@
           type="text"
           v-model="movieTitle"
         />
-        <button class="btn btn-success" type="button">
+        <button class="btn btn-success" type="submit">
           <span v-if="loading">
             <div class="spinner-border spinner-border-sm" role="status">
               <span class="visually-hidden">Loading...</span>
