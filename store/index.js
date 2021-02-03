@@ -4,35 +4,68 @@ import axios from 'axios';
 const createStore = () => {
   return new Vuex.Store({
     state: {
-      loadedMovies: [],
+      hat: [],
+      history: [],
     },
     getters: {
-      loadedMovies(state) {
-        return state.loadedMovies;
+      hat(state) {
+        return state.hat;
       },
     },
     mutations: {
-      setMovies(state, movies) {
-        state.loadedMovies = movies;
+      setHat(state, movies) {
+        state.hat = movies;
+      },
+      setHistory(state, movies) {
+        state.history = movies;
       },
     },
     actions: {
       async nuxtServerInit(vuexContext, context) {
-        const movies = await this.dispatch('loadMovies');
-        vuexContext.commit('setMovies', movies);
+        const movies = await this.dispatch('loadHat');
+        vuexContext.commit('setHat', movies);
+        const history = await this.dispatch('loadHistory');
+        vuexContext.commit('setHistory', movies);
       },
-      async loadMovies() {
+      async loadHat() {
         const resp = await axios.get(
-          'https://movie-hat-9c418-default-rtdb.firebaseio.com/movies.json'
+          'https://movie-hat-9c418-default-rtdb.firebaseio.com/hat.json'
         );
 
         if (resp.statusText == 'OK') {
-          const movies = Object.keys(resp.data).map((key) => {
-            return resp.data[key];
-          });
+          let movies = [];
 
-          this.commit('setMovies', movies);
+          if (resp.data) {
+            movies = Object.keys(resp.data).map((key) => {
+              const movie = { ...resp.data[key], id: key };
+              return movie;
+            });
+          }
+
+          this.commit('setHat', movies);
           return movies;
+        } else {
+          console.log(resp);
+          return [];
+        }
+      },
+      async loadHistory() {
+        const resp = await axios.get(
+          'https://movie-hat-9c418-default-rtdb.firebaseio.com/history.json'
+        );
+
+        if (resp.statusText == 'OK' && resp.data) {
+          let history = [];
+
+          if (resp.data) {
+            history = Object.keys(resp.data).map((key) => {
+              const movie = { ...resp.data[key], id: key };
+              return movie;
+            });
+          }
+
+          this.commit('setHistory', history);
+          return history;
         } else {
           console.log(resp);
           return [];
