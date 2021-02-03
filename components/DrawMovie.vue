@@ -4,39 +4,95 @@
       <span class="visually-hidden">Loading...</span>
     </div>
     <div v-else-if="drawnMovie" class="drawn-movie-title">
-      <h2 class="mb-4">{{ drawnMovie }}</h2>
-      <button class="btn btn-primary btn-sm" @click="getMovie">
+      <h2 class="mb-4">{{ drawnMovie.title }}</h2>
+      <button
+        class="btn btn-primary btn-sm"
+        @click="drawMovie"
+        :disabled="!moviesInHat"
+      >
         Draw Again
       </button>
     </div>
-    <button v-else class="btn btn-primary btn-lg" @click="getMovie">
+    <button
+      v-else
+      class="btn btn-primary btn-lg"
+      @click="drawMovie"
+      :disabled="!moviesInHat"
+    >
       Draw Movie
     </button>
+    <p v-if="!moviesInHat" class="message">The hat is empty</p>
+    <p v-if="message" class="message">{{ message }}</p>
   </div>
 </template>
 
 <script>
+import axios from 'axios';
+
 export default {
   data() {
     return {
       drawnMovie: null,
       loading: false,
+      message: null,
     };
   },
+  computed: {
+    moviesInHat() {
+      return this.$store.state.hat.length;
+    },
+  },
   methods: {
-    async getMovie() {
+    async drawMovie() {
       this.loading = true;
-      const movies = await this.$store.dispatch('loadMovies');
+      const movies = await this.$store.dispatch('loadHat');
       this.loading = false;
 
       if (movies.length) {
         const randomMovie = _.sample(movies);
         this.drawnMovie = randomMovie;
 
+        this.removeMovieFromHat(randomMovie);
+
         return randomMovie;
       } else {
+        this.showMessage('No movies in the hat. Which is sad.');
         return 'Error Loading Movie Title';
       }
+    },
+    async removeMovieFromHat(movie) {
+      const movieForHistory = { ...movie };
+      delete movieForHistory.id;
+      const addToHistory = await axios.post(
+        'https://movie-hat-9c418-default-rtdb.firebaseio.com/history.json',
+        movieForHistory
+      );
+
+      if (addToHistory.statusText != 'OK') {
+        console.error(
+          'Something went wrong with moving to History: ',
+          addToHistory
+        );
+        return;
+      }
+
+      const removeFromHat = await axios.delete(
+        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hat/${movie.id}.json`
+      );
+
+      if (removeFromHat.statusText != 'OK') {
+        console.log('Something went wrong with movie delete: ', removeFromHat);
+        return;
+      }
+
+      await this.$store.dispatch('loadHat');
+      await this.$store.dispatch('loadHistory');
+    },
+    showMessage(message) {
+      this.message = message;
+      setTimeout(() => {
+        this.message = null;
+      }, 3000);
     },
   },
 };
@@ -71,6 +127,12 @@ export default {
       position: absolute;
       transform: translateX(-50%);
     }
+  }
+
+  .message {
+    bottom: 32px;
+    color: white;
+    position: absolute;
   }
 }
 </style>
