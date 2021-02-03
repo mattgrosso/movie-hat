@@ -38,15 +38,20 @@ export default {
     async addMovie(movieTitle) {
       this.loading = true;
 
+      const movie = {
+        title: movieTitle,
+      };
+
       const post = await axios.post(
-        'https://movie-hat-9c418-default-rtdb.firebaseio.com/movies.json',
-        JSON.stringify(movieTitle)
+        'https://movie-hat-9c418-default-rtdb.firebaseio.com/hat.json',
+        movie
       );
 
       this.loading = false;
 
       if (post.statusText == 'OK') {
         this.movieTitle = null;
+        this.$store.dispatch('loadHat');
         this.showMessage(`${movieTitle} was added to the hat.`);
       } else {
         this.showMessage(
