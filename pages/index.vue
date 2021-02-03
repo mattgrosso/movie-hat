@@ -1,9 +1,9 @@
 <template>
   <div class="movie-hat row">
-    <div class="col-12 text-center">
+    <div class="col-12 col-md-6 p-0 text-center">
       <add-movie />
     </div>
-    <div class="col-12 text-center">
+    <div class="col-12 col-md-6 p-0 text-center">
       <draw-movie />
     </div>
   </div>
@@ -33,6 +33,10 @@ export default {
     display: flex;
     justify-content: center;
     align-items: center;
+
+    @media screen and (min-width: 768px) {
+      height: 100%;
+    }
   }
 }
 </style>
