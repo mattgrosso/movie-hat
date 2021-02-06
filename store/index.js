@@ -1,5 +1,6 @@
 import Vuex from 'vuex';
 import axios from 'axios';
+import stringSimilarity from 'string-similarity';
 
 const createStore = () => {
   return new Vuex.Store({
@@ -69,6 +70,22 @@ const createStore = () => {
         } else {
           console.log(resp);
           return [];
+        }
+      },
+      findSimilarMovie(vuexContext, movieTitle) {
+        const hat = vuexContext.state.hat;
+        // Adjust minSimilarityValue to tweak sensitivity of similarity check
+        const minSimilarityValue = 0.4;
+
+        const bestMatch = stringSimilarity.findBestMatch(
+          movieTitle,
+          hat.map((movie) => movie.title)
+        );
+
+        if (bestMatch.bestMatch.rating > minSimilarityValue) {
+          return hat[bestMatch.bestMatchIndex];
+        } else {
+          return null;
         }
       },
     },

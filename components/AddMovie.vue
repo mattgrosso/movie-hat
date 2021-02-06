@@ -1,6 +1,6 @@
 <template>
   <div class="add-movie p-4">
-    <form @submit.prevent="addMovie($refs.addMovieTitle.value)">
+    <form @submit.prevent="checkForSimilarMovies($refs.addMovieTitle.value)">
       <div class="input-group mb-3">
         <input
           class="form-control"
@@ -18,7 +18,15 @@
           <span v-else>Add Movie</span>
         </button>
       </div>
-      <p v-if="message" class="message">{{ message }}</p>
+      <div v-if="message" class="message">
+        <p>{{ message }}</p>
+        <div v-if="showMessageCtas" class="message-ctas">
+          <button class="btn btn-success" @click="confirmSimilarTitle">
+            Yes
+          </button>
+          <button class="btn btn-warning" @click="clearMovie">Nevermind</button>
+        </div>
+      </div>
     </form>
   </div>
 </template>
@@ -31,10 +39,26 @@ export default {
     return {
       loading: false,
       message: null,
+      showMessageCtas: false,
       movieTitle: null,
     };
   },
   methods: {
+    async checkForSimilarMovies(movieTitle) {
+      const similarMovie = await this.$store.dispatch(
+        'findSimilarMovie',
+        movieTitle
+      );
+
+      if (similarMovie) {
+        this.showMessageCtas = true;
+        this.showMessage(
+          `It looks like ${similarMovie.title} is already in the hat. Do you still want to add ${movieTitle}?`
+        );
+      } else {
+        this.addMovie(movieTitle);
+      }
+    },
     async addMovie(movieTitle) {
       this.loading = true;
 
@@ -52,18 +76,31 @@ export default {
       if (post.statusText == 'OK') {
         this.movieTitle = null;
         this.$store.dispatch('loadHat');
-        this.showMessage(`${movieTitle} was added to the hat.`);
+        this.showMessage(`${movieTitle} was added to the hat.`, 6000);
       } else {
         this.showMessage(
-          `Something went wrong. ${movieTitle} was not added to the hat.`
+          `Something went wrong. ${movieTitle} was not added to the hat.`,
+          6000
         );
       }
     },
-    showMessage(message) {
+    confirmSimilarTitle() {
+      this.message = null;
+      this.showMessageCtas = false;
+      this.addMovie(this.movieTitle);
+    },
+    clearMovie() {
+      this.message = null;
+      this.showMessageCtas = false;
+      this.movieTitle = null;
+    },
+    showMessage(message, delay) {
+      delay = delay || 30000;
+
       this.message = message;
       setTimeout(() => {
         this.message = null;
-      }, 3000);
+      }, delay);
     },
   },
 };
