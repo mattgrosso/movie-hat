@@ -27,6 +27,7 @@ export default {
 <style lang="scss">
 .movie-hat {
   height: 100vh;
+  overflow: hidden;
 
   > div {
     height: 50%;

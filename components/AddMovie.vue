@@ -64,6 +64,7 @@ export default {
 
       const movie = {
         title: movieTitle,
+        timeStamp: Date.now()
       };
 
       const post = await axios.post(
