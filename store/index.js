@@ -7,6 +7,7 @@ const createStore = () => {
     state: {
       hat: [],
       history: [],
+      devMode: false,
     },
     getters: {
       hat(state) {
@@ -20,17 +21,20 @@ const createStore = () => {
       setHistory(state, movies) {
         state.history = movies;
       },
+      setDevMode(state, devModeBoolean) {
+        state.devMode = devModeBoolean;
+      },
     },
     actions: {
       async nuxtServerInit(vuexContext, context) {
-        const movies = await this.dispatch('loadHat');
+        const movies = await this.dispatch('loadHat', 'hat');
         vuexContext.commit('setHat', movies);
-        const history = await this.dispatch('loadHistory');
+        const history = await this.dispatch('loadHistory', 'history');
         vuexContext.commit('setHistory', movies);
       },
-      async loadHat() {
+      async loadHat(vuexContext, databasePath) {
         const resp = await axios.get(
-          'https://movie-hat-9c418-default-rtdb.firebaseio.com/hat.json'
+          `https://movie-hat-9c418-default-rtdb.firebaseio.com/${databasePath}.json`
         );
 
         if (resp.statusText == 'OK') {
@@ -50,9 +54,9 @@ const createStore = () => {
           return [];
         }
       },
-      async loadHistory() {
+      async loadHistory(vuexContext, databasePath) {
         const resp = await axios.get(
-          'https://movie-hat-9c418-default-rtdb.firebaseio.com/history.json'
+          `https://movie-hat-9c418-default-rtdb.firebaseio.com/${databasePath}.json`
         );
 
         if (resp.statusText == 'OK' && resp.data) {
@@ -77,6 +81,10 @@ const createStore = () => {
         // Adjust minSimilarityValue to tweak sensitivity of similarity check
         const minSimilarityValue = 0.4;
 
+        if (!hat.length) {
+          return;
+        }
+
         const bestMatch = stringSimilarity.findBestMatch(
           movieTitle,
           hat.map((movie) => movie.title)
@@ -84,8 +92,6 @@ const createStore = () => {
 
         if (bestMatch.bestMatch.rating > minSimilarityValue) {
           return hat[bestMatch.bestMatchIndex];
-        } else {
-          return null;
         }
       },
     },

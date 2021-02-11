@@ -43,6 +43,11 @@ export default {
       movieTitle: null,
     };
   },
+  computed: {
+    devPrefix() {
+      return this.$store.state.devMode ? 'dev-' : '';
+    },
+  },
   methods: {
     async checkForSimilarMovies(movieTitle) {
       const similarMovie = await this.$store.dispatch(
@@ -53,7 +58,7 @@ export default {
       if (similarMovie) {
         this.showMessageCtas = true;
         this.showMessage(
-          `It looks like ${similarMovie.title} is already in the hat. Do you still want to add ${movieTitle}?`
+          `It looks like ${similarMovie.title} is already in the ${this.devPrefix}hat. Do you still want to add ${movieTitle}?`
         );
       } else {
         this.addMovie(movieTitle);
@@ -64,11 +69,11 @@ export default {
 
       const movie = {
         title: movieTitle,
-        timeStamp: Date.now()
+        timeStamp: Date.now(),
       };
 
       const post = await axios.post(
-        'https://movie-hat-9c418-default-rtdb.firebaseio.com/hat.json',
+        `https://movie-hat-9c418-default-rtdb.firebaseio.com/${this.devPrefix}hat.json`,
         movie
       );
 
@@ -76,11 +81,14 @@ export default {
 
       if (post.statusText == 'OK') {
         this.movieTitle = null;
-        this.$store.dispatch('loadHat');
-        this.showMessage(`${movieTitle} was added to the hat.`, 6000);
+        this.$store.dispatch('loadHat', `${this.devPrefix}hat`);
+        this.showMessage(
+          `${movieTitle} was added to the ${this.devPrefix}hat.`,
+          6000
+        );
       } else {
         this.showMessage(
-          `Something went wrong. ${movieTitle} was not added to the hat.`,
+          `Something went wrong. ${movieTitle} was not added to the ${this.devPrefix}hat.`,
           6000
         );
       }

@@ -21,13 +21,14 @@
     >
       Draw Movie
     </button>
-    <p v-if="!moviesInHat" class="message">The hat is empty</p>
+    <p v-if="!moviesInHat" class="message">The {{ devPrefix }}hat is empty</p>
     <p v-if="message" class="message">{{ message }}</p>
   </div>
 </template>
 
 <script>
 import axios from 'axios';
+const jw = new justWatch();
 
 export default {
   data() {
@@ -41,11 +42,17 @@ export default {
     moviesInHat() {
       return this.$store.state.hat.length;
     },
+    devPrefix() {
+      return this.$store.state.devMode ? 'dev-' : '';
+  },
   },
   methods: {
     async drawMovie() {
       this.loading = true;
-      const movies = await this.$store.dispatch('loadHat');
+      const movies = await this.$store.dispatch(
+        'loadHat',
+        `${this.devPrefix}hat`
+      );
       this.loading = false;
 
       if (movies.length) {
@@ -63,8 +70,9 @@ export default {
     async removeMovieFromHat(movie) {
       const movieForHistory = { ...movie };
       delete movieForHistory.id;
+
       const addToHistory = await axios.post(
-        'https://movie-hat-9c418-default-rtdb.firebaseio.com/history.json',
+        `https://movie-hat-9c418-default-rtdb.firebaseio.com/${this.devPrefix}history.json`,
         movieForHistory
       );
 
@@ -77,7 +85,7 @@ export default {
       }
 
       const removeFromHat = await axios.delete(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hat/${movie.id}.json`
+        `https://movie-hat-9c418-default-rtdb.firebaseio.com/${this.devPrefix}hat/${movie.id}.json`
       );
 
       if (removeFromHat.statusText != 'OK') {
@@ -85,8 +93,8 @@ export default {
         return;
       }
 
-      await this.$store.dispatch('loadHat');
-      await this.$store.dispatch('loadHistory');
+      await this.$store.dispatch('loadHat', `${this.devPrefix}hat`);
+      await this.$store.dispatch('loadHistory', `${this.devPrefix}history`);
     },
     showMessage(message) {
       this.message = message;
