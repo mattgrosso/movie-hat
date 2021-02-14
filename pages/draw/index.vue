@@ -1,7 +1,8 @@
 <template>
-  <div v-if="movie" class="draw p-4">
+  <div v-if="movie" class="draw p-4" :style="cssVars">
     <img
-      class="movie-poster mb-4"
+      class="poster mb-4"
+      crossorigin="anonymous"
       :src="movie.poster"
       :alt="`${movie.title} Poster`"
       :title="movie.title"
@@ -26,11 +27,15 @@
 import justWatch from 'justwatch-api';
 const jw = new justWatch();
 
+import FastAverageColor from 'fast-average-color';
+const fac = new FastAverageColor();
+
 export default {
   data() {
     return {
       providers: null,
       movie: null,
+      colorData: null,
     };
   },
   computed: {
@@ -65,19 +70,28 @@ export default {
 
       return availableStreamingProviders;
     },
+    cssVars() {
+      if (this.colorData) {
+        return {
+          '--bg-color': this.colorData.hex,
+        };
+      }
+    },
   },
   methods: {
     async movieData(movie) {
       const data = await jw.search(movie.title);
+      const posterUrl = `https://images.justwatch.com${data.items[0].poster.replace(
+        '{profile}',
+        ''
+      )}s718`;
 
       const movieData = {
         ...data.items[0],
-        poster: `https://images.justwatch.com${data.items[0].poster.replace(
-          '{profile}',
-          ''
-        )}s718`,
+        poster: posterUrl,
       };
 
+      this.getColorData(posterUrl);
       this.movie = movieData;
     },
     async getProviders() {
@@ -90,6 +104,11 @@ export default {
         return provider.id === id;
       });
     },
+    async getColorData(image) {
+      const colorData = await fac.getColorAsync(image);
+      this.colorData = colorData;
+      return colorData;
+    },
   },
   mounted() {
     this.getProviders();
@@ -100,11 +119,12 @@ export default {
 
 <style lang="scss">
 .draw {
+  background-color: var(--bg-color);
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
 
-  .movie-poster {
+  .poster {
     height: 300px;
   }
 
