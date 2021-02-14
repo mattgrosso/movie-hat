@@ -12,6 +12,7 @@
   "dependencies": {
     "@nuxtjs/axios": "^5.12.2",
     "core-js": "^3.6.5",
+    "justwatch-api": "^1.0.7",
     "lodash": "^4.17.20",
     "node-sass": "^5.0.0",
     "nuxt": "^2.14.6",

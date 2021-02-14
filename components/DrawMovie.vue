@@ -28,6 +28,7 @@
 
 <script>
 import axios from 'axios';
+import justWatch from 'justwatch-api';
 const jw = new justWatch();
 
 export default {
@@ -44,7 +45,7 @@ export default {
     },
     devPrefix() {
       return this.$store.state.devMode ? 'dev-' : '';
-  },
+    },
   },
   methods: {
     async drawMovie() {
