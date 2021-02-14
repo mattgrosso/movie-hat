@@ -7,7 +7,7 @@
       :alt="`${movie.title} Poster`"
       :title="movie.title"
     />
-    <p class="days-ago text-white text-center col-12">
+    <p class="days-ago text-center col-12" :class="{ 'text-white': isDark }">
       (Added to the hat {{ daysAgo }})
     </p>
     <ul class="provider-list col-12" v-if="availableStreamingProviders.length">
@@ -77,6 +77,11 @@ export default {
         };
       }
     },
+    isDark() {
+      if (this.colorData) {
+        return this.colorData.isDark;
+      }
+    },
   },
   methods: {
     async movieData(movie) {
@@ -123,6 +128,7 @@ export default {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  min-height: 100vh;
 
   .poster {
     height: 300px;

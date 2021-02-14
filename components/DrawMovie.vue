@@ -4,7 +4,6 @@
       <span class="visually-hidden">Loading...</span>
     </div>
     <div v-else-if="drawnMovie" class="drawn-movie-title">
-      <h2 class="mb-4">{{ drawnMovie.title }}</h2>
       <button
         class="btn btn-primary btn-sm"
         @click="drawMovie"
@@ -21,8 +20,10 @@
     >
       Draw Movie
     </button>
-    <p v-if="!moviesInHat" class="message">The {{ devPrefix }}hat is empty</p>
-    <p v-if="message" class="message">{{ message }}</p>
+    <p v-if="!moviesInHat" class="message text-white my-2">
+      The {{ devPrefix }}hat is empty
+    </p>
+    <p v-if="message" class="message text-white my-2">{{ message }}</p>
   </div>
 </template>
 
@@ -110,9 +111,10 @@ export default {
 .draw-movie {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   height: 100%;
-  position: relative;
   justify-content: center;
+  position: relative;
   width: 100%;
 
   .spinner-grow {
@@ -134,12 +136,6 @@ export default {
       position: absolute;
       transform: translateX(-50%);
     }
-  }
-
-  .message {
-    bottom: 32px;
-    color: white;
-    position: absolute;
   }
 }
 </style>
