@@ -55,12 +55,12 @@ export default {
   padding: 64px 24px;
 
   .dev-mode-toggle-wrapper {
+    align-items: center;
+    display: flex;
+    justify-content: flex-start;
     left: 10px;
     position: absolute;
     top: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
 
     input {
       border: 2px solid white;

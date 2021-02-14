@@ -124,8 +124,8 @@ export default {
     position: relative;
 
     h2 {
-      font-size: 3rem;
       color: white;
+      font-size: 3rem;
     }
 
     button {
