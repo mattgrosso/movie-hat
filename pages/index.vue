@@ -45,8 +45,7 @@ export default {
 
 <style lang="scss">
 .movie-hat {
-  height: 100vh;
-  overflow: hidden;
+  height: 100%;
 
   .dev-mode-toggle-wrapper {
     left: 10px;
