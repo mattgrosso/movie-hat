@@ -1,7 +1,7 @@
 <template>
   <div class="add-movie p-4">
     <form @submit.prevent="checkForSimilarMovies($refs.addMovieTitle.value)">
-      <div class="input-group mb-3">
+      <div class="input-group">
         <input
           class="form-control"
           placeholder="Movie Title"
@@ -66,6 +66,7 @@ export default {
     },
     async addMovie(movieTitle) {
       this.loading = true;
+      this.$emit('start-adding-movie');
 
       const movie = {
         title: movieTitle,
@@ -84,14 +85,19 @@ export default {
         this.$store.dispatch('loadHat', `${this.devPrefix}hat`);
         this.showMessage(
           `${movieTitle} was added to the ${this.devPrefix}hat.`,
-          6000
+          6000,
+          this.finishAddingMovie
         );
       } else {
         this.showMessage(
           `Something went wrong. ${movieTitle} was not added to the ${this.devPrefix}hat.`,
-          6000
+          6000,
+          this.finishAddingMovie
         );
       }
+    },
+    finishAddingMovie() {
+      this.$emit('finish-adding-movie');
     },
     confirmSimilarTitle() {
       this.message = null;
@@ -103,12 +109,15 @@ export default {
       this.showMessageCtas = false;
       this.movieTitle = null;
     },
-    showMessage(message, delay) {
+    showMessage(message, delay, callBack) {
       delay = delay || 30000;
 
       this.message = message;
       setTimeout(() => {
         this.message = null;
+        if (callBack) {
+          callBack();
+        }
       }, delay);
     },
   },
@@ -118,7 +127,6 @@ export default {
 <style lang="scss" scoped>
 .add-movie {
   align-items: center;
-  background: #2f6ff4;
   display: flex;
   height: 100%;
   justify-content: center;

@@ -28,8 +28,6 @@
 
 <script>
 import axios from 'axios';
-import justWatch from 'justwatch-api';
-const jw = new justWatch();
 
 export default {
   data() {
@@ -50,6 +48,7 @@ export default {
   methods: {
     async drawMovie() {
       this.loading = true;
+
       const movies = await this.$store.dispatch(
         'loadHat',
         `${this.devPrefix}hat`
@@ -62,7 +61,7 @@ export default {
 
         this.removeMovieFromHat(randomMovie);
 
-        return randomMovie;
+        this.$router.push({ name: 'draw', params: { movie: this.drawnMovie } });
       } else {
         this.showMessage('No movies in the hat. Which is sad.');
         return 'Error Loading Movie Title';
@@ -110,7 +109,6 @@ export default {
 <style lang="scss">
 .draw-movie {
   align-items: center;
-  background: #408458;
   display: flex;
   height: 100%;
   position: relative;

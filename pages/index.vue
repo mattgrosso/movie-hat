@@ -9,12 +9,16 @@
       />
       <h2 v-if="devMode" class="text-white">Dev Mode On</h2>
     </div>
-    <div class="add-movie-wrapper col-12 col-md-6 p-0 text-center">
-      <add-movie :dev-mode="devMode" />
-    </div>
-    <div class="draw-movie-wrapper col-12 col-md-6 p-0 text-center">
-      <draw-movie :dev-mode="devMode" />
-    </div>
+    <add-movie
+      v-if="showAddMovie"
+      :dev-mode="devMode"
+      @start-adding-movie="showDrawMovie = false"
+      @finish-adding-movie="showDrawMovie = true"
+    />
+    <p v-if="showAddMovie && showDrawMovie" class="text-white text-center m-0">
+      - or -
+    </p>
+    <draw-movie v-if="showDrawMovie" :dev-mode="devMode" />
   </div>
 </template>
 
@@ -27,6 +31,8 @@ export default {
   data() {
     return {
       devMode: false,
+      showAddMovie: true,
+      showDrawMovie: true,
     };
   },
   components: { AddMovie, DrawMovie },
@@ -46,26 +52,24 @@ export default {
 <style lang="scss">
 .movie-hat {
   height: 100%;
+  padding: 64px 24px;
 
   .dev-mode-toggle-wrapper {
     left: 10px;
     position: absolute;
     top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
 
     input {
       border: 2px solid white;
     }
-  }
 
-  .add-movie-wrapper,
-  .draw-movie-wrapper {
-    height: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-
-    @media screen and (min-width: 768px) {
-      height: 100%;
+    h2 {
+      font-size: 1.2rem;
+      margin: 0;
+      padding: 0 12px;
     }
   }
 }
