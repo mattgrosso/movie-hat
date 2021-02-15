@@ -50,6 +50,7 @@ export default {
   },
   methods: {
     async checkForSimilarMovies(movieTitle) {
+      this.$emit('start-adding-movie');
       const similarMovie = await this.$store.dispatch(
         'findSimilarMovie',
         movieTitle
@@ -66,7 +67,6 @@ export default {
     },
     async addMovie(movieTitle) {
       this.loading = true;
-      this.$emit('start-adding-movie');
 
       const movie = {
         title: movieTitle,
@@ -108,6 +108,7 @@ export default {
       this.message = null;
       this.showMessageCtas = false;
       this.movieTitle = null;
+      this.finishAddingMovie();
     },
     showMessage(message, delay, callBack) {
       delay = delay || 30000;
