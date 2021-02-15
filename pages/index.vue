@@ -40,10 +40,15 @@ export default {
     loadedMovies() {
       return this.$store.state.loadedMovies;
     },
+    devPrefix() {
+      return this.$store.state.devMode ? 'dev-' : '';
+    },
   },
   watch: {
     devMode(newVal, oldVal) {
       this.$store.commit('setDevMode', newVal);
+      this.$store.dispatch('loadHat', `${this.devPrefix}hat`);
+      this.$store.dispatch('loadHistory', `${this.devPrefix}history`);
     },
   },
 };
