@@ -24,7 +24,7 @@
 </template>
 
 <script>
-import justWatch from 'justwatch-api';
+import justWatch from '@/assets/justwatch-api.mjs';
 const jw = new justWatch();
 
 import FastAverageColor from 'fast-average-color';

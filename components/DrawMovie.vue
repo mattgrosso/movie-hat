@@ -52,8 +52,7 @@ export default {
 
         this.removeMovieFromHat(randomMovie);
 
-        // this.$router.push({ name: 'draw', params: { movie: this.drawnMovie } });
-        this.showMessage(`The movie is... ${this.drawnMovie.title}`);
+        this.$router.push({ name: 'draw', params: { movie: this.drawnMovie } });
       } else {
         this.showMessage('No movies in the hat. Which is sad.');
         return 'Error Loading Movie Title';
