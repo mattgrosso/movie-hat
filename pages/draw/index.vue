@@ -68,7 +68,7 @@ export default {
           };
         });
 
-      return availableStreamingProviders;
+      return _.uniqBy(availableStreamingProviders, 'name');
     },
     cssVars() {
       if (this.colorData) {
