@@ -85,7 +85,7 @@ export default {
         this.$store.dispatch('loadHat', `${this.devPrefix}hat`);
         this.showMessage(
           `${movieTitle} was added to the ${this.devPrefix}hat.`,
-          6000,
+          3000,
           this.finishAddingMovie
         );
       } else {

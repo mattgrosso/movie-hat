@@ -3,15 +3,6 @@
     <div v-if="loading" class="spinner-grow text-primary" role="status">
       <span class="visually-hidden">Loading...</span>
     </div>
-    <div v-else-if="drawnMovie" class="drawn-movie-title">
-      <button
-        class="btn btn-primary btn-sm"
-        @click="drawMovie"
-        :disabled="!moviesInHat"
-      >
-        Draw Again
-      </button>
-    </div>
     <button
       v-else
       class="btn btn-primary btn-lg"
@@ -20,10 +11,9 @@
     >
       Draw Movie
     </button>
-    <p v-if="!moviesInHat" class="message text-white my-2">
-      The {{ devPrefix }}hat is empty
+    <p v-if="message" class="message text-white my-2 col-12 text-center">
+      {{ message }}
     </p>
-    <p v-if="message" class="message text-white my-2">{{ message }}</p>
   </div>
 </template>
 
@@ -62,7 +52,8 @@ export default {
 
         this.removeMovieFromHat(randomMovie);
 
-        this.$router.push({ name: 'draw', params: { movie: this.drawnMovie } });
+        // this.$router.push({ name: 'draw', params: { movie: this.drawnMovie } });
+        this.showMessage(`The movie is... ${this.drawnMovie.title}`);
       } else {
         this.showMessage('No movies in the hat. Which is sad.');
         return 'Error Loading Movie Title';

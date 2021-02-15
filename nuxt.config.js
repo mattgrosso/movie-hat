@@ -48,12 +48,12 @@ export default {
 
   // Axios module configuration (https://go.nuxtjs.dev/config-axios)
   axios: {
-    proxy: true,
+    proxy: false,
   },
 
-  proxy: {
-    'apis.justwatch.com': 'https://fast-refuge-34363.herokuapp.com/',
-  },
+  // proxy: {
+  //   'apis.justwatch.com': 'https://fast-refuge-34363.herokuapp.com/',
+  // },
 
   // Build Configuration (https://go.nuxtjs.dev/config-build)
   build: {},
