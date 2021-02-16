@@ -52,6 +52,13 @@ import FastAverageColor from 'fast-average-color';
 const fac = new FastAverageColor();
 
 export default {
+  validate(context) {
+    if (context.params.movie) {
+      return true;
+    } else {
+      context.redirect('/');
+    }
+  },
   data() {
     return {
       providers: null,
