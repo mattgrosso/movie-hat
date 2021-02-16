@@ -40,6 +40,11 @@
           </button>
         </div>
       </div>
+      <div v-else class="loading-spinner">
+        <div class="spinner-border spinner-border" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -237,5 +242,12 @@ export default {
       }
     }
   }
+}
+
+.loading-spinner {
+  align-items: center;
+  display: flex;
+  height: 50vh;
+  justify-content: center;
 }
 </style>
