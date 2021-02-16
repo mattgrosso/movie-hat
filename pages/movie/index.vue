@@ -1,49 +1,51 @@
 <template>
-  <div class="fade-border-left-wrapper" :style="cssVars">
-    <div class="fade-border-right-wrapper" :style="cssVars">
-      <div v-if="movie" class="draw p-4" :style="cssVars">
-        <div class="poster-wrapper">
-          <img
-            class="poster mb-4"
-            crossorigin="anonymous"
-            :src="movie.poster"
-            :alt="`${movie.title} Poster`"
-            :title="movie.title"
-          />
-          <p
-            class="days-ago text-center col-12"
-            :class="{ 'text-white': isDark }"
-          >
-            (Added to the hat {{ daysAgo }})
-          </p>
-        </div>
-        <div class="details-wrapper p-4">
-          <ul
-            class="provider-list col-12"
-            v-if="availableStreamingProviders.length"
-          >
-            <li
-              v-for="(streamer, index) in availableStreamingProviders"
-              :key="index"
+  <div class="movie">
+    <div v-if="movie" class="fade-border-left-wrapper" :style="cssVars">
+      <div class="fade-border-right-wrapper" :style="cssVars">
+        <div class="draw p-4" :style="cssVars">
+          <div class="poster-wrapper">
+            <img
+              class="poster mb-4"
+              crossorigin="anonymous"
+              :src="movie.poster"
+              :alt="`${movie.title} Poster`"
+              :title="movie.title"
+            />
+            <p
+              class="days-ago text-center col-12"
+              :class="{ 'text-white': isDark }"
             >
-              <a :href="streamer.url">
-                <img :src="streamer.iconUrl" :alt="`${streamer.name} icon`" />
-              </a>
-            </li>
-          </ul>
-          <p v-else>No Streaming Providers Found.</p>
-          <button
-            class="back-button btn btn-success col-12 col-sm-6 col-md-12"
-            @click="$router.push('/')"
-          >
-            Back
-          </button>
+              (Added to the hat {{ daysAgo }})
+            </p>
+          </div>
+          <div class="details-wrapper p-4">
+            <ul
+              class="provider-list col-12"
+              v-if="availableStreamingProviders.length"
+            >
+              <li
+                v-for="(streamer, index) in availableStreamingProviders"
+                :key="index"
+              >
+                <a :href="streamer.url">
+                  <img :src="streamer.iconUrl" :alt="`${streamer.name} icon`" />
+                </a>
+              </li>
+            </ul>
+            <p v-else>No Streaming Providers Found.</p>
+            <button
+              class="back-button btn btn-success col-12 col-sm-6 col-md-12"
+              @click="$router.push('/')"
+            >
+              Back
+            </button>
+          </div>
         </div>
       </div>
-      <div v-else class="loading-spinner">
-        <div class="spinner-border spinner-border" role="status">
-          <span class="visually-hidden">Loading...</span>
-        </div>
+    </div>
+    <div v-else class="loading-spinner">
+      <div class="spinner-border spinner-border" role="status">
+        <span class="visually-hidden">Loading...</span>
       </div>
     </div>
   </div>
