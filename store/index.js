@@ -13,6 +13,9 @@ const createStore = () => {
       hat(state) {
         return state.hat;
       },
+      history(state) {
+        return state.history;
+      },
     },
     mutations: {
       setHat(state, movies) {
@@ -30,7 +33,7 @@ const createStore = () => {
         const movies = await this.dispatch('loadHat', 'hat');
         vuexContext.commit('setHat', movies);
         const history = await this.dispatch('loadHistory', 'history');
-        vuexContext.commit('setHistory', movies);
+        vuexContext.commit('setHistory', history);
       },
       async loadHat(vuexContext, databasePath) {
         const resp = await axios.get(

@@ -121,10 +121,16 @@ export default {
   methods: {
     async movieData(movie) {
       const data = await jw.search(movie.title);
-      const posterUrl = `https://images.justwatch.com${data.items[0].poster.replace(
-        '{profile}',
-        ''
-      )}s718`;
+      let posterUrl;
+
+      if (data.items[0]) {
+        posterUrl = `https://images.justwatch.com${data.items[0].poster.replace(
+          '{profile}',
+          ''
+        )}s718`;
+      } else {
+        posterUrl = `https://www.movienewz.com/wp-content/uploads/2014/07/poster-holder.jpg`;
+      }
 
       const movieData = {
         ...data.items[0],
