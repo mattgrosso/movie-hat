@@ -1,8 +1,25 @@
 <template>
   <div class="history">
+    <div class="sort-by-options">
+      <label>Sort by:</label>
+      <select
+        class="form-select"
+        aria-label="Default select example"
+        v-model="selectedSort"
+      >
+        <option value="title">Title</option>
+        <option value="cinema_release_date">Cinema Release Date</option>
+        <option value="imdb:popularity">IMDB Popularity</option>
+        <option value="imdb:votes">IMDB Votes</option>
+        <option value="imdb:score">IMDB Score</option>
+        <option value="tmdb:popularity">TMDB Popularity</option>
+        <option value="tmdb:score">TMDB Score</option>
+      </select>
+    </div>
     <ul v-if="fullHistory.length">
       <li
         class="col-12 col-sm-4 col-md-3 col-lg-2 p-3"
+        :class="{ 'no-value': badSortParser(sortParser(movie)) }"
         v-for="(movie, index) in sortedHistory"
         :key="index"
       >
@@ -11,13 +28,8 @@
           target="_blank"
         >
           <img :src="movie.poster" :alt="`${movie.title} poster`" />
-          <p>cinema_release_date: {{ movie.cinema_release_date }}</p>
-          <p>
-            original_release_year: {{ parseInt(movie.original_release_year) }}
-          </p>
-          <p>id: {{ movie.id }}</p>
         </a>
-        <pre v-if="!movie.full_path">{{ movie }}</pre>
+        <pre>sorted by: {{ sortParser(movie) }}</pre>
       </li>
     </ul>
     <div v-if="!fullHistory.length" class="spinner-wrapper">
@@ -36,6 +48,7 @@ export default {
   data() {
     return {
       fullHistory: [],
+      selectedSort: 'title',
     };
   },
   async mounted() {
@@ -48,26 +61,100 @@ export default {
   computed: {
     sortedHistory() {
       const sortedHistory = [...this.fullHistory];
+
       sortedHistory.sort((a, b) => {
-        if (a.original_release_year > b.original_release_year) {
+        if (this.sortParser(a) > this.sortParser(b)) {
           return 1;
         }
 
-        if (a.original_release_year < b.original_release_year) {
+        if (this.sortParser(a) < this.sortParser(b)) {
           return -1;
         }
 
-        if (a.original_release_year == b.original_release_year) {
+        if (this.sortParser(a) == this.sortParser(b)) {
           return 0;
         }
 
-        return 1;
+        return -1;
       });
 
       return sortedHistory;
     },
   },
   methods: {
+    sortParser(movie) {
+      if (this.selectedSort === 'cinema_release_date') {
+        if (movie.cinema_release_date) {
+          return Date.parse(movie.cinema_release_date);
+        } else {
+          // Just a really big number so it sorts to the bottom.
+          return 10000000000000000000000000;
+        }
+      } else if (this.selectedSort === 'title') {
+        return movie.title;
+      } else if (this.selectedSort === 'imdb:popularity') {
+        const result = movie.scoring.find((object) => {
+          return object.provider_type === 'imdb:popularity';
+        });
+
+        if (result) {
+          return result.value;
+        } else {
+          // Just a really big number so it sorts to the bottom.
+          return 10000000000000000000000000;
+        }
+      } else if (this.selectedSort === 'imdb:votes') {
+        const result = movie.scoring.find((object) => {
+          return object.provider_type === 'imdb:votes';
+        });
+
+        if (result) {
+          return result.value;
+        } else {
+          return 10000000000000000000000000;
+        }
+      } else if (this.selectedSort === 'imdb:score') {
+        const result = movie.scoring.find((object) => {
+          return object.provider_type === 'imdb:score';
+        });
+
+        if (result) {
+          return result.value;
+        } else {
+          return 10000000000000000000000000;
+        }
+      } else if (this.selectedSort === 'tmdb:popularity') {
+        const result = movie.scoring.find((object) => {
+          return object.provider_type === 'tmdb:popularity';
+        });
+
+        if (result) {
+          return result.value;
+        } else {
+          return 0;
+        }
+      } else if (this.selectedSort === 'tmdb:score') {
+        const result = movie.scoring.find((object) => {
+          return object.provider_type === 'tmdb:score';
+        });
+
+        if (result) {
+          return result.value;
+        } else {
+          return 0;
+        }
+      }
+    },
+    badSortParser(value) {
+      if (
+        value === 0 ||
+        value === 10000000000000000000000000 ||
+        value === '' ||
+        !value
+      ) {
+        return true;
+      }
+    },
     async movieData(movie) {
       const data = await jw.search(movie.title);
       let posterUrl;
@@ -113,6 +200,11 @@ export default {
       display: flex;
       justify-content: center;
       flex-wrap: wrap;
+
+      &.no-value {
+        opacity: 0.5;
+        pointer-events: none;
+      }
 
       a {
         background: white;
