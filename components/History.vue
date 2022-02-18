@@ -322,8 +322,7 @@ export default {
       flex-wrap: wrap;
 
       &.no-value {
-        opacity: 0.5;
-        pointer-events: none;
+        display: none;
       }
 
       a {
