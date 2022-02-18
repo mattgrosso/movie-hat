@@ -9,7 +9,7 @@
       @click="drawMovie"
       :disabled="!moviesInHat"
     >
-      Draw Movie
+      Draw Movie ({{ moviesInHat }})
     </button>
     <p v-if="message" class="message text-white my-2 col-12 text-center">
       {{ message }}
