@@ -7,6 +7,7 @@
         aria-label="Default select example"
         v-model="selectedSort"
       >
+        <option value="watch_date">Watch Date</option>
         <option value="title">Title</option>
         <option value="cinema_release_date">Cinema Release Date</option>
         <option value="imdb:popularity">IMDB Popularity</option>
@@ -19,7 +20,7 @@
     <ul v-if="fullHistory.length">
       <li
         class="col-12 col-sm-4 col-md-3 col-lg-2 p-3"
-        :class="{ 'no-value': badSortParser(sortParser(movie)) }"
+        :class="{ 'no-value': notSorted(sortParser(movie)) }"
         v-for="(movie, index) in sortedHistory"
         :key="index"
       >
@@ -29,7 +30,6 @@
         >
           <img :src="movie.poster" :alt="`${movie.title} poster`" />
         </a>
-        <pre>sorted by: {{ sortParser(movie) }}</pre>
       </li>
     </ul>
     <div v-if="!fullHistory.length" class="spinner-wrapper">
@@ -48,7 +48,7 @@ export default {
   data() {
     return {
       fullHistory: [],
-      selectedSort: 'title',
+      selectedSort: 'watch_date',
     };
   },
   async mounted() {
@@ -61,6 +61,10 @@ export default {
   computed: {
     sortedHistory() {
       const sortedHistory = [...this.fullHistory];
+
+      if (this.selectedSort === 'watch_date') {
+        return sortedHistory;
+      }
 
       sortedHistory.sort((a, b) => {
         if (this.sortParser(a) > this.sortParser(b)) {
@@ -145,8 +149,10 @@ export default {
         }
       }
     },
-    badSortParser(value) {
-      if (
+    notSorted(value) {
+      if (this.selectedSort === 'watch_date') {
+        return false;
+      } else if (
         value === 0 ||
         value === 10000000000000000000000000 ||
         value === '' ||
