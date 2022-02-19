@@ -7,7 +7,8 @@
         aria-label="Default select example"
         v-model="selectedSort"
       >
-        <option value="watch_date">Watch Date</option>
+        <option value="watch_order">Watch Order</option>
+        <option value="date_added">Date added to hat</option>
         <option value="title">Title</option>
         <option value="cinema_release_date">Cinema Release Date</option>
         <option value="imdb:popularity">IMDB Popularity</option>
@@ -73,13 +74,14 @@ export default {
   data() {
     return {
       fullHistory: [],
-      selectedSort: 'watch_date',
-      ascending: 1,
+      selectedSort: 'watch_order',
+      ascending: -1,
     };
   },
   watch: {
     selectedSort(newVal) {
       const invertedLists = [
+        'watch_order',
         'imdb:votes',
         'imdb:score',
         'tmdb:popularity',
@@ -93,18 +95,14 @@ export default {
   },
   async mounted() {
     this.fullHistory = await Promise.all(
-      this.$store.state.history.map(async (movie) => {
-        return this.movieData(movie);
+      this.$store.state.history.map(async (movie, index) => {
+        return this.movieData(movie, index);
       })
     );
   },
   computed: {
     sortedHistory() {
       const sortedHistory = [...this.fullHistory];
-
-      if (this.selectedSort === 'watch_date') {
-        return sortedHistory;
-      }
 
       sortedHistory.sort((a, b) => {
         if (this.sortParser(a).value > this.sortParser(b).value) {
@@ -146,6 +144,30 @@ export default {
         return {
           value: movie.title,
           display: movie.title,
+          sorted: true,
+        };
+      } else if (this.selectedSort === 'date_added') {
+        if (movie.dateAdded) {
+          const date = new Date(movie.dateAdded);
+
+          return {
+            value: movie.dateAdded,
+            display: `${
+              date.getMonth() + 1
+            }/${date.getDate()}/${date.getFullYear()}`,
+            sorted: true,
+          };
+        } else {
+          return {
+            value: null,
+            display: 'Unknown date',
+            sorted: false,
+          };
+        }
+      } else if (this.selectedSort === 'watch_order') {
+        return {
+          value: movie.hatDrawIndex,
+          display: `${this.ordinalNumber(movie.hatDrawIndex + 1)} drawn`,
           sorted: true,
         };
       } else if (this.selectedSort === 'imdb:popularity') {
@@ -245,7 +267,7 @@ export default {
         };
       }
     },
-    async movieData(movie) {
+    async movieData(movie, index) {
       const data = await jw.search(movie.title);
       let posterUrl;
 
@@ -258,6 +280,9 @@ export default {
         const movieData = {
           ...data.items[0],
           poster: posterUrl,
+          databaseId: movie.id,
+          dateAdded: movie.timeStamp,
+          hatDrawIndex: index,
         };
 
         return movieData;
@@ -270,6 +295,20 @@ export default {
         };
 
         return movieData;
+      }
+    },
+    ordinalNumber(number) {
+      const lastDigit = number % 10;
+      const lastTwoDigits = number % 100;
+
+      if (lastDigit == 1 && lastTwoDigits != 11) {
+        return `${number}st`;
+      } else if (lastDigit == 2 && lastTwoDigits != 12) {
+        return `${number}nd`;
+      } else if (lastDigit == 3 && lastTwoDigits != 13) {
+        return `${number}rd`;
+      } else {
+        return `${number}th`;
       }
     },
   },
