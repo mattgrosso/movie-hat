@@ -1,5 +1,12 @@
 <template>
   <div class="history">
+    <div class="history-count">
+      <h1>
+        <span :class="{ transparent: !fullHistory.length }">
+          {{ fullHistory.length }} movies have come out of the hat.
+        </span>
+      </h1>
+    </div>
     <div class="sort-by-options">
       <label>Sort by:</label>
       <select
@@ -317,7 +324,19 @@ export default {
 
 <style lang="scss">
 .history {
-  margin-top: 24px;
+  .history-count {
+    padding-right: 36px;
+    margin-bottom: 16px;
+
+    h1 {
+      color: white;
+      margin: 0;
+
+      .transparent {
+        opacity: 0;
+      }
+    }
+  }
 
   .sort-by-options {
     display: flex;

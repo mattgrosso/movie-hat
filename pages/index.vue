@@ -79,11 +79,13 @@ export default {
 .movie-hat {
   height: 100%;
   padding: 36px 24px;
+  position: relative;
 
   .history-button-wrapper {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
+    position: absolute;
+    right: 16px;
+    top: 16px;
+    width: auto;
 
     .history-button {
       cursor: pointer;
