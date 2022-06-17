@@ -12,6 +12,7 @@
               :title="movie.title"
             />
             <p
+              v-if="daysAgo"
               class="days-ago text-center col-12"
               :class="{ 'text-white': isDark }"
             >
@@ -78,9 +79,13 @@ export default {
       return this.$route.params.movie;
     },
     daysAgo() {
-      return `${Math.floor(
-        (Date.now() - this.drawnMovie.timeStamp) / 1000 / 60 / 60 / 24
-      )} days ago`;
+      if (this.drawnMovie.timeStamp) {
+        return `${Math.floor(
+          (Date.now() - this.drawnMovie.timeStamp) / 1000 / 60 / 60 / 24
+        )} days ago`;
+      } else {
+        return false;
+      }
     },
     availableStreamingProviders() {
       const availableStreamingProviders = this.movie.offers

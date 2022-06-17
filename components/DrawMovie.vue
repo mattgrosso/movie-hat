@@ -9,8 +9,11 @@
       @click="drawMovie"
       :disabled="!moviesInHat"
     >
-      Draw Movie ({{ moviesInHat }})
+      Draw Movie
     </button>
+    <p class="current-count text-white text-center m-0 p-2 col-12">
+      (There are currently {{ moviesInHat }} movies in the hat.)
+    </p>
     <p v-if="message" class="message text-white my-2 col-12 text-center">
       {{ message }}
     </p>
@@ -113,6 +116,10 @@ export default {
   .spinner-grow {
     height: 75px;
     width: 75px;
+  }
+
+  .current-count {
+    font-size: 0.75rem;
   }
 
   .drawn-movie-title {

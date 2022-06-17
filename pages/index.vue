@@ -58,6 +58,10 @@ export default {
       return this.$store.state.devMode ? 'dev-' : '';
     },
   },
+  mounted() {
+    this.$store.dispatch('loadHat', `${this.devPrefix}hat`);
+    this.$store.dispatch('loadHistory', `${this.devPrefix}history`);
+  },
   methods: {
     toggleHistory() {
       this.showAddMovie = !this.showAddMovie;
