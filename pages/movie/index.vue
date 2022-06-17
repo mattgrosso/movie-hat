@@ -12,6 +12,12 @@
               :title="movie.title"
             />
             <p
+              class="draw-count text-center col-12"
+              :class="{ 'text-white': isDark }"
+            >
+              We have drawn {{ fullHistory.length }} movies from the hat.
+            </p>
+            <p
               v-if="daysAgo"
               class="days-ago text-center col-12"
               :class="{ 'text-white': isDark }"
@@ -69,6 +75,7 @@ export default {
   },
   data() {
     return {
+      fullHistory: [],
       providers: null,
       movie: null,
       colorData: null,
@@ -124,7 +131,7 @@ export default {
     },
   },
   methods: {
-    async movieData(movie) {
+    async movieData(movie, forHistory) {
       const data = await jw.search(movie.title);
       let posterUrl;
 
@@ -142,8 +149,12 @@ export default {
         poster: posterUrl,
       };
 
-      this.getColorData(posterUrl);
-      this.movie = movieData;
+      if (!forHistory) {
+        this.getColorData(posterUrl);
+        this.movie = movieData;
+      } else {
+        return movieData;
+      }
     },
     async getProviders() {
       const providers = await jw.getProviders();
@@ -161,7 +172,13 @@ export default {
       return colorData;
     },
   },
-  mounted() {
+  async mounted() {
+    this.fullHistory = await Promise.all(
+      this.$store.state.history.map(async (movie, index) => {
+        return this.movieData(movie, true);
+      })
+    );
+
     this.getProviders();
     this.movieData(this.drawnMovie);
   },
@@ -218,6 +235,7 @@ export default {
       }
     }
 
+    .draw-count,
     .days-ago {
       font-size: 0.75rem;
     }
