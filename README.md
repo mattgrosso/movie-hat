@@ -2,22 +2,32 @@
 
 ## Build Setup
 
+[install homebrew](https://docs.brew.sh/Installation)
+
 ```bash
 # install dependencies
-$ yarn install
+brew install asdf
+
+asdf plugin add nodejs
+
+asdf plugin add yarn
+
+asdf install
+
+yarn install
 
 # serve with hot reload at localhost:8000
-$ yarn dev
+yarn dev
 
 # build for production and launch server
-$ yarn build
-$ yarn start
+yarn build
+yarn start
 
 # generate static project
-$ yarn generate
+yarn generate
 
 # deploy using surge.sh
-$ yarn deploy
+yarn deploy
 ```
 
 For detailed explanation on how things work, check out [Nuxt.js docs](https://nuxtjs.org).
