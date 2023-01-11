@@ -54,7 +54,18 @@ export default {
   modules: [
     // https://go.nuxtjs.dev/axios
     '@nuxtjs/axios',
+    '@nuxtjs/sentry'
   ],
+
+  sentry: {
+    dsn: "https://00db30b8e0214b6daa3fe1054e053d12@o4504483013525504.ingest.sentry.io/4504483022569472",
+    config: {
+      // Optional Sentry SDK configuration.
+      // Those options are shared by both the Browser and the Server instances.
+      // Browser-only and Server-only options should go
+      // into `clientConfig` and `serverConfig` objects respectively.
+    },
+  },
 
   // Axios module configuration (https://go.nuxtjs.dev/config-axios)
   axios: {

@@ -12,11 +12,14 @@
   "dependencies": {
     "@nuxtjs/axios": "^5.12.2",
     "@nuxtjs/proxy": "^2.1.0",
+    "@nuxtjs/sentry": "^7.0.2",
+    "@sentry/tracing": "^7.30.0",
+    "@sentry/vue": "^7.30.0",
     "core-js": "^3.6.5",
     "fast-average-color": "^6.3.0",
     "lodash": "^4.17.20",
-    "node-sass": "^5.0.0",
     "nuxt": "^2.14.6",
+    "sass": "^1.57.1",
     "sass-loader": "^10.1.1",
     "string-similarity": "^4.0.4",
     "style-loader": "^2.0.0"

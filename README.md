@@ -26,8 +26,9 @@ yarn start
 # generate static project
 yarn generate
 
-# deploy using surge.sh
+# deploy using surge.sh (you might need to run `export NODE_OPTIONS=--openssl-legacy-provider`)
 yarn deploy
+
 ```
 
 For detailed explanation on how things work, check out [Nuxt.js docs](https://nuxtjs.org).
