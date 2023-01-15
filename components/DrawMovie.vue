@@ -65,7 +65,7 @@ export default {
       }
     },
     async removeMovieFromHat(movie) {
-      const movieForHistory = { ...movie };
+      const movieForHistory = { ...movie, dateDrawn: Date.now() };
       delete movieForHistory.id;
 
       const addToHistory = await axios.post(

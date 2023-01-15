@@ -67,8 +67,11 @@
           target="_blank"
         >
           <img :src="movie.poster" :alt="`${movie.title} poster`" />
-          <p v-if="movie.fullData && sortParser(movie).display">
-            {{ sortParser(movie).display }}
+          <p v-if="movie.fullData && sortParser(movie).display.line1">
+            {{ sortParser(movie).display.line1 }}
+          </p>
+          <p v-if="movie.fullData && sortParser(movie).display.line2">
+            {{ sortParser(movie).display.line2 }}
           </p>
         </a>
       </li>
@@ -174,6 +177,7 @@ export default {
           poster: posterUrl,
           databaseId: movie.id,
           dateAdded: movie.timeStamp,
+          dateDrawn: movie.dateDrawn,
           hatDrawIndex: movie.hatDrawIndex,
           fullData: true
         };
@@ -199,21 +203,21 @@ export default {
         if (movie.cinema_release_date) {
           return {
             value: Date.parse(movie.cinema_release_date),
-            display: movie.cinema_release_date,
+            display: {line1: movie.cinema_release_date},
             sorted: true,
           };
         } else {
           // Just a really big number so it sorts to the bottom.
           return {
             value: 10000000000000000000000000,
-            display: 'No Date Given',
+            display: {line1: 'No Date Given'},
             sorted: false,
           };
         }
       } else if (this.selectedSort === 'title') {
         return {
           value: movie.title,
-          display: movie.title,
+          display: {line1: movie.title},
           sorted: true,
         };
       } else if (this.selectedSort === 'date_added') {
@@ -222,22 +226,35 @@ export default {
 
           return {
             value: movie.dateAdded,
-            display: `${
+            display: {line1: `${
               date.getMonth() + 1
-            }/${date.getDate()}/${date.getFullYear()}`,
+            }/${date.getDate()}/${date.getFullYear()}`},
             sorted: true,
           };
         } else {
           return {
             value: null,
-            display: 'Unknown date',
+            display: {line1: 'Unknown date'},
             sorted: false,
           };
         }
       } else if (this.selectedSort === 'watch_order') {
+        let dateDrawnDisplay = "";
+
+        if (movie.dateDrawn) {
+          dateDrawnDisplay = `(${new Date(movie.dateDrawn).toLocaleString('en-US', {
+            day: 'numeric',
+            year: 'numeric',
+            month: 'short'
+          })})`
+        }
+
         return {
           value: movie.hatDrawIndex,
-          display: `${this.ordinalNumber(movie.hatDrawIndex + 1)} drawn`,
+          display: {
+            line1: `${this.ordinalNumber(movie.hatDrawIndex + 1)} drawn`,
+            line2: `${dateDrawnDisplay}`
+          },
           sorted: true,
         };
       } else if (this.selectedSort === 'imdb:popularity') {
@@ -248,14 +265,14 @@ export default {
         if (result) {
           return {
             value: result.value,
-            display: result.value,
+            display: {line1: result.value},
             sorted: true,
           };
         } else {
           // Just a really big number so it sorts to the bottom.
           return {
             value: 10000000000000000000000000,
-            display: 'Not Scored',
+            display: {line1: 'Not Scored'},
             sorted: false,
           };
         }
@@ -267,13 +284,13 @@ export default {
         if (result) {
           return {
             value: result.value,
-            display: result.value,
+            display: {line1: result.value},
             sorted: true,
           };
         } else {
           return {
             value: 0,
-            display: 'No Votes',
+            display: {line1: 'No Votes'},
             sorted: false,
           };
         }
@@ -285,13 +302,13 @@ export default {
         if (result) {
           return {
             value: result.value,
-            display: result.value,
+            display: {line1: result.value},
             sorted: true,
           };
         } else {
           return {
             value: 0,
-            display: 'Not Scored',
+            display: {line1: 'Not Scored'},
             sorted: false,
           };
         }
@@ -303,13 +320,13 @@ export default {
         if (result) {
           return {
             value: result.value,
-            display: result.value,
+            display: {line1: result.value},
             sorted: true,
           };
         } else {
           return {
             value: 0,
-            display: 'Not Listed',
+            display: {line1: 'Not Listed'},
             sorted: false,
           };
         }
@@ -321,13 +338,13 @@ export default {
         if (result) {
           return {
             value: result.value,
-            display: result.value,
+            display: {line1: result.value},
             sorted: true,
           };
         } else {
           return {
             value: 0,
-            display: 'Not Scored',
+            display: {line1: 'Not Scored'},
             sorted: false,
           };
         }
@@ -342,6 +359,7 @@ export default {
         ...movie,
         databaseId: movie.id,
         hatDrawIndex: index,
+        dateDrawn: movie.dateDrawn,
         poster: `https://www.movienewz.com/wp-content/uploads/2014/07/poster-holder.jpg`,
         fullData: false
       };
@@ -440,10 +458,15 @@ export default {
           align-items: center;
           color: black;
           display: flex;
+          font-size: 0.8rem;
           justify-content: center;
           margin: 0;
-          padding: 20px 0 0;
           text-decoration: none;
+
+          &:first-of-type {
+            font-size: 1rem;
+            padding: 20px 0 0;
+          }
         }
       }
     }
