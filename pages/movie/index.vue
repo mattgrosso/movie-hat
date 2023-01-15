@@ -173,14 +173,14 @@ export default {
     },
   },
   async mounted() {
+    this.getProviders();
+    this.movieData(this.drawnMovie);
+
     this.fullHistory = await Promise.all(
       this.$store.state.history.map(async (movie, index) => {
         return this.movieData(movie, true);
       })
     );
-
-    this.getProviders();
-    this.movieData(this.drawnMovie);
   },
 };
 </script>
