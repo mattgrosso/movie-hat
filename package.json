@@ -19,10 +19,12 @@
     "fast-average-color": "^6.3.0",
     "lodash": "^4.17.20",
     "nuxt": "^2.14.6",
+    "nuxt-lazy-load": "^1.2.9",
     "sass": "^1.57.1",
     "sass-loader": "^10.1.1",
     "string-similarity": "^4.0.4",
-    "style-loader": "^2.0.0"
+    "style-loader": "^2.0.0",
+    "vue-observe-visibility": "^1.0.0"
   },
   "devDependencies": {
     "eslint-config-prettier": "^6.12.0",

@@ -31,4 +31,7 @@ yarn deploy
 
 ```
 
+Sentry is set up to record errors (I think. It's possible that they want money)
+https://sentry.io/organizations/matthew-grosso/issues/?query=is%3Aunresolved
+
 For detailed explanation on how things work, check out [Nuxt.js docs](https://nuxtjs.org).

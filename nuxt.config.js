@@ -54,7 +54,8 @@ export default {
   modules: [
     // https://go.nuxtjs.dev/axios
     '@nuxtjs/axios',
-    '@nuxtjs/sentry'
+    '@nuxtjs/sentry',
+    'nuxt-lazy-load'
   ],
 
   sentry: {

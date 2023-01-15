@@ -53,13 +53,21 @@
         :class="{ 'no-value': !sortParser(movie).sorted }"
         v-for="(movie, index) in sortedHistory"
         :key="index"
+        v-observe-visibility="{
+          callback: loadFullData,
+          intersection: {
+            rootMargin: '500px'
+          }
+        }"
+        :data-movieid="movie.databaseId"
+        :data-loaded="movie.fullData"
       >
         <a
           :href="`https://www.google.com/search?q=${movie.title}`"
           target="_blank"
         >
           <img :src="movie.poster" :alt="`${movie.title} poster`" />
-          <p v-if="sortParser(movie).display">
+          <p v-if="movie.fullData && sortParser(movie).display">
             {{ sortParser(movie).display }}
           </p>
         </a>
@@ -74,6 +82,7 @@
 </template>
 
 <script>
+import { ObserveVisibility } from 'vue-observe-visibility';
 import justWatch from '@/assets/justwatch-api.mjs';
 const jw = new justWatch();
 
@@ -84,6 +93,9 @@ export default {
       selectedSort: 'watch_order',
       ascending: -1,
     };
+  },
+  directives: {
+    ObserveVisibility
   },
   watch: {
     selectedSort(newVal) {
@@ -131,6 +143,57 @@ export default {
     },
   },
   methods: {
+    async loadFullData (isVisible, intersectionObserver) {
+      const dataset = intersectionObserver.target.dataset;
+      
+      const alreadyLoaded = dataset.loaded ? JSON.parse(dataset.loaded) : false;
+
+      if (!isVisible || alreadyLoaded) {
+        return;
+      }
+
+      let fullHistoryIndex;
+
+      const movie = this.fullHistory.find((movie, index) => {
+        fullHistoryIndex = index;
+        return dataset.movieid === movie.databaseId;
+      });
+
+      const data = await jw.search(movie.title);
+      
+      let posterUrl;
+
+      if (data.items[0]) {
+        posterUrl = `https://images.justwatch.com${data.items[0].poster.replace(
+          '{profile}',
+          ''
+        )}s718`;
+
+        const movieData = {
+          ...data.items[0],
+          poster: posterUrl,
+          databaseId: movie.id,
+          dateAdded: movie.timeStamp,
+          hatDrawIndex: movie.hatDrawIndex,
+          fullData: true
+        };
+
+        let tempFullHistory = [ ...this.fullHistory ];
+        tempFullHistory[fullHistoryIndex] = movieData;
+        this.fullHistory = [ ...tempFullHistory ];
+      } else {
+        posterUrl = `https://www.movienewz.com/wp-content/uploads/2014/07/poster-holder.jpg`;
+
+        const movieData = {
+          ...movie,
+          poster: posterUrl,
+        };
+
+        let tempFullHistory = [ ...this.fullHistory ];
+        tempFullHistory[fullHistoryIndex] = movieData;
+        this.fullHistory = [ ...tempFullHistory ];
+      }
+    },
     sortParser(movie) {
       if (this.selectedSort === 'cinema_release_date') {
         if (movie.cinema_release_date) {
@@ -275,34 +338,13 @@ export default {
       }
     },
     async movieData(movie, index) {
-      const data = await jw.search(movie.title);
-      let posterUrl;
-
-      if (data.items[0]) {
-        posterUrl = `https://images.justwatch.com${data.items[0].poster.replace(
-          '{profile}',
-          ''
-        )}s718`;
-
-        const movieData = {
-          ...data.items[0],
-          poster: posterUrl,
-          databaseId: movie.id,
-          dateAdded: movie.timeStamp,
-          hatDrawIndex: index,
-        };
-
-        return movieData;
-      } else {
-        posterUrl = `https://www.movienewz.com/wp-content/uploads/2014/07/poster-holder.jpg`;
-
-        const movieData = {
-          ...movie,
-          poster: posterUrl,
-        };
-
-        return movieData;
-      }
+      return {
+        ...movie,
+        databaseId: movie.id,
+        hatDrawIndex: index,
+        poster: `https://www.movienewz.com/wp-content/uploads/2014/07/poster-holder.jpg`,
+        fullData: false
+      };
     },
     ordinalNumber(number) {
       const lastDigit = number % 10;
