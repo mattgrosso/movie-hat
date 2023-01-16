@@ -1,5 +1,5 @@
 <template>
-  <div class="history">
+  <div class="history" :style="cssVars">
     <div class="history-count">
       <h1>
         <span :class="{ transparent: !fullHistory.length }">
@@ -56,7 +56,7 @@
         v-observe-visibility="{
           callback: loadFullData,
           intersection: {
-            rootMargin: '500px'
+            rootMargin: '1000px'
           }
         }"
         :data-movieid="movie.databaseId"
@@ -66,7 +66,13 @@
           :href="`https://www.google.com/search?q=${movie.title}`"
           target="_blank"
         >
-          <img :src="movie.poster" :alt="`${movie.title} poster`" />
+          <img v-if="movie.poster" :src="movie.poster" :alt="`${movie.title} poster`" />
+          <div v-if="!movie.poster" class="poster-loading" ref="poster-loading">
+            <div class="spinner-grow text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+          
           <p v-if="movie.fullData && sortParser(movie).display.line1">
             {{ sortParser(movie).display.line1 }}
           </p>
@@ -95,7 +101,11 @@ export default {
       fullHistory: [],
       selectedSort: 'watch_order',
       ascending: -1,
+      posterLoadingWidth: 0
     };
+  },
+  updated() {
+    this.setPosterLoadingWidth();
   },
   directives: {
     ObserveVisibility
@@ -116,13 +126,23 @@ export default {
     },
   },
   async mounted() {
+    window.addEventListener("resize", this.setPosterLoadingWidth);
+
     this.fullHistory = await Promise.all(
       this.$store.state.history.map(async (movie, index) => {
         return this.movieData(movie, index);
       })
     );
   },
+  destroyed () {
+    window.removeEventListener("resize", this.setPosterLoadingWidth);
+  },
   computed: {
+    cssVars () {
+      return {
+        "--posterLoadingWidth": `${this.posterLoadingWidth}px`,
+      }
+    },
     sortedHistory() {
       const sortedHistory = [...this.fullHistory];
 
@@ -146,6 +166,9 @@ export default {
     },
   },
   methods: {
+    setPosterLoadingWidth () {
+      this.posterLoadingWidth = this.$refs["poster-loading"][0]?.offsetWidth;
+    },
     async loadFullData (isVisible, intersectionObserver) {
       const dataset = intersectionObserver.target.dataset;
       
@@ -360,7 +383,6 @@ export default {
         databaseId: movie.id,
         hatDrawIndex: index,
         dateDrawn: movie.dateDrawn,
-        poster: `https://www.movienewz.com/wp-content/uploads/2014/07/poster-holder.jpg`,
         fullData: false
       };
     },
@@ -449,6 +471,15 @@ export default {
         padding: 24px;
         position: relative;
         text-decoration: none;
+        width: 100%;
+
+        .poster-loading {
+          align-items: center;
+          display: flex;
+          height: calc(var(--posterLoadingWidth) * 1.5);
+          justify-content: center;
+          width: 100%;
+        }
 
         img {
           width: 100%;
