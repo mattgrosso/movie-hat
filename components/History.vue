@@ -222,7 +222,11 @@ export default {
       }
     },
     sortParser(movie) {
-      if (this.selectedSort === 'cinema_release_date') {
+      if (!movie) {
+        return {
+          sorted: true,
+        };
+      } else if (this.selectedSort === 'cinema_release_date') {
         if (movie.cinema_release_date) {
           return {
             value: Date.parse(movie.cinema_release_date),
