@@ -128,6 +128,8 @@ export default {
   async mounted() {
     window.addEventListener("resize", this.setPosterLoadingWidth);
 
+    this.$store.dispatch('loadHat', `${this.devPrefix}hat`);
+    
     this.fullHistory = await Promise.all(
       this.$store.state.history.map(async (movie, index) => {
         return this.movieData(movie, index);

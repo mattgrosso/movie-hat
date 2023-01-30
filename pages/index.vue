@@ -6,10 +6,10 @@
       @start-adding-movie="showDrawMovie = false"
       @finish-adding-movie="showDrawMovie = true"
     />
-    <p v-if="showAddMovie && showDrawMovie" class="text-white text-center m-0">
+    <p v-if="showAddMovie" class="text-white text-center m-0" :class="{transparent: !showDrawMovie}">
       - or -
     </p>
-    <draw-movie v-if="showDrawMovie" :dev-mode="devMode" />
+    <draw-movie :class="{transparent: !showDrawMovie}" :dev-mode="devMode" />
     <div class="hr mb-3"></div>
     <history />
   </div>
@@ -60,6 +60,11 @@ export default {
 
   .hr {
     border-top: 1px solid white;
+  }
+
+  .transparent {
+    opacity: 0;
+    pointer-events: none;
   }
 }
 </style>
