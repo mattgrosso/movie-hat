@@ -4,6 +4,7 @@
       <span>
         Movie Hat
       </span>
+      <div class="mat"></div>
     </h1>
   </div>
 </template>
@@ -21,16 +22,32 @@ export default {
       border: 12px solid black;
       box-shadow: inset 0px 0px 9px 0px #424242;
       font-family: "Monoton", cursive;
+      height: 150px;
       margin: 6px;
-      min-height: 150px;
-      padding: 24px;
+      overflow: hidden;
+      position: relative;
       width: calc(100% - 12px);
 
       span {
+        align-items: center;
         background: black;
         color: #6ba2dc;
-        font-size: 2.9rem;
-        padding: 24px;
+        display: flex;
+        font-size: 2.5rem;
+        height: 100%;
+        justify-content: center;
+        padding: 24px 64px;
+        white-space: nowrap;
+        width: 100%;
+      }
+
+      .mat {
+        border: 24px solid white;
+        bottom: 0;
+        left: 0;
+        position: absolute;
+        right: 0;
+        top: 0;
       }
     }
   }
