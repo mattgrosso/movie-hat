@@ -5,7 +5,7 @@ export default createStore({
   state: {
     movieHat: null,
     history: null,
-    databasePrefix: "dev-",
+    databasePrefix: "",
     drawnMovie: null,
     movieChoices: null
   },
