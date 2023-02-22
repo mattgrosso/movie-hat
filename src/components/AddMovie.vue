@@ -18,10 +18,10 @@
           <span v-else>Add Movie</span>
         </button>
       </div>
-      <div v-if="message" class="message">
-        <p>{{ message }}</p>
-      </div>
     </form>
+    <div v-if="message" class="message px-3">
+      <p class="m-0">{{ message }}</p>
+    </div>
   </div>
 </template>
 
@@ -66,9 +66,12 @@ export default {
 
       if (!choices.length) {
         this.showMessage(
-          `We couldn't find ${this.movieTitle}. Are you sure it's a real movie?`,
+          `We couldn't find ${this.movieTitle}.`,
           6000
         );
+
+        this.loading = false;
+        return;
       }
 
       if (choices.length > 12) {
@@ -112,13 +115,14 @@ export default {
     display: flex;
     height: 100%;
     justify-content: center;
+    position: relative;
     width: 100%;
 
     .message {
-      bottom: -16px;
+      bottom: -12px;
       color: white;
       position: absolute;
-      transform: translateY(100%);
+      left: 0;
     }
   }
 </style>

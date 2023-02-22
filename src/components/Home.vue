@@ -1,7 +1,7 @@
 <template>
   <div class="home p-3 d-flex justify-content-center flex-wrap">
     <AddMovie/>
-    <span class="col-12 d-flex justify-content-center text-decoration-underline text-white">or</span>
+    <span class="col-12 d-flex justify-content-center text-decoration-underline text-white my-3">or</span>
     <DrawMovie/>
     <hr>
     <History ref="history"/>
