@@ -56,7 +56,7 @@ export default createStore({
 
         if (resp.data) {
           history = Object.keys(resp.data).map((key) => {
-            const movie = { ...resp.data[key], id: key };
+            const movie = { ...resp.data[key], dbKey: key };
             return movie;
           });
         }

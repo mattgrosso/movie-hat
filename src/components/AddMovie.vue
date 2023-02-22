@@ -1,6 +1,6 @@
 <template>
-  <div class="add-movie p-4">
-    <form @submit.prevent="addMovie">
+  <div class="add-movie d-flex flex-wrap col-12 col-sm-4 col-md-3 col-lg-2 p-3">
+    <form class="col-12" @submit.prevent="addMovie">
       <div class="input-group">
         <input
           class="form-control"
@@ -29,13 +29,17 @@
 import axios from 'axios';
 
 export default {
-  data() {
+  data () {
     return {
       movieTitle: null,
       loading: false,
       message: null,
-      devPrefix: "dev-",
       showMessageCtas: false
+    }
+  },
+  computed: {
+    devPrefix () {
+      return this.$store.state.databasePrefix;
     }
   },
   methods: {
@@ -66,7 +70,7 @@ export default {
           6000
         );
       }
-      
+
       if (choices.length > 12) {
         choices.length = 12;
       }
@@ -86,7 +90,7 @@ export default {
 
       return 0;
     },
-    showMessage(message, delay, callBack) {
+    showMessage (message, delay, callBack) {
       delay = delay || 30000;
 
       this.message = message;
@@ -109,18 +113,6 @@ export default {
     height: 100%;
     justify-content: center;
     width: 100%;
-
-    form {
-      align-items: center;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      position: relative;
-
-      button {
-        min-width: 110px;
-      }
-    }
 
     .message {
       bottom: -16px;

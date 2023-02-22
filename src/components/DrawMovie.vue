@@ -25,21 +25,23 @@ import axios from 'axios';
 import sample from 'lodash/sample';
 
 export default {
-  data() {
+  data () {
     return {
       drawnMovie: null,
       loading: false,
-      message: null,
-      devPrefix: "dev-"
+      message: null
     };
   },
   computed: {
-    moviesInHat() {
+    devPrefix () {
+      return this.$store.state.databasePrefix;
+    },
+    moviesInHat () {
       return this.$store.state.movieHat?.length;
     }
   },
   methods: {
-    async drawMovie() {
+    async drawMovie () {
       this.loading = true;
 
       const movies = this.$store.state.movieHat;
@@ -62,7 +64,7 @@ export default {
         this.showMessage('No movies in the hat. Which is sad.');
       }
     },
-    async removeMovieFromHat(movie) {
+    async removeMovieFromHat (movie) {
       const movieForHistory = { ...movie, dateDrawn: Date.now() };
       delete movieForHistory.dbKey;
 
@@ -87,7 +89,7 @@ export default {
 
       this.$store.dispatch('getMovieHat');
     },
-    showMessage(message) {
+    showMessage (message) {
       this.message = message;
       setTimeout(() => {
         this.message = null;

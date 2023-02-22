@@ -36,13 +36,13 @@
 <script>
 export default {
   computed: {
-    drawnMovie() {
+    drawnMovie () {
       return this.$store.state.drawnMovie;
     },
     history () {
       return this.$store.state.history;
     },
-    daysAgo() {
+    daysAgo () {
       if (this.drawnMovie.timeStamp) {
         return `${Math.floor(
           (Date.now() - this.drawnMovie.timeStamp) / 1000 / 60 / 60 / 24

@@ -21,17 +21,18 @@
 
 <script>
 import axios from 'axios';
-import stringSimilarity from 'string-similarity';
 
 export default {
   data () {
     return {
       message: null,
-      chosenMovie: null,
-      devPrefix: "dev-"
+      chosenMovie: null
     }
   },
   computed: {
+    devPrefix () {
+      return this.$store.state.databasePrefix;
+    },
     searchResults () {
       return this.$store.state.movieChoices;
     }
@@ -81,7 +82,7 @@ export default {
     returnHome () {
       this.$router.push('/');
     },
-    showMessage(message, delay, callBack) {
+    showMessage (message, delay, callBack) {
       delay = delay || 30000;
 
       this.message = message;

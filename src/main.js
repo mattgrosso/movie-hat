@@ -4,6 +4,7 @@ import store from './store'
 import { createRouter, createWebHashHistory } from 'vue-router';
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap";
+import VueLazyLoad from 'vue3-lazyload';
 import Home from "./components/Home.vue";
 import PickAMovie from "./components/PickAMovie.vue";
 import DrawnMovie from "./components/DrawnMovie.vue";
@@ -11,6 +12,8 @@ import DrawnMovie from "./components/DrawnMovie.vue";
 const app = createApp(App);
 
 app.use(store);
+
+app.use(VueLazyLoad, {});
 
 // Router
 
