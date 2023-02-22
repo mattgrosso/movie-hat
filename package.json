@@ -1,34 +1,83 @@
 {
   "name": "movie-hat",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "export NODE_OPTIONS=--openssl-legacy-provider && nuxt",
-    "build": "nuxt build",
-    "start": "nuxt start",
-    "generate": "nuxt generate",
-    "deploy": "export NODE_OPTIONS=--openssl-legacy-provider && nuxt generate && surge dist/"
+    "serve": "vue-cli-service serve",
+    "build": "vue-cli-service build",
+    "lint": "vue-cli-service lint",
+    "deploy": "vue-cli-service build && surge dist/"
   },
   "dependencies": {
-    "@nuxtjs/axios": "^5.12.2",
-    "@nuxtjs/proxy": "^2.1.0",
-    "@nuxtjs/sentry": "^7.0.2",
-    "@sentry/tracing": "^7.30.0",
-    "@sentry/vue": "^7.30.0",
-    "core-js": "^3.6.5",
-    "fast-average-color": "^6.3.0",
-    "lodash": "^4.17.20",
-    "nuxt": "^2.14.6",
-    "nuxt-lazy-load": "^1.2.9",
-    "sass": "^1.57.1",
-    "sass-loader": "^10.1.1",
+    "@popperjs/core": "^2.11.6",
+    "axios": "^1.3.2",
+    "bootstrap": "^5.2.3",
+    "bootstrap-icons": "^1.10.3",
+    "core-js": "^3.8.3",
+    "fast-average-color": "^9.3.0",
+    "lodash": "^4.17.21",
+    "ordinal-js": "^1.1.0",
     "string-similarity": "^4.0.4",
-    "style-loader": "^2.0.0",
-    "vue-observe-visibility": "^1.0.0"
+    "vue": "^3.2.13",
+    "vue-router": "^4.1.6",
+    "vue3-lazyload": "^0.3.6",
+    "vuex": "^4.0.0"
   },
   "devDependencies": {
-    "eslint-config-prettier": "^6.12.0",
-    "eslint-plugin-prettier": "^3.1.4",
-    "prettier": "^2.1.2"
-  }
+    "@babel/core": "^7.12.16",
+    "@babel/eslint-parser": "^7.12.16",
+    "@vue/cli-plugin-babel": "~5.0.0",
+    "@vue/cli-plugin-eslint": "~5.0.0",
+    "@vue/cli-plugin-vuex": "~5.0.0",
+    "@vue/cli-service": "~5.0.0",
+    "@vue/eslint-config-standard": "^6.1.0",
+    "eslint": "^7.32.0",
+    "eslint-plugin-import": "^2.25.3",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^5.1.0",
+    "eslint-plugin-vue": "^8.0.3",
+    "sass": "^1.58.0",
+    "sass-loader": "^13.2.0"
+  },
+  "eslintConfig": {
+    "root": true,
+    "env": {
+      "node": true
+    },
+    "extends": [
+      "plugin:vue/vue3-essential",
+      "@vue/standard"
+    ],
+    "parserOptions": {
+      "parser": "@babel/eslint-parser"
+    },
+    "rules": {
+      "vue/multi-word-component-names": "off",
+      "no-trailing-spaces": "warn",
+      "eol-last": "off",
+      "quotes": [
+        "off",
+        "double"
+      ],
+      "semi": "off",
+      "comma-dangle": "off",
+      "space-before-function-paren": "warn",
+      "indent": "warn",
+      "no-undef": "warn",
+      "padded-blocks": "warn",
+      "object-curly-spacing": "warn",
+      "array-bracket-spacing": "warn",
+      "no-unused-vars": "warn",
+      "no-empty": "warn",
+      "prefer-const": "warn",
+      "no-multiple-empty-lines": "warn",
+      "no-useless-return": "off"
+    }
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "not ie 11"
+  ]
 }

@@ -1,37 +1,24 @@
 # movie-hat
 
-## Build Setup
-
-[install homebrew](https://docs.brew.sh/Installation)
-
-```bash
-# install dependencies
-brew install asdf
-
-asdf plugin add nodejs
-
-asdf plugin add yarn
-
-asdf install
-
+## Project setup
+```
 yarn install
-
-# serve with hot reload at localhost:8000
-yarn dev
-
-# build for production and launch server
-yarn build
-yarn start
-
-# generate static project
-yarn generate
-
-# deploy using surge.sh (you might need to run `export NODE_OPTIONS=--openssl-legacy-provider`)
-yarn deploy
-
 ```
 
-Sentry is set up to record errors (I think. It's possible that they want money)
-https://sentry.io/organizations/matthew-grosso/issues/?query=is%3Aunresolved
+### Compiles and hot-reloads for development
+```
+yarn serve
+```
 
-For detailed explanation on how things work, check out [Nuxt.js docs](https://nuxtjs.org).
+### Compiles and minifies for production
+```
+yarn build
+```
+
+### Lints and fixes files
+```
+yarn lint
+```
+
+### Customize configuration
+See [Configuration Reference](https://cli.vuejs.org/config/).

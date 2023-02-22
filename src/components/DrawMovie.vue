@@ -22,78 +22,74 @@
 
 <script>
 import axios from 'axios';
+import sample from 'lodash/sample';
 
 export default {
-  data() {
+  data () {
     return {
       drawnMovie: null,
       loading: false,
-      message: null,
+      message: null
     };
   },
   computed: {
-    moviesInHat() {
-      return this.$store.state.hat.length;
+    devPrefix () {
+      return this.$store.state.databasePrefix;
     },
-    devPrefix() {
-      return this.$store.state.devMode ? 'dev-' : '';
-    },
+    moviesInHat () {
+      return this.$store.state.movieHat?.length;
+    }
   },
   methods: {
-    async drawMovie() {
+    async drawMovie () {
       this.loading = true;
 
-      const movies = await this.$store.dispatch(
-        'loadHat',
-        `${this.devPrefix}hat`
-      );
-      this.loading = false;
+      const movies = this.$store.state.movieHat;
 
       if (movies.length) {
-        const randomMovie = _.sample(movies);
+        const randomMovie = sample(movies);
         this.drawnMovie = randomMovie;
 
-        this.removeMovieFromHat(randomMovie);
+        await this.removeMovieFromHat(randomMovie);
 
-        this.$router.push({
-          name: 'movie',
-          params: { movie: this.drawnMovie },
-        });
+        this.$store.commit('setDrawnMovie', randomMovie);
+
+        this.$store.dispatch('getMovieHat');
+        this.$store.dispatch('getHistory');
+
+        this.loading = false;
+
+        this.$router.push('/drawn-movie');
       } else {
         this.showMessage('No movies in the hat. Which is sad.');
-        return 'Error Loading Movie Title';
       }
     },
-    async removeMovieFromHat(movie) {
+    async removeMovieFromHat (movie) {
       const movieForHistory = { ...movie, dateDrawn: Date.now() };
-      delete movieForHistory.id;
+      delete movieForHistory.dbKey;
 
       const addToHistory = await axios.post(
         `https://movie-hat-9c418-default-rtdb.firebaseio.com/${this.devPrefix}history.json`,
         movieForHistory
       );
 
-      if (addToHistory.statusText != 'OK') {
-        console.error(
-          'Something went wrong with moving to History: ',
-          addToHistory
-        );
+      if (addToHistory.statusText !== 'OK') {
+        console.error('Something went wrong with moving to History: ', addToHistory);
         return;
       }
 
       const removeFromHat = await axios.delete(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/${this.devPrefix}hat/${movie.id}.json`
+        `https://movie-hat-9c418-default-rtdb.firebaseio.com/${this.devPrefix}hat/${movie.dbKey}.json`
       );
 
-      if (removeFromHat.statusText != 'OK') {
+      if (removeFromHat.statusText !== 'OK') {
         console.log('Something went wrong with movie delete: ', removeFromHat);
         return;
       }
 
-      await this.$store.dispatch('loadHat', `${this.devPrefix}hat`);
-      await this.$store.dispatch('loadHistory', `${this.devPrefix}history`);
+      this.$store.dispatch('getMovieHat');
     },
-    showMessage(message) {
+    showMessage (message) {
       this.message = message;
       setTimeout(() => {
         this.message = null;
