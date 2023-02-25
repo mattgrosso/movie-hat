@@ -1,11 +1,16 @@
 <template>
-  <div class="hats col-12">
+  <div class="hats col-12 px-3 mb-5">
     <div v-if="message" class="message px-3 text-white">
       <p class="m-0">{{ message }}</p>
     </div>
-    <div class="hats-list">
+    <div v-if="loading" class="loading d-flex justify-content-center my-5">
+      <div class="spinner-border" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+    <div v-if="!loading" class="hats-list">
       <ul v-if="memberHats.length" class="p-0 m-0">
-        <li class="card my-3" v-for="(hat, index) in memberHats" :key="index">
+        <li class="card m-3" v-for="(hat, index) in memberHats" :key="index">
           <div class="card-header text-end">
             <button class="btn btn-primary" @click="goToHat(index)">{{hat.title}}</button>
           </div>
@@ -30,7 +35,7 @@
         </div>
       </div>
     </div>
-    <div class="button-wrapper d-flex justify-content-end">
+    <div v-if="!loading" class="button-wrapper d-flex justify-content-end">
       <button class="btn btn-primary d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#newHatModal">
         Add New Hat
       </button>
@@ -68,13 +73,16 @@ import axios from 'axios';
 export default {
   data () {
     return {
+      loading: false,
       newHatTitle: null,
       memberHats: [],
       message: null
     }
   },
   async mounted () {
+    this.loading = true;
     await this.getMemberHats();
+    this.loading = false;
   },
   methods: {
     async getMemberHats () {
