@@ -3,8 +3,8 @@
     <AddMovie/>
     <span class="col-12 d-flex justify-content-center text-decoration-underline text-white my-3">or</span>
     <DrawMovie/>
-    <hr>
-    <History ref="history"/>
+    <hr v-if="showHistory" class="mx-auto">
+    <History v-if="showHistory" ref="history"/>
     <div class="back-to-top" :class="{hidden: !showBackToTop}" @click="scrollToTop">
       <span>Back to Top</span>
     </div>
@@ -45,6 +45,11 @@ export default {
   },
   unmounted () {
     window.removeEventListener('scroll', this.handleScroll);
+  },
+  computed: {
+    showHistory () {
+      return this.$store.state.history ? this.$store.state.history.length : false;
+    }
   },
   methods: {
     handleScroll () {

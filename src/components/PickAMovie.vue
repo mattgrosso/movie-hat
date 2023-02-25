@@ -1,7 +1,7 @@
 <template>
   <div class="pick-a-movie mx-auto">
     <div v-if="message" class="movie-added col-12 d-flex justify-content-center flex-wrap">
-      <div v-if="chosenMovie" class="image-wrapper col-8">
+      <div v-if="chosenMovie" class="image-wrapper col-6">
         <img
           v-if="chosenMovie.poster_path"
           class="poster col-12"
