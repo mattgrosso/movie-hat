@@ -30,8 +30,8 @@ export default {
     }
   },
   computed: {
-    devPrefix () {
-      return this.$store.state.databasePrefix;
+    movieHatTitle () {
+      return this.$store.state.movieHatTitle;
     },
     searchResults () {
       return this.$store.state.movieChoices;
@@ -58,7 +58,7 @@ export default {
       this.isMovieAlreadyInHat(movie);
 
       const post = await axios.post(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/${this.devPrefix}hat.json`,
+        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.movieHatTitle}/movies.json`,
         { ...movie, timeStamp: Date.now() }
       );
 

@@ -37,11 +37,6 @@ export default {
       showMessageCtas: false
     }
   },
-  computed: {
-    devPrefix () {
-      return this.$store.state.databasePrefix;
-    }
-  },
   methods: {
     async addMovie () {
       this.loading = true;

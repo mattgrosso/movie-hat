@@ -154,8 +154,11 @@ export default {
       this.getMemberHats();
     },
     goToHat (index) {
-      
-    }
+      const title = this.memberHats[index].title;
+      this.$store.commit("setMovieHatTitle", title);
+      this.$store.dispatch("getMovieHat");
+      this.$store.dispatch("getHistory");
+    },
     validateEmail (email) {
       const valid = String(email)
         .toLowerCase()

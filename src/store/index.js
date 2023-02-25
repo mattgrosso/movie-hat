@@ -6,7 +6,7 @@ export default createStore({
     email: null,
     movieHat: null,
     history: null,
-    databasePrefix: "dev-",
+    movieHatTitle: null,
     drawnMovie: null,
     movieChoices: null
   },
@@ -20,6 +20,9 @@ export default createStore({
     setMovieHat (state, value) {
       state.movieHat = value;
     },
+    setMovieHatTitle (state, value) {
+      state.movieHatTitle = value;
+    },
     setHistory (state, value) {
       state.history = value;
     },
@@ -32,8 +35,18 @@ export default createStore({
   },
   actions: {
     async getMovieHat (context) {
+      const respForKey = await axios.get(
+        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${context.state.movieHatTitle}.json`
+      );
+
+      if (!respForKey.data) {
+        return;
+      }
+
+      const dbKey = Object.keys(respForKey.data)[0]
+
       const resp = await axios.get(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/${context.state.databasePrefix}hat.json`
+        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${context.state.movieHatTitle}/${dbKey}/movies.json`
       );
 
       if (resp.statusText === 'OK') {
@@ -52,8 +65,18 @@ export default createStore({
       }
     },
     async getHistory (context) {
+      const respForKey = await axios.get(
+        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${context.state.movieHatTitle}.json`
+      );
+
+      if (!respForKey.data) {
+        return;
+      }
+
+      const dbKey = Object.keys(respForKey.data)[0]
+
       const resp = await axios.get(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/${context.state.databasePrefix}history.json`
+        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${context.state.movieHatTitle}/${dbKey}/history.json`
       );
 
       if (resp.statusText === 'OK' && resp.data) {

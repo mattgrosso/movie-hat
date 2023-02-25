@@ -33,8 +33,8 @@ export default {
     };
   },
   computed: {
-    devPrefix () {
-      return this.$store.state.databasePrefix;
+    movieHatTitle () {
+      return this.$store.state.movieHatTitle;
     },
     moviesInHat () {
       return this.$store.state.movieHat?.length;
@@ -69,7 +69,7 @@ export default {
       delete movieForHistory.dbKey;
 
       const addToHistory = await axios.post(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/${this.devPrefix}history.json`,
+        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.movieHatTitle}/history.json`,
         movieForHistory
       );
 
@@ -79,7 +79,7 @@ export default {
       }
 
       const removeFromHat = await axios.delete(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/${this.devPrefix}hat/${movie.dbKey}.json`
+        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.movieHatTitle}/movies/${movie.dbKey}.json`
       );
 
       if (removeFromHat.statusText !== 'OK') {
