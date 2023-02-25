@@ -2,13 +2,35 @@
   <div class="pick-a-movie mx-auto">
     <div v-if="message" class="movie-added col-12 d-flex justify-content-center flex-wrap">
       <div v-if="chosenMovie" class="image-wrapper col-8">
-        <img class="poster col-12" :src="`https://image.tmdb.org/t/p/original${chosenMovie.poster_path}`" align="center">
+        <img
+          v-if="chosenMovie.poster_path"
+          class="poster col-12"
+          :src="`https://image.tmdb.org/t/p/original${chosenMovie.poster_path}`"
+          align="center"
+        >
+        <img
+          v-else
+          class="card-img-top not-found"
+          src="../assets/images/Image_not_available.png"
+          align="center"
+        >
       </div>
       <p class="col-12 px-5">{{message}}</p>
     </div>
     <ul v-else class="p-0 d-flex justify-content-around flex-wrap">
       <li class="card shadow border" v-for="movie in searchResults" :key="movie.id" @click="addToHat(movie)">
-        <img class="card-img-top" :src="`https://image.tmdb.org/t/p/original${movie.poster_path}`" align="center">
+        <img
+          v-if="movie.poster_path"
+          class="card-img-top"
+          :src="`https://image.tmdb.org/t/p/original${movie.poster_path}`"
+          align="center"
+        >
+        <img
+          v-else
+          class="card-img-top not-found"
+          src="../assets/images/Image_not_available.png"
+          align="center"
+        >
         <p class="my-3 mx-1 card-text text-center" :title="movie.title">
           {{truncate(movie.title)}}
           <br>
@@ -63,7 +85,7 @@ export default {
       );
 
       if (post.statusText === 'OK') {
-        this.$store.dispatch('getMovieHat');
+        this.$store.dispatch('getHat');
 
         this.showMessage(
           `${this.chosenMovie.title} was added to the hat.`,

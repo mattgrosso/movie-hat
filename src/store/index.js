@@ -7,6 +7,7 @@ export default createStore({
     movieHat: null,
     history: null,
     movieHatTitle: null,
+    dbKeyForHatTitle: null,
     drawnMovie: null,
     movieChoices: null
   },
@@ -21,7 +22,11 @@ export default createStore({
       state.movieHat = value;
     },
     setMovieHatTitle (state, value) {
+      window.localStorage.setItem('defaultMovieHatTitle', JSON.stringify(value));
       state.movieHatTitle = value;
+    },
+    setDbKeyForHatTitle (state, value) {
+      state.dbKeyForHatTitle = value;
     },
     setHistory (state, value) {
       state.history = value;
@@ -34,7 +39,7 @@ export default createStore({
     }
   },
   actions: {
-    async getMovieHat (context) {
+    async getHat (context) {
       const respForKey = await axios.get(
         `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${context.state.movieHatTitle}.json`
       );
@@ -43,52 +48,33 @@ export default createStore({
         return;
       }
 
-      const dbKey = Object.keys(respForKey.data)[0]
+      const dbKey = Object.keys(respForKey.data)[0];
+      context.commit("setDbKeyForHatTitle", dbKey);
 
       const resp = await axios.get(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${context.state.movieHatTitle}/${dbKey}/movies.json`
-      );
-
-      if (resp.statusText === 'OK') {
-        let hatAsArray = [];
-
-        if (resp.data) {
-          hatAsArray = Object.keys(resp.data).map((key) => {
-            const movie = { ...resp.data[key], dbKey: key };
-            return movie;
-          });
-        }
-
-        this.commit('setMovieHat', hatAsArray);
-      } else {
-        console.log(resp);
-      }
-    },
-    async getHistory (context) {
-      const respForKey = await axios.get(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${context.state.movieHatTitle}.json`
-      );
-
-      if (!respForKey.data) {
-        return;
-      }
-
-      const dbKey = Object.keys(respForKey.data)[0]
-
-      const resp = await axios.get(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${context.state.movieHatTitle}/${dbKey}/history.json`
+        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${context.state.movieHatTitle}/${dbKey}.json`
       );
 
       if (resp.statusText === 'OK' && resp.data) {
-        let history = [];
+        let hatAsArray = [];
 
-        if (resp.data) {
-          history = Object.keys(resp.data).map((key) => {
-            const movie = { ...resp.data[key], dbKey: key };
+        if (resp.data.movies) {
+          hatAsArray = Object.keys(resp.data.movies).map((key) => {
+            const movie = { ...resp.data.movies[key], dbKey: key };
             return movie;
           });
         }
 
+        let history = [];
+        
+        if (resp.data.history) {
+          history = Object.keys(resp.data.history).map((key) => {
+            const movie = { ...resp.data.history[key], dbKey: key };
+            return movie;
+          });
+        }
+        
+        this.commit('setMovieHat', hatAsArray);
         this.commit('setHistory', history);
       } else {
         console.log(resp);

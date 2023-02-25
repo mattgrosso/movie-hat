@@ -156,8 +156,8 @@ export default {
     goToHat (index) {
       const title = this.memberHats[index].title;
       this.$store.commit("setMovieHatTitle", title);
-      this.$store.dispatch("getMovieHat");
-      this.$store.dispatch("getHistory");
+      this.$store.dispatch("getHat");
+      this.$router.push("/");
     },
     validateEmail (email) {
       const valid = String(email)

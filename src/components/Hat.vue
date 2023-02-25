@@ -27,6 +27,19 @@ export default {
       showBackToTop: false
     }
   },
+  mounted () {
+    const defaultMovieHatTitle = JSON.parse(window.localStorage.getItem('defaultMovieHatTitle'));
+
+    if (defaultMovieHatTitle) {
+      this.$store.commit("setMovieHatTitle", defaultMovieHatTitle);
+    }
+
+    if (!this.$store.state.movieHatTitle) {
+      this.$router.push("/hat-list");
+    }
+    
+    this.$store.dispatch('getHat');
+  },
   created () {
     window.addEventListener('scroll', this.handleScroll);
   },
@@ -52,6 +65,39 @@ export default {
 }
 </script>
 
-<style>
+<style lang="scss">
+  .hat {
+    position: relative;
 
+    hr {
+      border-top: 1px solid white;
+      opacity: 1;
+      width: 90%;
+    }
+
+    .back-to-top {
+      background: white;
+      border-bottom-left-radius: 4px;
+      border-bottom-right-radius: 4px;
+      box-shadow: 0px 0px 6px 0px #adadad;
+      cursor: pointer;
+      display: flex;
+      left: 50%;
+      max-height: 50px;
+      position: fixed;
+      top: 0;
+      transform: translateX(-50%);
+      transition: 0.25s max-height ease-in-out;
+      overflow: hidden;
+
+      &.hidden {
+        max-height: 0;
+      }
+
+      span {
+        font-size: 0.75rem;
+        padding: 6px 24px;
+      }
+    }
+  }
 </style>

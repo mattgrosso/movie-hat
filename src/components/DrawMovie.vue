@@ -54,8 +54,7 @@ export default {
 
         this.$store.commit('setDrawnMovie', randomMovie);
 
-        this.$store.dispatch('getMovieHat');
-        this.$store.dispatch('getHistory');
+        this.$store.dispatch('getHat');
 
         this.loading = false;
 
@@ -68,8 +67,22 @@ export default {
       const movieForHistory = { ...movie, dateDrawn: Date.now() };
       delete movieForHistory.dbKey;
 
+      if (!this.$store.state.dbKeyForHatTitle) {
+        const respForKey = await axios.get(
+          `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.$store.state.movieHatTitle}.json`
+        );
+
+        if (!respForKey.data) {
+          return;
+        }
+
+        context.commit("setDbKeyForHatTitle", Object.keys(respForKey.data)[0]);
+      }
+
+      const dbKey = this.$store.state.dbKeyForHatTitle;
+
       const addToHistory = await axios.post(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.movieHatTitle}/history.json`,
+        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.movieHatTitle}/${dbKey}/history.json`,
         movieForHistory
       );
 
@@ -79,7 +92,7 @@ export default {
       }
 
       const removeFromHat = await axios.delete(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.movieHatTitle}/movies/${movie.dbKey}.json`
+        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.movieHatTitle}/${dbKey}/movies/${movie.dbKey}.json`
       );
 
       if (removeFromHat.statusText !== 'OK') {
@@ -87,7 +100,7 @@ export default {
         return;
       }
 
-      this.$store.dispatch('getMovieHat');
+      this.$store.dispatch('getHat');
     },
     showMessage (message) {
       this.message = message;

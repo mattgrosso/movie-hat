@@ -36,9 +36,16 @@
         >
           <span class="text-white my-1 text-center">({{drawRank(movie)}} drawn)</span>
           <img
+            v-if="movie.poster_path"
             v-lazy="`https://image.tmdb.org/t/p/original${movie.poster_path}`"
             :alt="`${movie.title} poster`"
           />
+          <img
+            v-else
+            class="card-img-top not-found"
+            src="../assets/images/Image_not_available.png"
+            align="center"
+          >
         </a>
       </li>
     </ul>

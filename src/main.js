@@ -6,9 +6,10 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap";
 import VueLazyLoad from 'vue3-lazyload';
 import vue3GoogleLogin from 'vue3-google-login'
-import Home from "./components/Home.vue";
 import PickAMovie from "./components/PickAMovie.vue";
 import DrawnMovie from "./components/DrawnMovie.vue";
+import Hat from "./components/Hat.vue";
+import HatList from "./components/HatsList.vue";
 
 const app = createApp(App);
 
@@ -23,9 +24,10 @@ app.use(vue3GoogleLogin, {
 // Router
 
 const routes = [
-  { path: '/', component: Home },
+  { path: '/', component: Hat },
   { path: '/pick-a-movie', component: PickAMovie },
   { path: '/drawn-movie', component: DrawnMovie },
+  { path: '/hat-list', component: HatList },
 ]
 
 const router = createRouter({
