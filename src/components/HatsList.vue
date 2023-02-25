@@ -165,6 +165,12 @@ export default {
       const title = this.memberHats[index].title;
       this.$store.commit("setMovieHatTitle", title);
       this.$store.dispatch("getHat");
+
+      window.scroll({
+        top: top,
+        behavior: 'smooth'
+      });
+
       this.$router.push("/");
     },
     validateEmail (email) {
