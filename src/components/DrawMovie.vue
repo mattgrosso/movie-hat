@@ -12,7 +12,8 @@
       Draw Movie
     </button>
     <p class="current-count text-white text-center m-0 p-2 col-12">
-      (There are currently {{ moviesInHat }} movies in the hat.)
+      <span v-if="moviesInHat === 1">(There is currently {{ moviesInHat }} movie in the hat.)</span>
+      <span v-else>(There are currently {{ moviesInHat }} movies in the hat.)</span>
     </p>
     <p v-if="message" class="message text-white my-2 col-12 text-center">
       {{ message }}

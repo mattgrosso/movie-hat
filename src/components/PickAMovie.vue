@@ -79,8 +79,22 @@ export default {
 
       this.isMovieAlreadyInHat(movie);
 
+      if (!this.$store.state.dbKeyForHatTitle) {
+        const respForKey = await axios.get(
+          `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.$store.state.movieHatTitle}.json`
+        );
+
+        if (!respForKey.data) {
+          return;
+        }
+
+        this.$store.commit("setDbKeyForHatTitle", Object.keys(respForKey.data)[0]);
+      }
+
+      const dbKey = this.$store.state.dbKeyForHatTitle;
+
       const post = await axios.post(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.movieHatTitle}/movies.json`,
+        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.movieHatTitle}/${dbKey}/movies.json`,
         { ...movie, timeStamp: Date.now() }
       );
 
