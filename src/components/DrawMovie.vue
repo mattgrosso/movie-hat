@@ -104,7 +104,6 @@ export default {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  height: 100%;
   justify-content: center;
   position: relative;
   width: 100%;

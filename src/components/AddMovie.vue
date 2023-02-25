@@ -113,7 +113,6 @@ export default {
   .add-movie {
     align-items: center;
     display: flex;
-    height: 100%;
     justify-content: center;
     position: relative;
     width: 100%;

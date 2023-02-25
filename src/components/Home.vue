@@ -1,56 +1,51 @@
 <template>
-  <div class="home p-3 d-flex justify-content-center flex-wrap">
-    <AddMovie/>
-    <span class="col-12 d-flex justify-content-center text-decoration-underline text-white my-3">or</span>
-    <DrawMovie/>
-    <hr>
-    <History ref="history"/>
-    <div class="back-to-top" :class="{hidden: !showBackToTop}" @click="scrollToTop">
-      <span>Back to Top</span>
+  <div class="home px-3 py-5 d-flex justify-content-center flex-wrap">
+    <div v-if="$store.state.email" class="user-email badge rounded-pill text-bg-dark">
+      <p class="text-white m-0" data-bs-toggle="modal" data-bs-target="#logOutModal">
+        {{$store.state.email}}
+      </p>
+    </div>
+    <HatsList/>
+    <Hat class="d-none"/>
+
+    <!-- Modals -->
+    <div class="modal fade" id="logOutModal" tabindex="-1" aria-labelledby="logOutModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="logOutModalLabel">Logout</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            Do you want to log out?
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Nevermind</button>
+            <button type="button" class="btn btn-primary" data-bs-dismiss="modal" @click="logOut">Log Out</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import AddMovie from "./AddMovie.vue";
-import DrawMovie from "./DrawMovie.vue";
-import History from "./History.vue";
+import HatsList from "./HatsList.vue";
+import Hat from "./Hat.vue";
 
 export default {
   components: {
-    AddMovie,
-    DrawMovie,
-    History
-  },
-  data () {
-    return {
-      showBackToTop: false
-    }
+    HatsList,
+    Hat
   },
   mounted () {
     this.$store.dispatch('getMovieHat');
     this.$store.dispatch('getHistory');
   },
-  created () {
-    window.addEventListener('scroll', this.handleScroll);
-  },
-  unmounted () {
-    window.removeEventListener('scroll', this.handleScroll);
-  },
   methods: {
-    handleScroll () {
-      const historyTop = this.$refs.history.$el.getBoundingClientRect().top;
-      if (historyTop < -500) {
-        this.showBackToTop = true;
-      } else {
-        this.showBackToTop = false;
-      }
-    },
-    scrollToTop () {
-      window.scroll({
-        top: top,
-        behavior: 'smooth'
-      });
+    logOut () {
+      window.localStorage.removeItem('movieHatEmail');
+      this.$store.commit('setEmail', null);
     }
   },
 }
@@ -64,6 +59,15 @@ export default {
   }
 
   .home {
+    position: relative;
+
+    .user-email {
+      cursor: pointer;
+      position: absolute;
+      top: 0;
+      left: 6px;
+    }
+
     .back-to-top {
       background: white;
       border-bottom-left-radius: 4px;

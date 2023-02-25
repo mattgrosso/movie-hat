@@ -3,15 +3,20 @@ import { createStore } from 'vuex'
 
 export default createStore({
   state: {
+    email: null,
     movieHat: null,
     history: null,
-    databasePrefix: "",
+    databasePrefix: "dev-",
     drawnMovie: null,
     movieChoices: null
   },
   getters: {
   },
   mutations: {
+    setEmail (state, value) {
+      window.localStorage.setItem('movieHatEmail', JSON.stringify(value));
+      state.email = value;
+    },
     setMovieHat (state, value) {
       state.movieHat = value;
     },
