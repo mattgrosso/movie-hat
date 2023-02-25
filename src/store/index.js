@@ -66,14 +66,14 @@ export default createStore({
         }
 
         let history = [];
-        
+
         if (resp.data.history) {
           history = Object.keys(resp.data.history).map((key) => {
             const movie = { ...resp.data.history[key], dbKey: key };
             return movie;
           });
         }
-        
+
         this.commit('setMovieHat', hatAsArray);
         this.commit('setHistory', history);
       } else {

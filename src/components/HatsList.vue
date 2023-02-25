@@ -85,7 +85,7 @@ export default {
       }
 
       const data = allHats.data
-      
+
       const allHatsAsArray = Object.keys(data).map((hat) => {
         const subKey = Object.keys(data[hat])[0];
         return {
@@ -104,7 +104,7 @@ export default {
     },
     async addHat () {
       this.message = null;
-      
+
       const webSafe = encodeURIComponent(this.newHatTitle);
       const newHat = {
         title: this.newHatTitle,
@@ -166,7 +166,7 @@ export default {
           /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
         );
 
-        return Boolean(valid);
+      return Boolean(valid);
     },
     clickModalButton () {
       this.$refs.addHatButton.click();

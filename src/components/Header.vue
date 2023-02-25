@@ -26,7 +26,6 @@
       </p>
     </div>
 
-
     <!-- Modals -->
     <div class="modal fade" id="logOutModal" tabindex="-1" aria-labelledby="logOutModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-sm">
@@ -74,7 +73,7 @@ export default {
         overflow: hidden;
         position: relative;
         width: calc(100% - 12px);
-  
+
         span {
           align-items: center;
           background: black;
@@ -87,7 +86,7 @@ export default {
           white-space: nowrap;
           width: 100%;
         }
-  
+
         .mat {
           border: 24px solid white;
           bottom: 0;

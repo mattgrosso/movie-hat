@@ -76,7 +76,7 @@ export default {
           return;
         }
 
-        context.commit("setDbKeyForHatTitle", Object.keys(respForKey.data)[0]);
+        this.$store.commit("setDbKeyForHatTitle", Object.keys(respForKey.data)[0]);
       }
 
       const dbKey = this.$store.state.dbKeyForHatTitle;

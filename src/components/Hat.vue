@@ -37,7 +37,7 @@ export default {
     if (!this.$store.state.movieHatTitle) {
       this.$router.push("/hat-list");
     }
-    
+
     this.$store.dispatch('getHat');
   },
   created () {
