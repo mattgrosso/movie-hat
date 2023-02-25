@@ -37,11 +37,6 @@ export default {
       showMessageCtas: false
     }
   },
-  computed: {
-    devPrefix () {
-      return this.$store.state.databasePrefix;
-    }
-  },
   methods: {
     async addMovie () {
       this.loading = true;
@@ -113,7 +108,6 @@ export default {
   .add-movie {
     align-items: center;
     display: flex;
-    height: 100%;
     justify-content: center;
     position: relative;
     width: 100%;

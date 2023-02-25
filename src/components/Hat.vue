@@ -1,5 +1,5 @@
 <template>
-  <div class="home p-3 d-flex justify-content-center flex-wrap">
+  <div class="hat col-12">
     <AddMovie/>
     <span class="col-12 d-flex justify-content-center text-decoration-underline text-white my-3">or</span>
     <DrawMovie/>
@@ -28,8 +28,17 @@ export default {
     }
   },
   mounted () {
-    this.$store.dispatch('getMovieHat');
-    this.$store.dispatch('getHistory');
+    const defaultMovieHatTitle = JSON.parse(window.localStorage.getItem('defaultMovieHatTitle'));
+
+    if (defaultMovieHatTitle) {
+      this.$store.commit("setMovieHatTitle", defaultMovieHatTitle);
+    }
+
+    if (!this.$store.state.movieHatTitle) {
+      this.$router.push("/hat-list");
+    }
+
+    this.$store.dispatch('getHat');
   },
   created () {
     window.addEventListener('scroll', this.handleScroll);
@@ -57,13 +66,15 @@ export default {
 </script>
 
 <style lang="scss">
-  hr {
-    border-top: 1px solid white;
-    opacity: 1;
-    width: 90%;
-  }
+  .hat {
+    position: relative;
 
-  .home {
+    hr {
+      border-top: 1px solid white;
+      opacity: 1;
+      width: 90%;
+    }
+
     .back-to-top {
       background: white;
       border-bottom-left-radius: 4px;

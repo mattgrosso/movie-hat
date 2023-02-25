@@ -3,12 +3,19 @@
     <div v-if="drawnMovie" class="draw p-4">
       <div class="poster-wrapper">
         <img
+          v-if="drawnMovie.poster_path"
           class="poster mb-4 col-8"
           crossorigin="anonymous"
           :src="`https://image.tmdb.org/t/p/original${drawnMovie.poster_path}`"
           :alt="`${drawnMovie.title} Poster`"
           :title="drawnMovie.title"
         />
+        <img
+          v-else
+          class="card-img-top not-found"
+          src="../assets/images/Image_not_available.png"
+          align="center"
+        >
         <p class="draw-count text-center col-12">
           We have drawn {{ history.length }} movies from the hat.
         </p>
