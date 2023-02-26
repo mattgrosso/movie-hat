@@ -6,6 +6,7 @@ export default createStore({
     email: null,
     movieHat: null,
     history: null,
+    members: null,
     movieHatTitle: null,
     dbKeyForHatTitle: null,
     drawnMovie: null,
@@ -30,6 +31,9 @@ export default createStore({
     },
     setHistory (state, value) {
       state.history = value;
+    },
+    setMembers (state, value) {
+      state.members = value;
     },
     setDrawnMovie (state, value) {
       state.drawnMovie = value;
@@ -74,6 +78,7 @@ export default createStore({
           });
         }
 
+        this.commit('setMembers', resp.data.members);
         this.commit('setMovieHat', hatAsArray);
         this.commit('setHistory', history);
       } else {

@@ -10,7 +10,7 @@
     </div>
     <div v-if="!loading" class="hats-list">
       <ul v-if="memberHats.length" class="p-0 m-0">
-        <li class="card m-3" v-for="(hat, index) in memberHats" :key="index">
+        <li class="card my-3" v-for="(hat, index) in memberHats" :key="index">
           <div class="card-header text-end">
             <button class="btn btn-primary" @click="goToHat(index)">{{hat.title}}</button>
           </div>

@@ -24,6 +24,12 @@
         </p>
       </div>
       <div class="details-wrapper p-4">
+        <a
+          class="btn btn-primary col-12 col-sm-6 col-md-12 m-3"
+          :href="messageTheHatHref"
+        >
+          Message the members of {{$store.state.movieHatTitle}}
+        </a>
         <button
           class="back-button btn btn-success col-12 col-sm-6 col-md-12"
           @click="$router.push('/')"
@@ -57,6 +63,10 @@ export default {
       } else {
         return false;
       }
+    },
+    messageTheHatHref () {
+      const members = this.$store.state.members.join(",");
+      return `sms:/open?addresses=${members}&body=https://image.tmdb.org/t/p/original${this.drawnMovie.poster_path}`;
     }
   }
 };
@@ -79,6 +89,13 @@ export default {
 
   .poster-wrapper {
     text-align: center;
+
+    .poster {
+      background: white;
+      border: 12px solid black;
+      box-shadow: inset 0px 0px 9px 0px #424242;
+      padding: 24px;
+    }
 
     .draw-count,
     .days-ago {
