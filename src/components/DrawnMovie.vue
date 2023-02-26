@@ -4,7 +4,7 @@
       <div class="poster-wrapper">
         <img
           v-if="drawnMovie.poster_path"
-          class="poster mb-4 col-8"
+          class="poster m-2 col-8"
           crossorigin="anonymous"
           :src="`https://image.tmdb.org/t/p/original${drawnMovie.poster_path}`"
           :alt="`${drawnMovie.title} Poster`"
@@ -16,14 +16,14 @@
           src="../assets/images/Image_not_available.png"
           align="center"
         >
-        <p class="draw-count text-center col-12">
+        <p class="draw-count text-center col-12 m-0 text-white">
           We have drawn {{ history.length }} movies from the hat.
         </p>
-        <p v-if="daysAgo" class="days-ago text-center col-12">
+        <p v-if="daysAgo" class="days-ago text-center col-12 m-0 text-white">
           (Added to the hat {{ daysAgo }})
         </p>
       </div>
-      <div class="details-wrapper p-4">
+      <div class="details-wrapper px-4 py-2">
         <a
           class="btn btn-primary col-12 col-sm-6 col-md-12 m-3"
           :href="messageTheHatHref"
@@ -34,7 +34,7 @@
           class="back-button btn btn-success col-12 col-sm-6 col-md-12"
           @click="$router.push('/')"
         >
-          Back
+          Home
         </button>
       </div>
     </div>
