@@ -1,5 +1,24 @@
 <template>
-  <div class="header-wrapper pb-5">
+  <div class="header-wrapper">
+    <div class="user-and-hat-pills d-flex justify-content-between">
+      <div
+        v-if="$store.state.email"
+        class="user-email badge rounded-pill text-bg-dark"
+      >
+        <p class="text-white m-0" data-bs-toggle="modal" data-bs-target="#logOutModal">
+          {{$store.state.email}}
+        </p>
+      </div>
+      <div
+        v-if="$store.state.movieHatTitle"
+        class="current-hat badge rounded-pill text-bg-dark"
+        @click="$router.push('/hat-list')"
+      >
+        <p class="text-white m-0">
+          {{$store.state.movieHatTitle}}
+        </p>
+      </div>
+    </div>
     <div class="header d-flex justify-content-center align-items-center">
       <h1 class="col-12 d-flex justify-content-center">
         <span>
@@ -7,23 +26,6 @@
         </span>
         <div class="mat"></div>
       </h1>
-    </div>
-    <div
-      v-if="$store.state.email"
-      class="user-email badge rounded-pill text-bg-dark"
-    >
-      <p class="text-white m-0" data-bs-toggle="modal" data-bs-target="#logOutModal">
-        {{$store.state.email}}
-      </p>
-    </div>
-    <div
-      v-if="$store.state.movieHatTitle"
-      class="current-hat badge rounded-pill text-bg-dark"
-      @click="$router.push('/hat-list')"
-    >
-      <p class="text-white m-0">
-        {{$store.state.movieHatTitle}}
-      </p>
     </div>
 
     <!-- Modals -->
@@ -98,18 +100,12 @@ export default {
       }
     }
 
-    .rounded-pill {
-      cursor: pointer;
-      position: absolute;
-      bottom: calc(3rem - 24px);
+    .user-and-hat-pills {
+      padding: 6px 6px 0;
+      .rounded-pill {
+        cursor: pointer;
+      }
     }
 
-    .user-email {
-      left: 6px;
-    }
-
-    .current-hat {
-      right: 6px;
-    }
   }
 </style>

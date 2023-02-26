@@ -1,5 +1,5 @@
 <template>
-  <div class="hat col-12">
+  <div class="hat col-12 py-4">
     <AddMovie/>
     <span class="col-12 d-flex justify-content-center text-decoration-underline text-white my-3">or</span>
     <DrawMovie/>
