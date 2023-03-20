@@ -19,8 +19,16 @@
           <div class="card-body p-3">
             <p class="card-subtitle text-muted">Members</p>
             <ul class="list-group list-group-flush mb-3">
-              <li class="list-group-item" v-for="(member, index) in hat.members" :key="index">
-                {{member}}
+              <li class="member list-group-item d-flex" v-for="(member, index) in hat.members" :key="index">
+                <div class="col-8">{{member}}</div>
+                <div class="col-4 d-flex justify-content-end">
+                  <a class="text-decoration-none" target="_blank" :href="`mailto:${member}?subject=Join%20my%20movie%20hat&body=I've%20added%20you%20to%20my%20movie%20hat%20so%20we%20can%20decide%20what%20to%20watch%20together.%20You%20can%20visit%20movie-hat.surge.sh%20to%20see%20our%20hat%20and%20to%20add%20movies%20to%20it.`">
+                    Send invite
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-envelope" viewBox="0 0 16 16">
+                      <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4Zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2Zm13 2.383-4.708 2.825L15 11.105V5.383Zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741ZM1 11.105l4.708-2.897L1 5.383v5.722Z"/>
+                    </svg>
+                  </a>
+                </div>
               </li>
             </ul>
             <div class="input-group input-group-sm col-8">
@@ -204,6 +212,16 @@ export default {
 </script>
 
 <style lang="scss">
+  .hats {
+    .hats-list {
+      .member {
+        a {
+          font-size: 0.75rem;
+        }
+      }
+    }
+  }
+
   ul {
     list-style: none;
   }
