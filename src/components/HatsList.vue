@@ -1,6 +1,4 @@
 <template>
-  // Todo: Make sure hat names dont blow away older hats
-  // todo: Adding someone to a het should email them. 
   <div class="hats col-12 px-3 mb-5">
     <div v-if="message" class="message px-3 text-white">
       <p class="m-0">{{ message }}</p>
@@ -57,7 +55,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h1 class="modal-title fs-5" id="newHatModalLabel">Create New Hat</h1>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"/>
+            <button ref="closeNewHatModal" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"/>
           </div>
           <div class="modal-body" @keyup.enter="clickModalButton">
             <input
@@ -66,10 +64,13 @@
               type="text"
               v-model="newHatTitle"
             />
+            <div v-if="message" class="message form-text">
+              {{ message }}
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button ref="addHatButton" type="button" class="btn btn-primary" data-bs-dismiss="modal" @click="addHat">Add Hat</button>
+            <button ref="addHatButton" type="button" class="btn btn-primary" @click="addHat">Add Hat</button>
           </div>
         </div>
       </div>
@@ -135,7 +136,7 @@ export default {
       );
 
       if (alreadyExists.data) {
-        this.showMessage("That hat title is already in use, please try another title.", 10000);
+        this.showMessage("That hat title is already in use, please try another title.", 5000);
       } else {
         await axios.post(
           `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${webSafe}.json`,
@@ -143,6 +144,8 @@ export default {
         );
 
         this.getMemberHats();
+        this.message = null;
+        this.$refs.closeNewHatModal.click();
       }
 
       this.newHatTitle = null;
