@@ -1,4 +1,6 @@
 <template>
+  // Todo: Make sure hat names dont blow away older hats
+  // todo: Adding someone to a het should email them. 
   <div class="hats col-12 px-3 mb-5">
     <div v-if="message" class="message px-3 text-white">
       <p class="m-0">{{ message }}</p>
