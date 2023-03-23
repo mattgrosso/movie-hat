@@ -86,7 +86,7 @@ export default {
     },
     setTimer (milliseconds) {
       const speed = 50;
-      
+
       const timerInterval = setInterval(() => {
         if (this.timer < 0) {
           clearInterval(timerInterval)
