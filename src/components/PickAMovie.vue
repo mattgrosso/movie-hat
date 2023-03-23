@@ -16,6 +16,16 @@
         >
       </div>
       <p class="col-12 px-5">{{message}}</p>
+      <div class="progress col-8" style="height: 2px;">
+        <div
+          class="progress-bar bg-dark"
+          role="progressbar"
+          :aria-valuenow="timer"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          :style="`width: ${timer}%;`"
+        />
+      </div>
     </div>
     <ul v-else class="p-0 d-flex justify-content-around flex-wrap">
       <li class="card shadow border" v-for="movie in searchResults" :key="movie.id" @click="addToHat(movie)">
@@ -48,7 +58,8 @@ export default {
   data () {
     return {
       message: null,
-      chosenMovie: null
+      chosenMovie: null,
+      timer: 100
     }
   },
   computed: {
@@ -73,11 +84,29 @@ export default {
 
       return false;
     },
+    setTimer (milliseconds) {
+      const speed = 50;
+      
+      const timerInterval = setInterval(() => {
+        if (this.timer < 0) {
+          clearInterval(timerInterval)
+        }
+        this.timer = this.timer - (speed / milliseconds * 100);
+      }, speed);
+    },
     async addToHat (movie) {
       this.loading = true;
       this.chosenMovie = movie;
 
-      this.isMovieAlreadyInHat(movie);
+      if (this.isMovieAlreadyInHat(movie)) {
+        this.showMessage(
+          `${this.chosenMovie.title} is already in the hat.`,
+          4000,
+          this.returnHome
+        );
+
+        return;
+      }
 
       if (!this.$store.state.dbKeyForHatTitle) {
         const respForKey = await axios.get(
@@ -103,7 +132,7 @@ export default {
 
         this.showMessage(
           `${this.chosenMovie.title} was added to the hat.`,
-          3000,
+          4000,
           this.returnHome
         );
 
@@ -122,6 +151,8 @@ export default {
       delay = delay || 30000;
 
       this.message = message;
+
+      this.setTimer(delay - 100);
 
       setTimeout(() => {
         this.message = null;
@@ -153,10 +184,10 @@ export default {
       }
 
       p {
-        font-size: 1.5rem;
         color: white;
+        font-size: 1.5rem;
+        margin: 36px 0 12px;
         text-align: center;
-        margin: 36px 0;
       }
     }
 
