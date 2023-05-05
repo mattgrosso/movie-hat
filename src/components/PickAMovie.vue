@@ -27,27 +27,30 @@
         />
       </div>
     </div>
-    <ul v-else class="p-0 d-flex justify-content-around flex-wrap">
-      <li class="card shadow border" v-for="movie in searchResults" :key="movie.id" @click="addToHat(movie)">
-        <img
-          v-if="movie.poster_path"
-          class="card-img-top"
-          :src="`https://image.tmdb.org/t/p/original${movie.poster_path}`"
-          align="center"
-        >
-        <img
-          v-else
-          class="card-img-top not-found"
-          src="../assets/images/Image_not_available.png"
-          align="center"
-        >
-        <p class="my-3 mx-1 card-text text-center" :title="movie.title">
-          {{truncate(movie.title)}}
-          <br>
-          {{movie.release_date}}
-        </p>
-      </li>
-    </ul>
+    <div v-else class="search-results">
+      <p class="border border-white text-white d-flex justify-content-center m-3 p-2">Which movie do you want to add to the hat?</p>
+      <ul class="p-0 d-flex justify-content-around flex-wrap">
+        <li class="card shadow border" v-for="movie in searchResults" :key="movie.id" @click="addToHat(movie)">
+          <img
+            v-if="movie.poster_path"
+            class="card-img-top"
+            :src="`https://image.tmdb.org/t/p/original${movie.poster_path}`"
+            align="center"
+          >
+          <img
+            v-else
+            class="card-img-top not-found"
+            src="../assets/images/Image_not_available.png"
+            align="center"
+          >
+          <p class="my-3 mx-1 card-text text-center" :title="movie.title">
+            {{truncate(movie.title)}}
+            <br>
+            {{movie.release_date}}
+          </p>
+        </li>
+      </ul>
+    </div>
   </div>
 </template>
 

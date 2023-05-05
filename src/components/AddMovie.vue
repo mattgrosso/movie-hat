@@ -4,7 +4,7 @@
       <div class="input-group">
         <input
           class="form-control"
-          placeholder="Movie Title"
+          placeholder="search for title"
           ref="addMovieTitle"
           type="text"
           v-model="movieTitle"
@@ -15,7 +15,7 @@
               <span class="visually-hidden">Loading...</span>
             </div>
           </span>
-          <span v-else>Add Movie</span>
+          <span v-else>Search</span>
         </button>
       </div>
     </form>
