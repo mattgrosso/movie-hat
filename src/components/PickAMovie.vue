@@ -17,7 +17,25 @@
         >
       </div>
       <p class="col-12 px-5">{{message}}</p>
-      <div class="progress col-8" style="height: 2px;">
+      <div v-if="showNoteField" class="note-input input-group my-3 mx-4">
+        <input
+          type="text"
+          class="form-control"
+          placeholder="Would you like to add a note?"
+          aria-label="Note for movie"
+          aria-describedby="movie-note"
+          v-model="noteValue"
+        >
+        <button
+          class="btn btn-primary"
+          type="button"
+          id="movie-note"
+          @click="addNoteToMovieAndGoHome"
+        >
+          {{buttonText}}
+        </button>
+      </div>
+      <div v-show="showTimer" class="progress col-8" style="height: 2px;">
         <div
           class="progress-bar bg-dark"
           role="progressbar"
@@ -29,7 +47,9 @@
       </div>
     </div>
     <div v-else class="search-results">
-      <p class="border border-white text-white d-flex justify-content-center m-3 p-2">Which movie do you want to add to the hat?</p>
+      <p class="border border-white text-white d-flex justify-content-center m-3 p-2">
+        Which movie do you want to add to the hat?
+      </p>
       <ul class="movies p-0 d-flex justify-content-around flex-wrap">
         <li class="card shadow border" v-for="movie in searchResults" :key="movie.id" @click="addToHat(movie)">
           <img
@@ -92,7 +112,10 @@ export default {
     return {
       message: null,
       chosenMovie: null,
-      timer: 100
+      showNoteField: false,
+      noteValue: "",
+      timer: 100,
+      showTimer: true
     }
   },
   computed: {
@@ -101,6 +124,13 @@ export default {
     },
     searchResults () {
       return this.$store.state.movieChoices;
+    },
+    buttonText () {
+      if (this.noteValue) {
+        return "Add Note";
+      } else {
+        return "No Thanks";
+      }
     }
   },
   methods: {
@@ -157,25 +187,49 @@ export default {
 
       const post = await axios.post(
         `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.movieHatTitle}/${dbKey}/movies.json`,
-        { ...movie, timeStamp: Date.now() }
+        { ...movie, timeStamp: Date.now(), addedBy: this.$store.state.name }
       );
 
       if (post.statusText === 'OK') {
+        this.entryKey = post.data.name;
+        this.loading = false;
+
         this.$store.dispatch('getHat');
 
+        this.showNoteField = true;
+        
         this.showMessage(
           `${this.chosenMovie.title} was added to the hat.`,
-          4000,
-          this.returnHome
+          -1,
+          this.addNoteToMovieAndGoHome
         );
 
-        this.loading = false;
       } else {
         this.showMessage(
           `Something went wrong. ${this.chosenMovie.title} was not added to the hat.`,
           6000
         );
       }
+    },
+    async addNoteToMovieAndGoHome () {
+      if (this.noteValue) {
+        const dbKey = this.$store.state.dbKeyForHatTitle;
+        
+        const entry = await axios.get(
+          `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.movieHatTitle}/${dbKey}/movies/${this.entryKey}.json`
+        );
+
+        const payload = {
+          ...entry.data,
+          note: this.noteValue
+        };
+
+        await axios.patch(
+          `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.movieHatTitle}/${dbKey}/movies/${this.entryKey}.json`,
+          payload
+        );
+      }
+      this.returnHome();
     },
     returnHome () {
       this.$router.push('/');
@@ -185,14 +239,18 @@ export default {
 
       this.message = message;
 
-      this.setTimer(delay - 100);
-
-      setTimeout(() => {
-        this.message = null;
-        if (callBack) {
-          callBack();
-        }
-      }, delay);
+      if (delay > 0) {
+        this.setTimer(delay - 100);
+  
+        setTimeout(() => {
+          this.message = null;
+          if (callBack) {
+            callBack();
+          }
+        }, delay);
+      } else {
+        this.showTimer = false;
+      }
     },
     truncate (string) {
       if (string.length > 15) {

@@ -21,7 +21,16 @@
           We have drawn {{ history.length }} movies from the hat.
         </p>
         <p v-if="daysAgo" class="days-ago text-center col-12 m-0 text-white">
-          (Added to the hat {{ daysAgo }})
+          <span>
+            (Added to the hat {{ daysAgo }} 
+          </span>
+          <span v-if="drawnMovie.addedBy">
+            by {{ drawnMovie.addedBy }}
+          </span>
+          <span>)</span>
+        </p>
+        <p v-if="drawnMovie.note" class="drawn-note text-center col-12 m-0 text-white">
+          Note: {{ drawnMovie.note }}
         </p>
       </div>
       <div class="details-wrapper px-4 py-2">

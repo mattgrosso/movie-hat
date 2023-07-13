@@ -4,6 +4,7 @@ import { createStore } from 'vuex'
 export default createStore({
   state: {
     email: null,
+    name: null,
     movieHat: null,
     history: null,
     members: null,
@@ -18,6 +19,10 @@ export default createStore({
     setEmail (state, value) {
       window.localStorage.setItem('movieHatEmail', JSON.stringify(value));
       state.email = value;
+    },
+    setName (state, value) {
+      window.localStorage.setItem('movieHatName', JSON.stringify(value));
+      state.name = value;
     },
     setMovieHat (state, value) {
       state.movieHat = value;
