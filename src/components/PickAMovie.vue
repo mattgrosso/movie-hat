@@ -1,5 +1,6 @@
 <template>
   <div class="pick-a-movie mx-auto">
+    <!-- TODO: Should we add streaming services to these entries? -->
     <div v-if="message" class="movie-added col-12 d-flex justify-content-center flex-wrap">
       <div v-if="chosenMovie" class="image-wrapper col-6">
         <img
@@ -29,7 +30,7 @@
     </div>
     <div v-else class="search-results">
       <p class="border border-white text-white d-flex justify-content-center m-3 p-2">Which movie do you want to add to the hat?</p>
-      <ul class="p-0 d-flex justify-content-around flex-wrap">
+      <ul class="movies p-0 d-flex justify-content-around flex-wrap">
         <li class="card shadow border" v-for="movie in searchResults" :key="movie.id" @click="addToHat(movie)">
           <img
             v-if="movie.poster_path"
@@ -43,11 +44,40 @@
             src="../assets/images/Image_not_available.png"
             align="center"
           >
-          <p class="my-3 mx-1 card-text text-center" :title="movie.title">
-            {{truncate(movie.title)}}
-            <br>
-            {{movie.release_date}}
-          </p>
+          <div class="info p-1">
+            <p v-if="movie.title" class="m-0 card-text text-center" :title="movie.title">
+              {{truncate(movie.title)}}
+              <br>
+              {{movie.release_date}}
+            </p>
+            <div v-if="movie.streamers" class="streaming-providers">
+              <div v-if="movie.streamers.flatrate" class="flatrate service-type">
+                <div class="icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-cast" viewBox="0 0 16 16">
+                    <path d="m7.646 9.354-3.792 3.792a.5.5 0 0 0 .353.854h7.586a.5.5 0 0 0 .354-.854L8.354 9.354a.5.5 0 0 0-.708 0z"/>
+                    <path d="M11.414 11H14.5a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.5-.5h-13a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .5.5h3.086l-1 1H1.5A1.5 1.5 0 0 1 0 10.5v-7A1.5 1.5 0 0 1 1.5 2h13A1.5 1.5 0 0 1 16 3.5v7a1.5 1.5 0 0 1-1.5 1.5h-2.086l-1-1z"/>
+                  </svg>
+                </div>
+                <ul class="border border-dark">
+                  <li class="streaming-provider" v-for="(streamer, index) in movie.streamers.flatrate" :key="index">
+                    <img class="streamer-logo" :src="`https://image.tmdb.org/t/p/original${streamer.logo_path}`">
+                  </li>
+                </ul>
+              </div>
+              <div v-if="movie.streamers.rent" class="rent service-type">
+                <div class="icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-currency-dollar" viewBox="0 0 16 16">
+                    <path d="M4 10.781c.148 1.667 1.513 2.85 3.591 3.003V15h1.043v-1.216c2.27-.179 3.678-1.438 3.678-3.3 0-1.59-.947-2.51-2.956-3.028l-.722-.187V3.467c1.122.11 1.879.714 2.07 1.616h1.47c-.166-1.6-1.54-2.748-3.54-2.875V1H7.591v1.233c-1.939.23-3.27 1.472-3.27 3.156 0 1.454.966 2.483 2.661 2.917l.61.162v4.031c-1.149-.17-1.94-.8-2.131-1.718H4zm3.391-3.836c-1.043-.263-1.6-.825-1.6-1.616 0-.944.704-1.641 1.8-1.828v3.495l-.2-.05zm1.591 1.872c1.287.323 1.852.859 1.852 1.769 0 1.097-.826 1.828-2.2 1.939V8.73l.348.086z"/>
+                  </svg>
+                </div>
+                <ul class="border border-dark">
+                  <li class="streaming-provider" v-for="(streamer, index) in movie.streamers.rent" :key="index">
+                    <img class="streamer-logo" :src="`https://image.tmdb.org/t/p/original${streamer.logo_path}`">
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
         </li>
       </ul>
     </div>
@@ -194,7 +224,7 @@ export default {
       }
     }
 
-    ul {
+    .movies {
       column-gap: 1rem;
       list-style: none;
       margin: 1rem 1rem 5rem;
@@ -207,6 +237,55 @@ export default {
 
         p {
           font-size: .75rem;
+        }
+
+        .streaming-providers {
+          .service-type {
+            position: relative;
+
+            .icon {
+              align-items: center;
+              background: black;
+              border-radius: 50%;
+              display: flex;
+              height: 18px;
+              justify-content: center;
+              left: 0;
+              padding: 3px;
+              position: absolute;
+              top: 50%;
+              transform: translate(0px, -50%);
+              width: 18px;
+
+              svg {
+                path {
+                  fill: white;
+                }
+              }
+            }
+
+            ul {
+              border-radius: 4px;
+              column-gap: 4px;
+              display: flex;
+              flex-wrap: wrap;
+              justify-content: flex-start;
+              margin: 0;
+              margin: 4px 4px 4px 8px;
+              padding: 8px 8px 8px 16px;
+              row-gap: 4px;
+
+              .streaming-provider {
+                display: flex;
+
+                .streamer-logo {
+                  height: 18px;
+                  width: 18px;
+                }
+              }
+            }
+          }
+
         }
       }
     }

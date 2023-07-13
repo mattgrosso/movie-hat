@@ -2,6 +2,7 @@
   <div class="drawn-movie">
     <div v-if="drawnMovie" class="draw p-4">
       <div class="poster-wrapper">
+        <!-- TODO: This image is coming back broken sometimes... -->
         <img
           v-if="drawnMovie.poster_path"
           class="poster m-2 col-8"

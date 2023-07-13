@@ -57,6 +57,47 @@ export default {
         }
       });
 
+      for (const result of choices) {
+        const resp = await this.getStreamingProviders(result.id);
+        const USProviders = resp.data.results.US;
+
+        if (!USProviders) {
+          continue;
+        }
+
+        const streamers = {};
+
+        if (USProviders.flatrate) {
+          streamers.flatrate = USProviders.flatrate.map((provider) => {
+            if (!this.nameTooLong(provider.provider_name)) {
+              return provider;
+            } else {
+              return undefined;
+            }
+          }).filter((provider) => provider);
+        }
+
+        if (streamers.flatrate && streamers.flatrate.length > 5) {
+          streamers.flatrate.length = 5;
+        }
+
+        if (USProviders.rent) {
+          streamers.rent = USProviders.rent.map((provider) => {
+            if (!this.nameTooLong(provider.provider_name)) {
+              return provider;
+            } else {
+              return undefined;
+            }
+          }).filter((provider) => provider);
+        }
+
+        if (streamers.rent && streamers.rent.length > 5) {
+          streamers.rent.length = 5;
+        }
+
+        result.streamers = Object.keys(streamers).length ? streamers : null;
+      }
+
       choices.sort(this.sortByVotes);
 
       if (!choices.length) {
@@ -76,6 +117,12 @@ export default {
       this.$store.commit('setMovieChoices', choices);
       this.loading = false;
       this.$router.push('/pick-a-movie');
+    },
+    async getStreamingProviders (id) {
+      return await axios.get(`https://api.themoviedb.org/3/movie/${id}/watch/providers?api_key=${process.env.VUE_APP_TMDB_API_KEY}`);
+    },
+    nameTooLong (name) {
+      return name.split(' ').length > 3;
     },
     sortByVotes (a, b) {
       if (a.vote_count > b.vote_count) {
