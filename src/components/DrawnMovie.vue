@@ -22,7 +22,7 @@
         </p>
         <p v-if="daysAgo" class="days-ago text-center col-12 m-0 text-white">
           <span>
-            (Added to the hat {{ daysAgo }} 
+            (Added to the hat {{ daysAgo }}
           </span>
           <span v-if="drawnMovie.addedBy">
             by {{ drawnMovie.addedBy }}

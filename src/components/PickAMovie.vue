@@ -197,13 +197,12 @@ export default {
         this.$store.dispatch('getHat');
 
         this.showNoteField = true;
-        
+
         this.showMessage(
           `${this.chosenMovie.title} was added to the hat.`,
           -1,
           this.addNoteToMovieAndGoHome
         );
-
       } else {
         this.showMessage(
           `Something went wrong. ${this.chosenMovie.title} was not added to the hat.`,
@@ -214,7 +213,7 @@ export default {
     async addNoteToMovieAndGoHome () {
       if (this.noteValue) {
         const dbKey = this.$store.state.dbKeyForHatTitle;
-        
+
         const entry = await axios.get(
           `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.movieHatTitle}/${dbKey}/movies/${this.entryKey}.json`
         );
@@ -241,7 +240,7 @@ export default {
 
       if (delay > 0) {
         this.setTimer(delay - 100);
-  
+
         setTimeout(() => {
           this.message = null;
           if (callBack) {
