@@ -9,15 +9,15 @@
       </div>
     </div>
     <div v-if="!loading" class="hats-list">
-      <ul v-if="memberHats.length" class="p-0 m-0">
-        <li class="card my-3" v-for="(hat, index) in memberHats" :key="index">
+      <ul v-if="sortedMemberHats.length" class="p-0 m-0">
+        <li class="card my-3" v-for="(hat, hatIndex) in sortedMemberHats" :key="hatIndex">
           <div class="card-header text-end">
-            <button class="btn btn-primary" @click="goToHat(index)">{{hat.title}}</button>
+            <button class="btn btn-primary" @click="goToHat(hat.title)">{{hat.title}}</button>
           </div>
           <div class="card-body p-3">
             <p class="card-subtitle text-muted">Members</p>
             <ul class="list-group list-group-flush mb-3">
-              <li class="member list-group-item d-flex" v-for="(member, index) in hat.members" :key="index">
+              <li class="member list-group-item d-flex" v-for="(member, memberIndex) in hat.members" :key="memberIndex">
                 <div class="col-8">{{member}}</div>
                 <div class="col-4 d-flex justify-content-end">
                   <a class="text-decoration-none" target="_blank" :href="`mailto:${member}?subject=Join%20my%20movie%20hat&body=I've%20added%20you%20to%20my%20movie%20hat%20so%20we%20can%20decide%20what%20to%20watch%20together.%20You%20can%20visit%20movie-hat.surge.sh%20to%20see%20our%20hat%20and%20to%20add%20movies%20to%20it.`">
@@ -30,8 +30,8 @@
               </li>
             </ul>
             <div class="input-group input-group-sm col-8">
-              <input :ref="`newMemberInput${index}`" type="text" class="form-control" placeholder="Add Member" aria-label="Add Member" aria-describedby="add-member-button">
-              <button class="btn btn-secondary" type="button" id="add-member-button" @click="addNewMemberTo(index)">Add</button>
+              <input :ref="`newMemberInput${hatIndex}`" type="text" class="form-control" placeholder="Add Member" aria-label="Add Member" aria-describedby="add-member-button">
+              <button class="btn btn-secondary" type="button" id="add-member-button" @click="addNewMemberTo(hat.title, hatIndex)">Add</button>
             </div>
           </div>
         </li>
@@ -95,6 +95,23 @@ export default {
     await this.getMemberHats();
     this.loading = false;
   },
+  computed: {
+    sortedMemberHats() {
+      const sorted = [...this.memberHats];
+
+      sorted.sort((a, b) => {
+        if (this.mostRecentTimeStamp(a.history) < this.mostRecentTimeStamp(b.history)) {
+          return 1;
+        } else if (this.mostRecentTimeStamp(a.history) > this.mostRecentTimeStamp(b.history)) {
+          return -1;
+        } else {
+          return 0;
+        }
+      });
+
+      return sorted;
+    }
+  },
   methods: {
     async getMemberHats () {
       const allHats = await axios.get(`https://movie-hat-9c418-default-rtdb.firebaseio.com/hats.json`);
@@ -150,8 +167,8 @@ export default {
 
       this.newHatTitle = null;
     },
-    async addNewMemberTo (index) {
-      const hat = this.memberHats[index];
+    async addNewMemberTo (title, index) {
+      const hat = this.memberHats.find((hat) => hat.title === title);
       const input = this.$refs[`newMemberInput${index}`][0];
 
       if (!this.validateEmail(input.value)) {
@@ -174,8 +191,7 @@ export default {
       input.value = null;
       this.getMemberHats();
     },
-    goToHat (index) {
-      const title = this.memberHats[index].title;
+    goToHat (title) {
       this.$store.commit("setMovieHatTitle", title);
       this.$store.dispatch("getHat");
 
@@ -209,6 +225,23 @@ export default {
           callBack();
         }
       }, delay);
+    },
+    mostRecentTimeStamp (historyObj) {
+      const history = Object.keys(historyObj).map((key) => {
+        return historyObj[key];
+      });
+
+      let mostRecent;
+      
+      history.forEach((item) => {
+        if (!mostRecent) {
+          mostRecent = item.dateDrawn;
+        } else if (item.dateDrawn > mostRecent) {
+          mostRecent = item.dateDrawn;
+        }
+      });
+
+      return mostRecent;
     }
   },
 }
