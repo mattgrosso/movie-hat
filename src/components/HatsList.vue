@@ -96,7 +96,7 @@ export default {
     this.loading = false;
   },
   computed: {
-    sortedMemberHats() {
+    sortedMemberHats () {
       const sorted = [...this.memberHats];
 
       sorted.sort((a, b) => {
@@ -232,7 +232,7 @@ export default {
       });
 
       let mostRecent;
-      
+
       history.forEach((item) => {
         if (!mostRecent) {
           mostRecent = item.dateDrawn;
