@@ -20,9 +20,9 @@
         <p class="draw-count text-center col-12 m-0 text-white">
           We have drawn {{ history.length }} movies from the hat.
         </p>
-        <p v-if="daysAgo" class="days-ago text-center col-12 m-0 text-white">
+        <p v-if="someTimeAgo" class="days-ago text-center col-12 m-0 text-white">
           <span>
-            (Added to the hat {{ daysAgo }}
+            (Added to the hat {{ someTimeAgo }}
           </span>
           <span v-if="drawnMovie.addedBy">
             by {{ drawnMovie.addedBy }}
@@ -65,11 +65,24 @@ export default {
     history () {
       return this.$store.state.history;
     },
-    daysAgo () {
+    someTimeAgo () {
       if (this.drawnMovie.timeStamp) {
-        return `${Math.floor(
-          (Date.now() - this.drawnMovie.timeStamp) / 1000 / 60 / 60 / 24
-        )} days ago`;
+        const now = new Date();
+        const drawnDate = new Date(this.drawnMovie.timeStamp);
+        const diff = now.getTime() - drawnDate.getTime();
+        const diffYears = Math.floor(diff / (1000 * 60 * 60 * 24 * 365));
+        const yearsRemainder = diff % (1000 * 60 * 60 * 24 * 365);
+        const diffMonths = Math.floor(yearsRemainder / (1000 * 60 * 60 * 24 * 30));
+        const monthsRemainder = yearsRemainder % (1000 * 60 * 60 * 24 * 30);
+        const diffDays = Math.floor(monthsRemainder / (1000 * 60 * 60 * 24));
+
+        if (diffYears > 0) {
+          return `${diffYears} years, ${diffMonths} months, ${diffDays} days ago`
+        } else if (diffMonths > 0) {
+          return `${diffMonths} months, ${diffDays} days ago`
+        } else {
+          return `${diffDays} days ago`
+        }
       } else {
         return false;
       }
