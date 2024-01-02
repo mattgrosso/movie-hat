@@ -227,6 +227,10 @@ export default {
       }, delay);
     },
     mostRecentTimeStamp (historyObj) {
+      if (!historyObj) {
+        return Date.now();
+      }
+
       const history = Object.keys(historyObj).map((key) => {
         return historyObj[key];
       });
