@@ -11,7 +11,13 @@
     <div v-if="!loading" class="hats-list">
       <ul v-if="sortedMemberHats.length" class="p-0 m-0">
         <li class="card my-3" v-for="(hat, hatIndex) in sortedMemberHats" :key="hatIndex">
-          <div class="card-header text-end">
+          <div class="card-header d-flex justify-content-between">
+            <button class="btn btn-danger ms-1" data-bs-toggle="modal" data-bs-target="#deleteHatModal" @click="deleteHatTitle = hat.title">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+              </svg>
+            </button>
             <button class="btn btn-primary" @click="goToHat(hat.title)">{{hat.title}}</button>
           </div>
           <div class="card-body p-3">
@@ -57,7 +63,7 @@
             <h1 class="modal-title fs-5" id="newHatModalLabel">Create New Hat</h1>
             <button ref="closeNewHatModal" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"/>
           </div>
-          <div class="modal-body" @keyup.enter="clickModalButton">
+          <div class="modal-body" @keyup.enter="clickAddHatModalButton">
             <input
               class="form-control"
               placeholder="Hat Title"
@@ -75,6 +81,24 @@
         </div>
       </div>
     </div>
+
+    <div class="modal fade" id="deleteHatModal" tabindex="-1" aria-labelledby="deleteHatModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="deleteHatModalLabel">Delete {{deleteHatTitle}}?</h1>
+            <button ref="closeDeleteHatModal" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"/>
+          </div>
+          <div class="modal-body" @keyup.enter="clickDeleteHatModalButton">
+            <p>Are you sure? This can't be undone.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-danger" @click="deleteHat(deleteHatTitle)">Delete {{deleteHatTitle}}</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -86,6 +110,7 @@ export default {
     return {
       loading: false,
       newHatTitle: null,
+      deleteHatTitle: null,
       memberHats: [],
       message: null
     }
@@ -202,6 +227,19 @@ export default {
 
       this.$router.push("/");
     },
+    async deleteHat (title) {
+      const removeFromHat = await axios.delete(
+        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${title}.json`
+      );
+
+      if (removeFromHat.statusText !== 'OK') {
+        console.log('Something went wrong with movie delete: ', removeFromHat);
+        return;
+      } else {
+        this.getMemberHats();
+        this.$refs.closeDeleteHatModal.click();
+      }
+    },
     validateEmail (email) {
       const valid = String(email)
         .toLowerCase()
@@ -211,7 +249,7 @@ export default {
 
       return Boolean(valid);
     },
-    clickModalButton () {
+    clickAddHatModalButton () {
       this.$refs.addHatButton.click();
     },
     showMessage (message, delay, callBack) {
