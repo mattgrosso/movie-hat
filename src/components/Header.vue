@@ -20,7 +20,7 @@
       </div>
     </div>
     <div class="header d-flex justify-content-center align-items-center">
-      <h1 class="col-12 d-flex justify-content-center">
+      <h1 class="col-12 d-flex justify-content-center" @click="$router.push('/');">
         <span>
           Movie Hat
         </span>
