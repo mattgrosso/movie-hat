@@ -238,6 +238,7 @@ export default {
       } else {
         this.getMemberHats();
         this.$refs.closeDeleteHatModal.click();
+        this.deleteHatTitle = null;
       }
     },
     validateEmail (email) {
