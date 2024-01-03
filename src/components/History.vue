@@ -31,7 +31,7 @@
         :key="movie.dbKey"
       >
         <a
-          :href="`https://www.google.com/search?q=${movie.title}`"
+          :href="`https://www.google.com/search?q=${movie.title} movie`"
           target="_blank"
         >
           <span class="text-white my-1 text-center">({{drawRank(movie)}} drawn)</span>

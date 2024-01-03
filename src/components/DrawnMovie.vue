@@ -2,21 +2,25 @@
   <div class="drawn-movie">
     <div v-if="drawnMovie" class="draw p-4">
       <div class="poster-wrapper">
-        <!-- TODO: This image is coming back broken sometimes... -->
-        <img
-          v-if="drawnMovie.poster_path"
-          class="poster m-2 col-8"
-          crossorigin="anonymous"
-          :src="`https://image.tmdb.org/t/p/original${drawnMovie.poster_path}`"
-          :alt="`${drawnMovie.title} Poster`"
-          :title="drawnMovie.title"
-        />
-        <img
-          v-else
-          class="card-img-top not-found"
-          src="../assets/images/Image_not_available.png"
-          align="center"
+        <a
+          :href="`https://www.google.com/search?q=${drawnMovie.title} movie`"
+          target="_blank"
         >
+          <img
+            v-if="drawnMovie.poster_path"
+            class="poster m-2 col-8"
+            crossorigin="anonymous"
+            :src="`https://image.tmdb.org/t/p/original${drawnMovie.poster_path}`"
+            :alt="`${drawnMovie.title} Poster`"
+            :title="drawnMovie.title"
+          />
+          <img
+            v-else
+            class="card-img-top not-found"
+            src="../assets/images/Image_not_available.png"
+            align="center"
+          >
+        </a>
         <p class="draw-count text-center col-12 m-0 text-white">
           We have drawn {{ history.length }} movies from the hat.
         </p>
