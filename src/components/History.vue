@@ -46,6 +46,11 @@
             src="../assets/images/Image_not_available.png"
             align="center"
           >
+          <div v-if="movie.addedBy || movie.note" class="caption">
+            <p v-if="movie.addedBy && movie.note">"{{movie.note}}" <br>- {{movie.addedBy}}</p>
+            <p v-else-if="movie.addedBy">Added by: {{movie.addedBy}}</p>
+            <p v-else-if="movie.note">"{{movie.note}}"</p>
+          </div>
         </a>
       </li>
     </ul>
@@ -235,6 +240,17 @@ export default {
 
         img {
           width: 100%;
+        }
+
+        .caption {
+          padding: 16px 0 0;
+
+          p {
+            color: black;
+            font-size: 0.5rem;
+            text-align: center;
+            margin: 0;
+          }
         }
       }
     }

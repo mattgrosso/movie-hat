@@ -44,7 +44,12 @@ export default {
       const movies = this.$store.state.movieHat;
 
       if (movies.length) {
-        const randomMovie = sample(movies);
+        let randomMovie = sample(movies);
+
+        if (this.$store.getters.isDevHat) {
+          randomMovie = movies[movies.length - 1];
+        }
+
         this.drawnMovie = randomMovie;
 
         await this.removeMovieFromHat(randomMovie);

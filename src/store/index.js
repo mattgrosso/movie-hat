@@ -14,6 +14,9 @@ export default createStore({
     movieChoices: null
   },
   getters: {
+    isDevHat: (state) => {
+      return state.movieHatTitle === 'Dev Hat';
+    }
   },
   mutations: {
     setEmail (state, value) {
