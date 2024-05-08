@@ -38,12 +38,12 @@
         </p>
       </div>
       <div class="details-wrapper px-4 py-2">
-        <a
+        <button
           class="btn btn-primary col-12 col-sm-6 col-md-12 m-3"
-          :href="messageTheHatHref"
+          @click="shareMovie"
         >
-          Message the members of {{$store.state.movieHatTitle}}
-        </a>
+          Share
+        </button>
         <button
           class="back-button btn btn-success col-12 col-sm-6 col-md-12"
           @click="$router.push('/')"
@@ -90,10 +90,26 @@ export default {
       } else {
         return false;
       }
-    },
-    messageTheHatHref () {
-      const members = this.$store.state.members.join(",");
-      return `sms:/open?addresses=${members}&body=https://image.tmdb.org/t/p/original${this.drawnMovie.poster_path}`;
+    }
+  },
+  methods: {
+    async shareMovie () {
+      const url = `https://image.tmdb.org/t/p/original${this.drawnMovie.poster_path}`;
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'Check out this movie',
+            text: 'Here is the movie we drew from the hat:',
+            url: url,
+          });
+        } catch (err) {
+          console.error('There was an error sharing the movie', err);
+        }
+      } else {
+        // Fallback for browsers that do not support the Web Share API
+        const members = this.$store.state.members.join(",");
+        window.location.href = `sms:/open?addresses=${members}&body=${url}`;
+      }
     }
   }
 };
