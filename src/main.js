@@ -10,6 +10,7 @@ import PickAMovie from "./components/PickAMovie.vue";
 import DrawnMovie from "./components/DrawnMovie.vue";
 import Hat from "./components/Hat.vue";
 import HatList from "./components/HatsList.vue";
+import './registerServiceWorker'
 
 const app = createApp(App);
 
