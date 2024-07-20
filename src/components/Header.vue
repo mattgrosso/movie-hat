@@ -26,6 +26,7 @@
         </span>
         <div class="mat"></div>
       </h1>
+      <span class="version">{{version}}</span>
     </div>
 
     <!-- Modals -->
@@ -51,6 +52,11 @@
 
 <script>
 export default {
+  computed: {
+    version () {
+      return process.env.VUE_APP_VERSION;
+    },
+  },
   methods: {
     logOut () {
       window.localStorage.removeItem('movieHatEmail');
@@ -65,6 +71,7 @@ export default {
     position: relative;
 
     .header {
+      position: relative;
       h1 {
         background: white;
         border: 12px solid black;
@@ -97,6 +104,15 @@ export default {
           right: 0;
           top: 0;
         }
+      }
+
+      .version {
+        bottom: 0px;
+        color: white;
+        font-size: 0.5rem;
+        position: absolute;
+        right: 8px;
+        transform: translateY(6px);
       }
     }
 
