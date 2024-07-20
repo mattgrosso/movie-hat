@@ -1,0 +1,17 @@
+{
+    "Location": "https://cloudfront.amazonaws.com/2020-05-31/distribution/EBSAAKUEVN304/invalidation/I7AB6ZGKKTBO4BY91HP4T1UE5U",
+    "Invalidation": {
+        "Id": "I7AB6ZGKKTBO4BY91HP4T1UE5U",
+        "Status": "InProgress",
+        "CreateTime": "2024-07-20T14:04:56.697000+00:00",
+        "InvalidationBatch": {
+            "Paths": {
+                "Quantity": 1,
+                "Items": [
+                    "/*"
+                ]
+            },
+            "CallerReference": "cli-1721484296-34775"
+        }
+    }
+}

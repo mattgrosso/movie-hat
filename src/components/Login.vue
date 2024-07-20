@@ -1,11 +1,15 @@
 <template>
-  <div class="login col-12 d-flex justify-content-center my-5">
-    <GoogleLogin :callback="googleLogin"/>
+  <div class="login">
+    <h1 class="col-12 text-center">Welcome to Movie Hat</h1>
+    <h2 class="col-12 text-center fs-6 mb-5">Please sign in with Google</h2>
+    <button @click="login" class="btn btn-primary google-signin-button">
+      <i class="bi bi-google me-2"></i>
+      Sign in with Google
+    </button>
   </div>
 </template>
 
 <script>
-import { decodeCredential } from 'vue3-google-login'
 
 export default {
   mounted () {
@@ -17,12 +21,10 @@ export default {
     }
   },
   methods: {
-    googleLogin (resp) {
-      const credential = decodeCredential(resp.credential);
-      this.$store.commit('setEmail', credential.email);
-      this.$store.commit('setName', `${credential.name}`);
+    async login () {
+      await this.$store.dispatch('login');
     }
-  },
+  }
 }
 </script>
 

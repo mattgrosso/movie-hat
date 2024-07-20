@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "serve": "vue-cli-service serve",
-    "build": "vue-cli-service build",
+    "update-version": "node src/assets/javascript/version.js",
+    "serve": "nodemon --watch .env --exec \"vue-cli-service serve\"",
+    "build": "yarn update-version && vue-cli-service build",
     "lint": "vue-cli-service lint",
-    "deploy": "vue-cli-service build && surge dist/"
+    "deploy": "yarn build && aws s3 sync dist/ s3://movie-hat --profile home && aws cloudfront create-invalidation --distribution-id EBSAAKUEVN304 --paths '/*' --profile home > invalidation_output.txt"
   },
   "dependencies": {
     "@popperjs/core": "^2.11.6",
@@ -16,7 +17,9 @@
     "chart.js": "^4.3.0",
     "core-js": "^3.8.3",
     "fast-average-color": "^9.3.0",
+    "firebase": "^10.12.4",
     "lodash": "^4.17.21",
+    "nodemon": "^3.1.4",
     "ordinal-js": "^1.1.0",
     "randomcolor": "^0.6.2",
     "register-service-worker": "^1.7.2",
@@ -77,7 +80,8 @@
       "no-empty": "warn",
       "prefer-const": "warn",
       "no-multiple-empty-lines": "warn",
-      "no-useless-return": "off"
+      "no-useless-return": "off",
+      "vue/no-unused-components": "off"
     }
   },
   "browserslist": [
