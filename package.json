@@ -6,6 +6,7 @@
     "update-version": "node src/assets/javascript/version.js",
     "backup-hats": "node scripts/backup-hats.mjs",
     "restore-hats": "node scripts/restore-hats.mjs",
+    "prune-empty-hats": "node scripts/prune-empty-hats.mjs",
     "serve": "nodemon --watch .env --exec \"vue-cli-service serve\"",
     "build": "yarn update-version && vue-cli-service build",
     "lint": "vue-cli-service lint",
