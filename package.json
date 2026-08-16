@@ -9,6 +9,7 @@
     "serve": "nodemon --watch .env --exec \"vue-cli-service serve\"",
     "build": "yarn update-version && vue-cli-service build",
     "lint": "vue-cli-service lint",
+    "predeploy": "node scripts/backup-hats.mjs --quiet",
     "deploy": "yarn build && aws s3 sync dist/ s3://movie-hat --profile personal-deploy && aws cloudfront create-invalidation --distribution-id EBSAAKUEVN304 --paths '/*' --profile personal-deploy > invalidation_output.txt"
   },
   "dependencies": {
