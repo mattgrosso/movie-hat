@@ -18,7 +18,7 @@
 </template>
 
 <script>
-import { dbDelete, dbGet, dbPost } from '../store/db.js';
+import { dbDelete, dbGet, dbPost, resolveHatKey } from '../store/db.js';
 import sample from 'lodash/sample';
 
 export default {
@@ -70,14 +70,15 @@ export default {
       delete movieForHistory.dbKey;
 
       if (!this.$store.state.dbKeyForHatTitle) {
-        const respForKey = await dbGet(`hats/${this.$store.state.movieHatTitle}`
-        );
+        // Through the index, not by listing the title: once the rules are
+        // on, access is granted per hat and the title level is unreadable.
+        const resolved = await resolveHatKey(this.$store.state.movieHatTitle, this.$store.state.email);
 
-        if (!respForKey) {
+        if (!resolved) {
           return;
         }
 
-        this.$store.commit("setDbKeyForHatTitle", Object.keys(respForKey)[0]);
+        this.$store.commit("setDbKeyForHatTitle", resolved);
       }
 
       const dbKey = this.$store.state.dbKeyForHatTitle;

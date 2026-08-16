@@ -7,6 +7,8 @@
     "backup-hats": "node scripts/backup-hats.mjs",
     "restore-hats": "node scripts/restore-hats.mjs",
     "prune-empty-hats": "node scripts/prune-empty-hats.mjs",
+    "build-membership-index": "node scripts/build-membership-index.mjs",
+    "generate-hat-rules": "node scripts/generate-hat-rules.mjs",
     "serve": "nodemon --watch .env --exec \"vue-cli-service serve\"",
     "build": "yarn update-version && vue-cli-service build",
     "lint": "vue-cli-service lint",

@@ -1,5 +1,5 @@
 import { createStore } from 'vuex'
-import { dbGet, hatPath } from './db.js'
+import { dbGet, hatPath, resolveHatKey } from './db.js'
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "firebase/auth";
 
@@ -124,13 +124,12 @@ export default createStore({
       }
     },
     async getHat (context) {
-      const keys = await dbGet(hatPath(context.state.movieHatTitle));
+      const dbKey = await resolveHatKey(context.state.movieHatTitle, context.state.email);
 
-      if (!keys) {
+      if (!dbKey) {
         return;
       }
 
-      const dbKey = Object.keys(keys)[0];
       context.commit("setDbKeyForHatTitle", dbKey);
 
       const resp = { data: await dbGet(hatPath(context.state.movieHatTitle, dbKey)) };

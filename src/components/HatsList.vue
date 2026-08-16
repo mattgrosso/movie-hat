@@ -103,7 +103,8 @@
 </template>
 
 <script>
-import { dbDelete, dbGet, dbPatch, dbPost } from '../store/db.js';
+import { dbDelete, dbGet, dbPatch, dbPost, dbPut, hatPath } from '../store/db.js';
+import { emailToMemberKey } from '../store/memberKey.mjs';
 
 export default {
   data () {
@@ -139,37 +140,39 @@ export default {
   },
   methods: {
     async getMemberHats () {
-      const allHats = await dbGet(`hats`);
+      // Was: download every hat in the app and filter client-side. That stops
+      // working the moment you can't read hats you don't belong to, which is
+      // the whole point of the lockdown — so ask for your own index instead.
+      const memberKey = emailToMemberKey(this.$store.state.email);
+      if (!memberKey) return;
 
-      if (!allHats) {
+      const mine = await dbGet(`userHats/${memberKey}`);
+      if (!mine) {
+        this.memberHats = [];
         return;
       }
 
-      const data = allHats
+      const hats = await Promise.all(
+        Object.values(mine).map(async ({ title, hatKey }) => {
+          const hat = await dbGet(hatPath(title, hatKey));
+          return hat ? { ...hat, title, subKey: hatKey } : null;
+        })
+      );
 
-      const allHatsAsArray = Object.keys(data).map((hat) => {
-        const subKey = Object.keys(data[hat])[0];
-        return {
-          ...data[hat][subKey],
-          subKey: Object.keys(data[hat])[0]
-        };
-      });
-
-      this.memberHats = allHatsAsArray.filter((hat) => {
-        if (hat.members) {
-          return hat.members.includes(this.$store.state.email);
-        } else {
-          return false;
-        }
-      });
+      this.memberHats = hats.filter(Boolean);
     },
     async addHat () {
       this.message = null;
 
       const webSafe = encodeURIComponent(this.newHatTitle);
+      const email = this.$store.state.email;
+      const memberKey = emailToMemberKey(email);
       const newHat = {
         title: this.newHatTitle,
-        members: [this.$store.state.email]
+        members: [email],
+        // The rules read this, not the list above. Without it the creator
+        // can't read back the hat they just made.
+        memberEmails: { [memberKey]: true }
       }
 
       const alreadyExists = await dbGet(`hats/${webSafe}`,
@@ -179,9 +182,17 @@ export default {
       if (alreadyExists) {
         this.showMessage("That hat title is already in use, please try another title.", 5000);
       } else {
-        await dbPost(`hats/${webSafe}`,
+        const created = await dbPost(`hats/${webSafe}`,
           newHat
         );
+
+        // "Which hats are mine", the other half of the index.
+        if (created?.name) {
+          await dbPut(`userHats/${memberKey}/${emailToMemberKey(this.newHatTitle)}`, {
+            title: this.newHatTitle,
+            hatKey: created.name
+          });
+        }
 
         this.getMemberHats();
         this.message = null;
@@ -201,14 +212,20 @@ export default {
         return;
       }
 
+      const newMemberKey = emailToMemberKey(input.value);
       const payload = {
         ...hat,
-        members: [...hat.members, input.value]
+        members: [...hat.members, input.value],
+        memberEmails: { ...(hat.memberEmails || {}), [newMemberKey]: true }
       }
 
-      await dbPatch(`hats/${hat.title}/${hat.subKey}`,
-        payload
-      );
+      await dbPatch(hatPath(hat.title, hat.subKey), payload);
+
+      // So the hat shows up for them without them having to find it.
+      await dbPut(`userHats/${newMemberKey}/${emailToMemberKey(hat.title)}`, {
+        title: hat.title,
+        hatKey: hat.subKey
+      });
 
       input.value = null;
       this.getMemberHats();

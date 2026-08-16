@@ -16,6 +16,7 @@
 // That is what makes this safe to ship on its own, ahead of the rules —
 // nothing changes for anyone until the rules change.
 import { getAuth } from 'firebase/auth';
+import { emailToMemberKey } from './memberKey.mjs';
 
 const DATABASE_URL = 'https://movie-hat-9c418-default-rtdb.firebaseio.com';
 
@@ -78,6 +79,33 @@ export const dbPatch = (path, body) => request(path, {
 });
 
 export const dbDelete = (path) => request(path, { method: 'DELETE' });
+
+/**
+ * A hat's storage key, WITHOUT listing the title.
+ *
+ * The app used to find it by reading `hats/<title>` and taking the first key
+ * underneath. Once the rules are on, that read is at a level nobody is
+ * allowed to read — access is granted per hat, not per title — so the key
+ * comes from your own index instead.
+ *
+ * Falls back to the old listing when the index has no answer, which keeps
+ * this working today and for any hat created before the index existed.
+ */
+export async function resolveHatKey (title, email) {
+  const memberKey = emailToMemberKey(email);
+
+  if (memberKey) {
+    try {
+      const entry = await dbGet(`userHats/${memberKey}/${emailToMemberKey(title)}`);
+      if (entry?.hatKey) return entry.hatKey;
+    } catch (error) {
+      // Fall through to the listing below.
+    }
+  }
+
+  const listed = await dbGet(hatPath(title));
+  return listed ? Object.keys(listed)[0] : null;
+}
 
 /** Escapes a hat title for use in a path. Titles contain spaces and '&'. */
 export const hatPath = (title, ...rest) =>
