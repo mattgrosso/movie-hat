@@ -105,7 +105,7 @@
 </template>
 
 <script>
-import axios from 'axios';
+import { dbGet, dbPatch, dbPost } from '../store/db.js';
 
 export default {
   data () {
@@ -172,26 +172,24 @@ export default {
       }
 
       if (!this.$store.state.dbKeyForHatTitle) {
-        const respForKey = await axios.get(
-          `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.$store.state.movieHatTitle}.json`
+        const respForKey = await dbGet(`hats/${this.$store.state.movieHatTitle}`
         );
 
-        if (!respForKey.data) {
+        if (!respForKey) {
           return;
         }
 
-        this.$store.commit("setDbKeyForHatTitle", Object.keys(respForKey.data)[0]);
+        this.$store.commit("setDbKeyForHatTitle", Object.keys(respForKey)[0]);
       }
 
       const dbKey = this.$store.state.dbKeyForHatTitle;
 
-      const post = await axios.post(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.movieHatTitle}/${dbKey}/movies.json`,
+      const post = await dbPost(`hats/${this.movieHatTitle}/${dbKey}/movies`,
         { ...movie, timeStamp: Date.now(), addedBy: this.$store.state.name }
       );
 
-      if (post.statusText === 'OK') {
-        this.entryKey = post.data.name;
+      if (post) {
+        this.entryKey = post.name;
         this.loading = false;
 
         this.$store.dispatch('getHat');
@@ -214,17 +212,15 @@ export default {
       if (this.noteValue) {
         const dbKey = this.$store.state.dbKeyForHatTitle;
 
-        const entry = await axios.get(
-          `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.movieHatTitle}/${dbKey}/movies/${this.entryKey}.json`
+        const entry = await dbGet(`hats/${this.movieHatTitle}/${dbKey}/movies/${this.entryKey}`
         );
 
         const payload = {
-          ...entry.data,
+          ...entry,
           note: this.noteValue
         };
 
-        await axios.patch(
-          `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.movieHatTitle}/${dbKey}/movies/${this.entryKey}.json`,
+        await dbPatch(`hats/${this.movieHatTitle}/${dbKey}/movies/${this.entryKey}`,
           payload
         );
       }

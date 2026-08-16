@@ -103,7 +103,7 @@
 </template>
 
 <script>
-import axios from 'axios';
+import { dbDelete, dbGet, dbPatch, dbPost } from '../store/db.js';
 
 export default {
   data () {
@@ -139,13 +139,13 @@ export default {
   },
   methods: {
     async getMemberHats () {
-      const allHats = await axios.get(`https://movie-hat-9c418-default-rtdb.firebaseio.com/hats.json`);
+      const allHats = await dbGet(`hats`);
 
-      if (!allHats.data) {
+      if (!allHats) {
         return;
       }
 
-      const data = allHats.data
+      const data = allHats
 
       const allHatsAsArray = Object.keys(data).map((hat) => {
         const subKey = Object.keys(data[hat])[0];
@@ -172,16 +172,14 @@ export default {
         members: [this.$store.state.email]
       }
 
-      const alreadyExists = await axios.get(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${webSafe}.json`,
+      const alreadyExists = await dbGet(`hats/${webSafe}`,
         newHat
       );
 
-      if (alreadyExists.data) {
+      if (alreadyExists) {
         this.showMessage("That hat title is already in use, please try another title.", 5000);
       } else {
-        await axios.post(
-          `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${webSafe}.json`,
+        await dbPost(`hats/${webSafe}`,
           newHat
         );
 
@@ -208,8 +206,7 @@ export default {
         members: [...hat.members, input.value]
       }
 
-      await axios.patch(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${hat.title}/${hat.subKey}.json`,
+      await dbPatch(`hats/${hat.title}/${hat.subKey}`,
         payload
       );
 
@@ -228,18 +225,13 @@ export default {
       this.$router.push("/");
     },
     async deleteHat (title) {
-      const removeFromHat = await axios.delete(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${title}.json`
-      );
+      // dbDelete throws if the database refuses, so reaching the next line
+      // means it went through — the old axios status check could never fail.
+      await dbDelete(`hats/${title}`);
 
-      if (removeFromHat.statusText !== 'OK') {
-        console.log('Something went wrong with movie delete: ', removeFromHat);
-        return;
-      } else {
-        this.getMemberHats();
-        this.$refs.closeDeleteHatModal.click();
-        this.deleteHatTitle = null;
-      }
+      this.getMemberHats();
+      this.$refs.closeDeleteHatModal.click();
+      this.deleteHatTitle = null;
     },
     validateEmail (email) {
       const valid = String(email)

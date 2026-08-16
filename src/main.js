@@ -16,6 +16,13 @@ const app = createApp(App);
 
 app.use(store);
 
+// Watch the real Firebase session from start-up. Until 2026-08-16 the app
+// treated an email in localStorage as being signed in and never looked at
+// the session behind it — which is fine only while the database lets anyone
+// read and write. This is what the sign-in gate will read once the rules
+// require a signed-in user.
+store.dispatch('watchAuth');
+
 app.use(VueLazyLoad, {});
 
 app.use(vue3GoogleLogin, {

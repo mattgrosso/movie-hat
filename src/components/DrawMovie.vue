@@ -18,7 +18,7 @@
 </template>
 
 <script>
-import axios from 'axios';
+import { dbDelete, dbGet, dbPost } from '../store/db.js';
 import sample from 'lodash/sample';
 
 export default {
@@ -70,37 +70,22 @@ export default {
       delete movieForHistory.dbKey;
 
       if (!this.$store.state.dbKeyForHatTitle) {
-        const respForKey = await axios.get(
-          `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.$store.state.movieHatTitle}.json`
+        const respForKey = await dbGet(`hats/${this.$store.state.movieHatTitle}`
         );
 
-        if (!respForKey.data) {
+        if (!respForKey) {
           return;
         }
 
-        this.$store.commit("setDbKeyForHatTitle", Object.keys(respForKey.data)[0]);
+        this.$store.commit("setDbKeyForHatTitle", Object.keys(respForKey)[0]);
       }
 
       const dbKey = this.$store.state.dbKeyForHatTitle;
 
-      const addToHistory = await axios.post(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.movieHatTitle}/${dbKey}/history.json`,
-        movieForHistory
-      );
-
-      if (addToHistory.statusText !== 'OK') {
-        console.error('Something went wrong with moving to History: ', addToHistory);
-        return;
-      }
-
-      const removeFromHat = await axios.delete(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${this.movieHatTitle}/${dbKey}/movies/${movie.dbKey}.json`
-      );
-
-      if (removeFromHat.statusText !== 'OK') {
-        console.log('Something went wrong with movie delete: ', removeFromHat);
-        return;
-      }
+      // History first, then removal: a failure in between leaves the movie
+      // in both places, which is recoverable. The other order loses it.
+      await dbPost(`hats/${this.movieHatTitle}/${dbKey}/history`, movieForHistory);
+      await dbDelete(`hats/${this.movieHatTitle}/${dbKey}/movies/${movie.dbKey}`);
 
       this.$store.dispatch('getHat');
     },

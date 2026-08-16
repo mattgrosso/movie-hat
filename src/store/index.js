@@ -1,7 +1,7 @@
-import axios from 'axios';
 import { createStore } from 'vuex'
+import { dbGet, hatPath } from './db.js'
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "firebase/auth";
 
 // Firebase
 const firebaseConfig = {
@@ -19,6 +19,17 @@ initializeApp(firebaseConfig);
 export default createStore({
   state: {
     email: null,
+    // Whether Firebase itself says we're signed in, as opposed to an email
+    // remembered in localStorage. Null until onAuthStateChanged first fires.
+    //
+    // These were the same thing until 2026-08-16, which was the problem: the
+    // app trusted `movieHatEmail` in localStorage and never checked the
+    // session behind it. That works only while the database lets anyone
+    // read and write. The moment the rules require a signed-in user, a
+    // remembered email with no live session means the app looks logged in
+    // and every request fails.
+    authUser: null,
+    authResolved: false,
     name: null,
     movieHat: null,
     history: null,
@@ -34,6 +45,10 @@ export default createStore({
     }
   },
   mutations: {
+    setAuthUser (state, user) {
+      state.authUser = user;
+      state.authResolved = true;
+    },
     setEmail (state, value) {
       window.localStorage.setItem('movieHatEmail', JSON.stringify(value));
       state.email = value;
@@ -66,6 +81,25 @@ export default createStore({
     }
   },
   actions: {
+    /**
+     * Subscribe to the real session. Called once at start-up.
+     *
+     * When Firebase says there IS a user we adopt its email, so the two can
+     * never disagree. When it says there is NOT, the remembered email is
+     * left in place for now — the rules are still open, so the app keeps
+     * working — but `authUser` stays null, which is what the sign-in gate
+     * will look at once the rules are closed.
+     */
+    watchAuth (context) {
+      onAuthStateChanged(getAuth(), (user) => {
+        context.commit('setAuthUser', user || null);
+
+        if (user?.email) {
+          context.commit('setEmail', user.email);
+          if (user.displayName) context.commit('setName', user.displayName);
+        }
+      });
+    },
     async login (context) {
       const auth = getAuth();
       const provider = new GoogleAuthProvider();
@@ -90,22 +124,18 @@ export default createStore({
       }
     },
     async getHat (context) {
-      const respForKey = await axios.get(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${context.state.movieHatTitle}.json`
-      );
+      const keys = await dbGet(hatPath(context.state.movieHatTitle));
 
-      if (!respForKey.data) {
+      if (!keys) {
         return;
       }
 
-      const dbKey = Object.keys(respForKey.data)[0];
+      const dbKey = Object.keys(keys)[0];
       context.commit("setDbKeyForHatTitle", dbKey);
 
-      const resp = await axios.get(
-        `https://movie-hat-9c418-default-rtdb.firebaseio.com/hats/${context.state.movieHatTitle}/${dbKey}.json`
-      );
+      const resp = { data: await dbGet(hatPath(context.state.movieHatTitle, dbKey)) };
 
-      if (resp.statusText === 'OK' && resp.data) {
+      if (resp.data) {
         let hatAsArray = [];
 
         if (resp.data.movies) {

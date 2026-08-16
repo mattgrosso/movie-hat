@@ -1,0 +1,84 @@
+// Every read and write to the hats database goes through here.
+//
+// Why this exists (2026-08-16): the app signs you in with Google, but its
+// data access was plain unauthenticated REST — `axios.get(...firebaseio.com
+// /hats/....json)` — so the database has to be world-readable and
+// world-writable for the app to work at all. Anyone with the URL can read,
+// edit or empty any hat, including the ones shared with family.
+//
+// Closing that means the database rules have to require a signed-in user,
+// and that can only happen once every request carries a token. This module
+// is that step: same calls, same shapes, now with `?auth=<id token>`
+// attached whenever there is a session.
+//
+// It is DELIBERATELY tolerant while the rules are still open: no session
+// means the request goes out unauthenticated and works exactly as before.
+// That is what makes this safe to ship on its own, ahead of the rules —
+// nothing changes for anyone until the rules change.
+import { getAuth } from 'firebase/auth';
+
+const DATABASE_URL = 'https://movie-hat-9c418-default-rtdb.firebaseio.com';
+
+/**
+ * The current user's ID token, or null when nobody is signed in.
+ *
+ * getIdToken() refreshes on its own when the hour-long token is close to
+ * expiring, which is the main reason to ask for it per-request rather than
+ * holding one.
+ */
+export async function authToken () {
+  try {
+    const user = getAuth()?.currentUser;
+    if (!user) return null;
+    return await user.getIdToken();
+  } catch (error) {
+    // A token we can't get is the same as no token: let the request go and
+    // let the database decide.
+    console.warn('Could not get an auth token', error);
+    return null;
+  }
+}
+
+/** `hats/Dev Hat/key` → a full URL with the title escaped and the token on. */
+export function buildUrl (path, token) {
+  const clean = String(path || '').replace(/^\/+/, '');
+  const url = `${DATABASE_URL}/${clean}.json`;
+  return token ? `${url}?auth=${encodeURIComponent(token)}` : url;
+}
+
+async function request (path, options = {}) {
+  const token = await authToken();
+  const response = await fetch(buildUrl(path, token), options);
+
+  if (!response.ok) {
+    const error = new Error(`Movie Hat database responded ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+
+  const text = await response.text();
+  return text && text !== 'null' ? JSON.parse(text) : null;
+}
+
+export const dbGet = (path) => request(path);
+
+export const dbPost = (path, body) => request(path, {
+  method: 'POST',
+  body: JSON.stringify(body)
+});
+
+export const dbPut = (path, body) => request(path, {
+  method: 'PUT',
+  body: JSON.stringify(body)
+});
+
+export const dbPatch = (path, body) => request(path, {
+  method: 'PATCH',
+  body: JSON.stringify(body)
+});
+
+export const dbDelete = (path) => request(path, { method: 'DELETE' });
+
+/** Escapes a hat title for use in a path. Titles contain spaces and '&'. */
+export const hatPath = (title, ...rest) =>
+  ['hats', encodeURIComponent(title), ...rest.filter((part) => part != null)].join('/');
