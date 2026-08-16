@@ -3,6 +3,7 @@ node_modules
 /dist
 .env
 .history
+invalidation_output.txt
 
 # local env files
 .env.local

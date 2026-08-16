@@ -59,7 +59,7 @@ export default {
 
       for (const result of choices) {
         const resp = await this.getStreamingProviders(result.id);
-        const USProviders = resp.data.results.US;
+        const USProviders = resp?.data.results.US;
 
         if (!USProviders) {
           continue;
@@ -119,7 +119,11 @@ export default {
       this.$router.push('/pick-a-movie');
     },
     async getStreamingProviders (id) {
-      return await axios.get(`https://api.themoviedb.org/3/movie/${id}/watch/providers?api_key=${process.env.VUE_APP_TMDB_API_KEY}`);
+      try {
+        return await axios.get(`https://api.themoviedb.org/3/movie/${id}/watch/providers?api_key=${process.env.VUE_APP_TMDB_API_KEY}`);
+      } catch (error) {
+        console.error(error);
+      }
     },
     nameTooLong (name) {
       return name.split(' ').length > 3;

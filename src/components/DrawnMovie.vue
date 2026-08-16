@@ -97,9 +97,13 @@ export default {
       const url = `https://image.tmdb.org/t/p/original${this.drawnMovie.poster_path}`;
       if (navigator.share) {
         try {
+          const addedBy = this.drawnMovie.addedBy ? `Added by: ${this.drawnMovie.addedBy}` : '';
+          const note = this.drawnMovie.note ? `Note: ${this.drawnMovie.note}` : '';
+          const combinedText = `${addedBy}\n${note}`;
+
           await navigator.share({
-            title: 'Check out this movie',
-            text: 'Here is the movie we drew from the hat:',
+            title: 'Movie from hat:',
+            text: combinedText,
             url: url,
           });
         } catch (err) {
