@@ -25,6 +25,7 @@
 // Takes a backup first when actually deleting.
 
 import { execFileSync } from 'child_process';
+import { pathToFileURL } from 'url';
 import { adminGet, adminRemove } from './hatDatabase.mjs';
 
 const doDelete = process.argv.includes('--delete');
@@ -52,42 +53,50 @@ export function partitionHats (hats) {
   return { empty, kept };
 }
 
-const hats = await adminGet('hats');
-if (!hats) {
-  console.error('no hats in the database');
-  process.exit(1);
+// Only run when invoked as a script — the tests import partitionHats from
+// here, and an import must never trigger a database read.
+if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+  await run();
 }
-const { empty, kept } = partitionHats(hats);
 
-console.log(`${empty.length + kept.length} hat records: ${empty.length} never used, ${kept.length} with content\n`);
-console.log(doDelete ? 'Removing:' : 'Would remove:');
-empty.forEach((hat) => console.log(`   ${JSON.stringify(hat.title)}  (${hat.members} member${hat.members === 1 ? '' : 's'})`));
+async function run () {
+  const hats = await adminGet('hats');
+  if (!hats) {
+    console.error('no hats in the database');
+    process.exit(1);
+  }
+  const { empty, kept } = partitionHats(hats);
 
-if (!doDelete) {
-  console.log('\nEverything with even one movie or one draw is untouched.');
-  console.log('Dry run. Re-run with --delete to apply.');
+  console.log(`${empty.length + kept.length} hat records: ${empty.length} never used, ${kept.length} with content\n`);
+  console.log(doDelete ? 'Removing:' : 'Would remove:');
+  empty.forEach((hat) => console.log(`   ${JSON.stringify(hat.title)}  (${hat.members} member${hat.members === 1 ? '' : 's'})`));
+
+  if (!doDelete) {
+    console.log('\nEverything with even one movie or one draw is untouched.');
+    console.log('Dry run. Re-run with --delete to apply.');
+    process.exit(0);
+  }
+
+  console.log('\nBacking up first…');
+  execFileSync('node', [new URL('./backup-hats.mjs', import.meta.url).pathname, '--quiet'], { stdio: 'inherit' });
+
+  let removed = 0;
+  for (const hat of empty) {
+    // Delete the RECORD, not the title: a title can hold more than one record,
+    // and the other one might have content.
+    const siblings = Object.keys(hats[hat.title] || {}).length;
+    const path = siblings > 1
+      ? `hats/${hat.title}/${hat.dbKey}`
+      : `hats/${hat.title}`;
+
+    try {
+      await adminRemove(path);
+      removed += 1;
+    } catch (error) {
+      console.error(`  ! failed to remove ${JSON.stringify(hat.title)}: ${error.message}`);
+    }
+  }
+
+  console.log(`\n✔ removed ${removed} empty hat${removed === 1 ? '' : 's'}; ${kept.length} left untouched.`);
   process.exit(0);
 }
-
-console.log('\nBacking up first…');
-execFileSync('node', [new URL('./backup-hats.mjs', import.meta.url).pathname, '--quiet'], { stdio: 'inherit' });
-
-let removed = 0;
-for (const hat of empty) {
-  // Delete the RECORD, not the title: a title can hold more than one record,
-  // and the other one might have content.
-  const siblings = Object.keys(hats[hat.title] || {}).length;
-  const path = siblings > 1
-    ? `hats/${hat.title}/${hat.dbKey}`
-    : `hats/${hat.title}`;
-
-  try {
-    await adminRemove(path);
-    removed += 1;
-  } catch (error) {
-    console.error(`  ! failed to remove ${JSON.stringify(hat.title)}: ${error.message}`);
-  }
-}
-
-console.log(`\n✔ removed ${removed} empty hat${removed === 1 ? '' : 's'}; ${kept.length} left untouched.`);
-process.exit(0);

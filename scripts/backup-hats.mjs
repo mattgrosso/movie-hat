@@ -3,6 +3,15 @@
 //   yarn backup-hats               # snapshot -> ~/movie-hat-backups/ + S3
 //   yarn backup-hats --local-only  # skip the S3 upload
 //   yarn backup-hats --quiet       # one line of output (for predeploy)
+//   --skip-if-fresh[=hours]        # no-op if a snapshot newer than N hours
+//                                  # (default 6) exists. Used by predeploy:
+//                                  # every backup is a FULL read of the
+//                                  # database, and full reads are billed
+//                                  # RTDB egress — this exact pattern cost
+//                                  # Cinema Roll $4-7/day before its
+//                                  # predeploy learned to skip (see
+//                                  # snapshotFreshness.mjs). Manual
+//                                  # `yarn backup-hats` never skips.
 //
 // Why this exists (Matt, 2026-08-16): "these hats are used a lot. We
 // definitely don't wanna lose anything. So if there's any kind of backup we
@@ -19,12 +28,14 @@
 //
 // Restore path: scripts/restore-hats.mjs.
 
-import { writeFileSync, mkdirSync, readdirSync, unlinkSync } from 'fs';
+import { writeFileSync, mkdirSync, readdirSync, unlinkSync, existsSync } from 'fs';
 import { gzipSync } from 'zlib';
 import { homedir } from 'os';
 import { join } from 'path';
+import { pathToFileURL } from 'url';
 import { execFileSync } from 'child_process';
 import { adminGet } from './hatDatabase.mjs';
+import { freshSnapshot } from './snapshotFreshness.mjs';
 
 const BACKUP_DIR = join(homedir(), 'movie-hat-backups');
 const S3_BUCKET = 'movie-hat-db-backups';
@@ -33,6 +44,11 @@ const AWS_PROFILE = 'personal-deploy';
 const quiet = process.argv.includes('--quiet');
 const localOnly = process.argv.includes('--local-only');
 const log = (...args) => { if (!quiet) console.log(...args); };
+
+const skipIfFreshArg = process.argv.find((arg) => arg === '--skip-if-fresh' || arg.startsWith('--skip-if-fresh='));
+const skipIfFreshHours = skipIfFreshArg
+  ? Number(skipIfFreshArg.split('=')[1] ?? 6) || 6
+  : null;
 
 function timestampName () {
   // 2026-08-16T14-30-05 — filesystem-safe and chronologically sortable.
@@ -85,6 +101,15 @@ export function summarize (data) {
 }
 
 async function main () {
+  // The cost gate: a fresh-enough snapshot means no database read at all.
+  if (skipIfFreshHours && existsSync(BACKUP_DIR)) {
+    const fresh = freshSnapshot(readdirSync(BACKUP_DIR), skipIfFreshHours * 60 * 60 * 1000);
+    if (fresh) {
+      console.log(`hats backup: skipped — ${fresh} is under ${skipIfFreshHours}h old`);
+      process.exit(0);
+    }
+  }
+
   log('Reading the whole database…');
   const data = await adminGet('/');
   if (!data || !data.hats) {
@@ -121,7 +146,11 @@ async function main () {
   process.exit(0);
 }
 
-main().catch((error) => {
-  console.error('Backup failed:', error.message);
-  process.exit(1);
-});
+// Only run when invoked as a script — the tests import pruneLocal and
+// summarize from here, and an import must never trigger a database read.
+if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+  main().catch((error) => {
+    console.error('Backup failed:', error.message);
+    process.exit(1);
+  });
+}

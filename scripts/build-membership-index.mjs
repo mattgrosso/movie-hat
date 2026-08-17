@@ -23,6 +23,7 @@
 // the UI renders. Running this twice is harmless.
 
 import { execFileSync } from 'child_process';
+import { pathToFileURL } from 'url';
 import { adminGet, adminUpdate } from './hatDatabase.mjs';
 import { emailToMemberKey, membersOf, memberIndexFor } from '../src/store/memberKey.mjs';
 
@@ -66,41 +67,49 @@ export function buildIndexes (hats) {
   return { updates, summary };
 }
 
-const hats = await adminGet('hats');
-if (!hats) {
-  console.error('no hats in the database');
-  process.exit(1);
-}
-const { updates, summary } = buildIndexes(hats);
-const memberEmailWrites = Object.keys(updates).filter((path) => path.endsWith('/memberEmails')).length;
-const userHatWrites = Object.keys(updates).filter((path) => path.startsWith('userHats/')).length;
-
-console.log(`${summary.hats} hats indexed, ${summary.members} memberships`);
-console.log(`  ${memberEmailWrites} memberEmails maps`);
-console.log(`  ${userHatWrites} userHats entries`);
-
-if (summary.skipped.length) {
-  console.log(`\n! ${summary.skipped.length} hat(s) have content but NO members — nobody would be able to read them:`);
-  summary.skipped.forEach((hat) => console.log(`    ${JSON.stringify(hat.title)} (${hat.content} entries)`));
+// Only run when invoked as a script — the tests import buildIndexes from
+// here, and an import must never trigger a database read.
+if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+  await run();
 }
 
-// A sample, so the shape is visible before it is written.
-console.log('\nSample of what gets written:');
-Object.entries(updates).slice(0, 4).forEach(([path, value]) => {
-  console.log(`  ${path} = ${JSON.stringify(value)}`);
-});
+async function run () {
+  const hats = await adminGet('hats');
+  if (!hats) {
+    console.error('no hats in the database');
+    process.exit(1);
+  }
+  const { updates, summary } = buildIndexes(hats);
+  const memberEmailWrites = Object.keys(updates).filter((path) => path.endsWith('/memberEmails')).length;
+  const userHatWrites = Object.keys(updates).filter((path) => path.startsWith('userHats/')).length;
 
-if (!apply) {
-  console.log('\nNothing else is touched — the existing members list stays exactly as it is.');
-  console.log('Dry run. Re-run with --apply to write it.');
+  console.log(`${summary.hats} hats indexed, ${summary.members} memberships`);
+  console.log(`  ${memberEmailWrites} memberEmails maps`);
+  console.log(`  ${userHatWrites} userHats entries`);
+
+  if (summary.skipped.length) {
+    console.log(`\n! ${summary.skipped.length} hat(s) have content but NO members — nobody would be able to read them:`);
+    summary.skipped.forEach((hat) => console.log(`    ${JSON.stringify(hat.title)} (${hat.content} entries)`));
+  }
+
+  // A sample, so the shape is visible before it is written.
+  console.log('\nSample of what gets written:');
+  Object.entries(updates).slice(0, 4).forEach(([path, value]) => {
+    console.log(`  ${path} = ${JSON.stringify(value)}`);
+  });
+
+  if (!apply) {
+    console.log('\nNothing else is touched — the existing members list stays exactly as it is.');
+    console.log('Dry run. Re-run with --apply to write it.');
+    process.exit(0);
+  }
+
+  console.log('\nBacking up first…');
+  execFileSync('node', [new URL('./backup-hats.mjs', import.meta.url).pathname, '--quiet'], { stdio: 'inherit' });
+
+  // One atomic multi-path update: either the whole index lands or none of it.
+  await adminUpdate(updates);
+
+  console.log(`\n✔ wrote ${Object.keys(updates).length} paths.`);
   process.exit(0);
 }
-
-console.log('\nBacking up first…');
-execFileSync('node', [new URL('./backup-hats.mjs', import.meta.url).pathname, '--quiet'], { stdio: 'inherit' });
-
-// One atomic multi-path update: either the whole index lands or none of it.
-await adminUpdate(updates);
-
-console.log(`\n✔ wrote ${Object.keys(updates).length} paths.`);
-process.exit(0);

@@ -5,7 +5,6 @@ import { createRouter, createWebHashHistory } from 'vue-router';
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap";
 import VueLazyLoad from 'vue3-lazyload';
-import vue3GoogleLogin from 'vue3-google-login'
 import PickAMovie from "./components/PickAMovie.vue";
 import DrawnMovie from "./components/DrawnMovie.vue";
 import Hat from "./components/Hat.vue";
@@ -24,10 +23,6 @@ app.use(store);
 store.dispatch('watchAuth');
 
 app.use(VueLazyLoad, {});
-
-app.use(vue3GoogleLogin, {
-  clientId: '495603923646-a1kcb1lsvq7t2ekk5bmm15o30vf6pmnq.apps.googleusercontent.com'
-})
 
 // Router
 
