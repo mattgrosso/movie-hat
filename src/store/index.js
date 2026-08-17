@@ -27,6 +27,19 @@ function readLocal (key) {
   }
 }
 
+// The remembered current hat. Newer saves are a {title, hatKey} pair —
+// the KEY is the hat's identity, because titles are display labels and two
+// hats can share one. A legacy save is a bare title from before that was
+// true; carrying it forward with no key makes getHat resolve it the old way
+// once, after which it is re-saved in the new form.
+function readDefaultHat () {
+  const saved = readLocal('defaultMovieHat');
+  if (saved?.title && saved?.hatKey) return saved;
+
+  const legacyTitle = readLocal('defaultMovieHatTitle');
+  return legacyTitle ? { title: legacyTitle, hatKey: null } : null;
+}
+
 export default createStore({
   state: {
     // Restored here, at creation, so every component sees the remembered
@@ -49,8 +62,8 @@ export default createStore({
     movieHat: null,
     history: null,
     members: null,
-    movieHatTitle: readLocal('defaultMovieHatTitle'),
-    dbKeyForHatTitle: null,
+    movieHatTitle: readDefaultHat()?.title || null,
+    dbKeyForHatTitle: readDefaultHat()?.hatKey || null,
     drawnMovie: null,
     movieChoices: null,
     // A human-readable problem the UI should show. Failures used to go only
@@ -86,13 +99,23 @@ export default createStore({
     setMovieHat (state, value) {
       state.movieHat = value;
     },
-    setMovieHatTitle (state, value) {
-      if (value == null) {
-        window.localStorage.removeItem('defaultMovieHatTitle');
+    /**
+     * The current hat, as the {title, hatKey} PAIR. The key is the identity
+     * — titles are labels and two hats can share one — so the two are set
+     * and remembered together. Pass null to forget the current hat.
+     */
+    setCurrentHat (state, hat) {
+      // The legacy title-only save is superseded either way.
+      window.localStorage.removeItem('defaultMovieHatTitle');
+
+      if (hat?.title && hat?.hatKey) {
+        window.localStorage.setItem('defaultMovieHat', JSON.stringify({ title: hat.title, hatKey: hat.hatKey }));
       } else {
-        window.localStorage.setItem('defaultMovieHatTitle', JSON.stringify(value));
+        window.localStorage.removeItem('defaultMovieHat');
       }
-      state.movieHatTitle = value;
+
+      state.movieHatTitle = hat?.title || null;
+      state.dbKeyForHatTitle = hat?.hatKey || null;
     },
     setDbKeyForHatTitle (state, value) {
       state.dbKeyForHatTitle = value;
@@ -176,29 +199,38 @@ export default createStore({
         return;
       }
 
-      const dbKey = await resolveHatKey(title, context.state.email);
+      // The stored key IS the identity; resolving by title is only for a
+      // legacy title-only save, and its answer gets re-saved as the pair so
+      // resolution happens at most once.
+      let dbKey = context.state.dbKeyForHatTitle;
+      if (!dbKey) {
+        dbKey = await resolveHatKey(title, context.state.email);
+        if (dbKey) context.commit('setCurrentHat', { title, hatKey: dbKey });
+      }
 
       if (!dbKey) {
         // The remembered hat opens nothing — deleted, or we're not a member.
         // Forgetting it means the next load goes to the hat list instead of
         // silently showing nothing forever.
         context.commit('setAppError', `Couldn't open "${title}" — it may have been deleted, or you may no longer be a member.`);
-        context.commit('setMovieHatTitle', null);
+        context.commit('setCurrentHat', null);
         context.commit('setMovieHat', []);
         context.commit('setHistory', []);
         return;
       }
 
-      context.commit("setDbKeyForHatTitle", dbKey);
-
       let data = null;
       try {
         data = await dbGet(hatPath(title, dbKey));
       } catch (error) {
-        const hint = error.status === 401 || error.status === 403
-          ? 'You may need to sign in again.'
-          : 'Please try again.';
-        context.commit('setAppError', `Couldn't load "${title}". ${hint}`);
+        if (error.status === 401 || error.status === 403) {
+          // Refused outright — signed out, or no longer a member. Forget
+          // the remembered hat so this can't recur on every load.
+          context.commit('setAppError', `Couldn't open "${title}" — you may need to sign in again, or you may no longer be a member.`);
+          context.commit('setCurrentHat', null);
+        } else {
+          context.commit('setAppError', `Couldn't load "${title}". Please try again.`);
+        }
         return;
       }
 

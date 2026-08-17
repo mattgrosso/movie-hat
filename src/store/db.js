@@ -133,9 +133,22 @@ export async function resolveHatKey (title, email) {
   const memberKey = emailToMemberKey(email);
 
   if (memberKey) {
+    // Index entries are keyed by hatKey now (the hat's identity), so a
+    // title can only be resolved by reading the whole index — ours to read,
+    // and small — and matching on the stored title. The single-entry lookup
+    // first covers entries still keyed the old way (a safe form of the
+    // title), from before the re-keying.
     try {
       const entry = await dbGet(`userHats/${memberKey}/${emailToMemberKey(title)}`);
       if (entry?.hatKey) return entry.hatKey;
+    } catch {
+      // Fall through to the index scan below.
+    }
+
+    try {
+      const mine = await dbGet(`userHats/${memberKey}`);
+      const match = Object.values(mine || {}).find((entry) => entry?.title === title);
+      if (match?.hatKey) return match.hatKey;
     } catch {
       // Fall through to the listing below.
     }

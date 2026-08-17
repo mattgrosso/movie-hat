@@ -12,19 +12,19 @@
       <ul v-if="sortedMemberHats.length" class="p-0 m-0">
         <li class="card my-3" v-for="(hat, hatIndex) in sortedMemberHats" :key="hatIndex">
           <div class="card-header d-flex justify-content-between">
-            <button v-if="canDelete(hat)" class="btn btn-danger ms-1" title="Delete hat" data-bs-toggle="modal" data-bs-target="#deleteHatModal" @click="deleteHatTitle = hat.title">
+            <button v-if="canDelete(hat)" class="btn btn-danger ms-1" title="Delete hat" data-bs-toggle="modal" data-bs-target="#deleteHatModal" @click="deleteHatTarget = hat">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
                 <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
                 <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
               </svg>
             </button>
-            <button v-else class="btn btn-outline-danger ms-1" title="Leave hat" data-bs-toggle="modal" data-bs-target="#leaveHatModal" @click="leaveHatTitle = hat.title">
+            <button v-else class="btn btn-outline-danger ms-1" title="Leave hat" data-bs-toggle="modal" data-bs-target="#leaveHatModal" @click="leaveHatTarget = hat">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-right" viewBox="0 0 16 16">
                 <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/>
                 <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/>
               </svg>
             </button>
-            <button class="btn btn-primary" @click="goToHat(hat.title)">{{hat.title}}</button>
+            <button class="btn btn-primary" @click="goToHat(hat)">{{hat.title}}</button>
           </div>
           <div class="card-body p-3">
             <p class="card-subtitle text-muted">Members</p>
@@ -43,7 +43,7 @@
             </ul>
             <div class="input-group input-group-sm col-8">
               <input :ref="`newMemberInput${hatIndex}`" type="text" class="form-control" placeholder="Add Member" aria-label="Add Member" aria-describedby="add-member-button">
-              <button class="btn btn-secondary" type="button" id="add-member-button" @click="addNewMemberTo(hat.title, hatIndex)">Add</button>
+              <button class="btn btn-secondary" type="button" id="add-member-button" @click="addNewMemberTo(hat, hatIndex)">Add</button>
             </div>
           </div>
         </li>
@@ -92,7 +92,7 @@
       <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content">
           <div class="modal-header">
-            <h1 class="modal-title fs-5" id="leaveHatModalLabel">Leave {{leaveHatTitle}}?</h1>
+            <h1 class="modal-title fs-5" id="leaveHatModalLabel">Leave {{leaveHatTarget?.title}}?</h1>
             <button ref="closeLeaveHatModal" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"/>
           </div>
           <div class="modal-body">
@@ -100,7 +100,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-danger" @click="leaveHat(leaveHatTitle)">Leave {{leaveHatTitle}}</button>
+            <button type="button" class="btn btn-danger" @click="leaveHat(leaveHatTarget)">Leave {{leaveHatTarget?.title}}</button>
           </div>
         </div>
       </div>
@@ -110,7 +110,7 @@
       <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content">
           <div class="modal-header">
-            <h1 class="modal-title fs-5" id="deleteHatModalLabel">Delete {{deleteHatTitle}}?</h1>
+            <h1 class="modal-title fs-5" id="deleteHatModalLabel">Delete {{deleteHatTarget?.title}}?</h1>
             <button ref="closeDeleteHatModal" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"/>
           </div>
           <div class="modal-body" @keyup.enter="clickDeleteHatModalButton">
@@ -118,7 +118,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-danger" @click="deleteHat(deleteHatTitle)">Delete {{deleteHatTitle}}</button>
+            <button type="button" class="btn btn-danger" @click="deleteHat(deleteHatTarget)">Delete {{deleteHatTarget?.title}}</button>
           </div>
         </div>
       </div>
@@ -135,8 +135,8 @@ export default {
     return {
       loading: false,
       newHatTitle: null,
-      deleteHatTitle: null,
-      leaveHatTitle: null,
+      deleteHatTarget: null,
+      leaveHatTarget: null,
       memberHats: [],
       message: null
     }
@@ -189,7 +189,21 @@ export default {
         Object.entries(mine).map(async ([entryKey, { title, hatKey }]) => {
           try {
             const hat = await dbGet(hatPath(title, hatKey));
-            return hat ? { ...hat, title, subKey: hatKey } : null;
+            if (!hat) return null;
+
+            // Entries used to be keyed by a safe form of the TITLE, which
+            // collides the moment two hats share one. The hatKey IS the
+            // identity, so a legacy entry gets re-keyed in place — our own
+            // index is ours to rewrite. (Cinema Roll reads these entries by
+            // VALUE, never by key, so this is invisible to it.)
+            if (entryKey !== hatKey) {
+              try {
+                await dbPut(`userHats/${memberKey}/${hatKey}`, { title, hatKey });
+                await dbDelete(`userHats/${memberKey}/${entryKey}`);
+              } catch { /* still readable under the old key; retried next load */ }
+            }
+
+            return { ...hat, title, subKey: hatKey };
           } catch (error) {
             // A refusal means the hat is gone or we were removed from it —
             // either way the entry opens nothing, so clean it out of our own
@@ -205,7 +219,11 @@ export default {
         })
       );
 
-      this.memberHats = hats.filter(Boolean);
+      // A hat mid-rekey can appear under both its old and new entry for one
+      // load; the key dedupes it.
+      const byKey = new Map();
+      hats.filter(Boolean).forEach((hat) => byKey.set(hat.subKey, hat));
+      this.memberHats = [...byKey.values()];
     },
     async addHat () {
       this.message = null;
@@ -224,41 +242,28 @@ export default {
         createdBy: memberKey
       }
 
-      // Reading `hats/<title>` is a level nobody is allowed to read once the
-      // rules are on — access is per hat. So the duplicate-title check is
-      // best-effort: if the database refuses to answer, go ahead. Worst case
-      // is two records under one title, which the data already tolerates.
-      let alreadyExists = null;
-      try {
-        alreadyExists = await dbGet(`hats/${webSafe}`);
-      } catch {
-        alreadyExists = null;
+      // No duplicate-title check anymore: the rules deny the title-level
+      // read it needed, and the hatKey is the identity now — two hats
+      // sharing a title is confusing but harmless, exactly like two people
+      // sharing a name.
+      const created = await dbPost(`hats/${webSafe}`, newHat);
+
+      // "Which hats are mine", the other half of the index — keyed by the
+      // hat's KEY, its actual identity.
+      if (created?.name) {
+        await dbPut(`userHats/${memberKey}/${created.name}`, {
+          title: this.newHatTitle,
+          hatKey: created.name
+        });
       }
 
-      if (alreadyExists) {
-        this.showMessage("That hat title is already in use, please try another title.", 5000);
-      } else {
-        const created = await dbPost(`hats/${webSafe}`,
-          newHat
-        );
-
-        // "Which hats are mine", the other half of the index.
-        if (created?.name) {
-          await dbPut(`userHats/${memberKey}/${emailToMemberKey(this.newHatTitle)}`, {
-            title: this.newHatTitle,
-            hatKey: created.name
-          });
-        }
-
-        this.getMemberHats();
-        this.message = null;
-        this.$refs.closeNewHatModal.click();
-      }
+      this.getMemberHats();
+      this.message = null;
+      this.$refs.closeNewHatModal.click();
 
       this.newHatTitle = null;
     },
-    async addNewMemberTo (title, index) {
-      const hat = this.memberHats.find((hat) => hat.title === title);
+    async addNewMemberTo (hat, index) {
       const input = this.$refs[`newMemberInput${index}`][0];
 
       if (!this.validateEmail(input.value)) {
@@ -292,7 +297,7 @@ export default {
       // So the hat shows up for them without them having to find it. If this
       // half is refused, their membership above still stands.
       try {
-        await dbPut(`userHats/${newMemberKey}/${emailToMemberKey(hat.title)}`, {
+        await dbPut(`userHats/${newMemberKey}/${hat.subKey}`, {
           title: hat.title,
           hatKey: hat.subKey
         });
@@ -303,8 +308,8 @@ export default {
       input.value = null;
       this.getMemberHats();
     },
-    goToHat (title) {
-      this.$store.commit("setMovieHatTitle", title);
+    goToHat (hat) {
+      this.$store.commit("setCurrentHat", { title: hat.title, hatKey: hat.subKey });
       this.$store.dispatch("getHat");
 
       window.scroll({
@@ -314,16 +319,15 @@ export default {
 
       this.$router.push("/");
     },
-    async deleteHat (title) {
+    async deleteHat (hat) {
+      if (!hat) return;
+
       // Delete the RECORD, not the title node. Access is granted per hat, so
       // once the rules are on, a write at `hats/<title>` sits at a level
       // nobody is allowed to write and the delete would simply be refused.
-      const hat = this.memberHats.find((candidate) => candidate.title === title);
-      if (!hat) return;
-
       // dbDelete throws if the database refuses, so reaching the next line
       // means it went through — the old axios status check could never fail.
-      await dbDelete(hatPath(title, hat.subKey));
+      await dbDelete(hatPath(hat.title, hat.subKey));
 
       // Our own index entry goes now. Other members' entries clean themselves
       // up the next time they load this list and find the hat unreadable
@@ -331,20 +335,20 @@ export default {
       // letting us write other people's indexes.
       const myKey = emailToMemberKey(this.$store.state.email);
       try {
-        await dbDelete(`userHats/${myKey}/${emailToMemberKey(title)}`);
+        await dbDelete(`userHats/${myKey}/${hat.subKey}`);
       } catch (error) {
         console.warn("Couldn't remove the hat from your index", error);
       }
 
       // A default pointing at a hat that no longer exists would error on
       // every load until it self-healed.
-      if (this.$store.state.movieHatTitle === title) {
-        this.$store.commit('setMovieHatTitle', null);
+      if (this.$store.state.dbKeyForHatTitle === hat.subKey) {
+        this.$store.commit('setCurrentHat', null);
       }
 
       this.getMemberHats();
       this.$refs.closeDeleteHatModal.click();
-      this.deleteHatTitle = null;
+      this.deleteHatTarget = null;
     },
     // Deleting a hat is the creator's call; anyone else gets "leave". Hats
     // from before createdBy existed have no creator on record, so they keep
@@ -355,8 +359,7 @@ export default {
       const members = Array.isArray(hat.members) ? hat.members : Object.values(hat.members || {});
       return !hat.createdBy || hat.createdBy === myKey || members.length <= 1;
     },
-    async leaveHat (title) {
-      const hat = this.memberHats.find((candidate) => candidate.title === title);
+    async leaveHat (hat) {
       if (!hat) return;
 
       const myKey = emailToMemberKey(this.$store.state.email);
@@ -372,18 +375,18 @@ export default {
       });
 
       try {
-        await dbDelete(`userHats/${myKey}/${emailToMemberKey(title)}`);
+        await dbDelete(`userHats/${myKey}/${hat.subKey}`);
       } catch (error) {
         console.warn("Couldn't remove the hat from your index", error);
       }
 
-      if (this.$store.state.movieHatTitle === title) {
-        this.$store.commit('setMovieHatTitle', null);
+      if (this.$store.state.dbKeyForHatTitle === hat.subKey) {
+        this.$store.commit('setCurrentHat', null);
       }
 
       this.getMemberHats();
       this.$refs.closeLeaveHatModal.click();
-      this.leaveHatTitle = null;
+      this.leaveHatTarget = null;
     },
     validateEmail (email) {
       const valid = String(email)
