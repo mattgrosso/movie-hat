@@ -1,7 +1,10 @@
 // Removes hats that have never held a single movie.
 //
-//   yarn prune-empty-hats            # list what would go
-//   yarn prune-empty-hats --delete   # remove them
+//   yarn prune-empty-hats                  # list what would go
+//   yarn prune-empty-hats --delete         # remove them
+//   yarn prune-empty-hats --grace-days=14  # spare hats made in the last 14
+//                                          # days (default 7). Safe enough
+//                                          # to run on a schedule.
 //
 // Why (Matt, 2026-08-16): "there are a bunch of hats in there that seem like
 // junk or spam. How can we reduce the number of bullshit hats without
@@ -30,13 +33,25 @@ import { adminGet, adminRemove } from './hatDatabase.mjs';
 
 const doDelete = process.argv.includes('--delete');
 
+const graceArg = process.argv.find((arg) => arg.startsWith('--grace-days='));
+const graceDays = graceArg ? Number(graceArg.split('=')[1]) || 0 : 7;
+
 /**
  * Split every hat record into what may go and what must stay.
  * Exported so the rule itself can be tested without a database.
+ *
+ * `graceDays` protects a hat someone made minutes ago and is in the middle
+ * of filling: a hat that knows its own age (createdAt, stamped since
+ * 2026-08-17) is left alone until it has been empty that long. Hats older
+ * than the field have no age on record and keep the original rule — empty
+ * is empty — which is right, because every one of them predates it by
+ * years.
  */
-export function partitionHats (hats) {
+export function partitionHats (hats, { graceDays: grace = 7, now = Date.now() } = {}) {
   const empty = [];
   const kept = [];
+  const tooNew = [];
+  const graceMs = grace * 24 * 60 * 60 * 1000;
 
   Object.entries(hats || {}).forEach(([title, byKey]) => {
     Object.entries(byKey || {}).forEach(([dbKey, hat]) => {
@@ -45,12 +60,21 @@ export function partitionHats (hats) {
       const members = Object.values(hat?.members || {});
       const record = { title, dbKey, movies, history, members: members.length };
 
-      if (movies === 0 && history === 0) empty.push(record);
-      else kept.push(record);
+      if (movies || history) {
+        kept.push(record);
+        return;
+      }
+
+      if (hat?.createdAt && now - hat.createdAt < graceMs) {
+        tooNew.push(record);
+        return;
+      }
+
+      empty.push(record);
     });
   });
 
-  return { empty, kept };
+  return { empty, kept, tooNew };
 }
 
 // Only run when invoked as a script — the tests import partitionHats from
@@ -65,11 +89,16 @@ async function run () {
     console.error('no hats in the database');
     process.exit(1);
   }
-  const { empty, kept } = partitionHats(hats);
+  const { empty, kept, tooNew } = partitionHats(hats, { graceDays });
 
-  console.log(`${empty.length + kept.length} hat records: ${empty.length} never used, ${kept.length} with content\n`);
+  console.log(`${empty.length + kept.length + tooNew.length} hat records: ${empty.length} never used, ${kept.length} with content\n`);
   console.log(doDelete ? 'Removing:' : 'Would remove:');
   empty.forEach((hat) => console.log(`   ${JSON.stringify(hat.title)}  (${hat.members} member${hat.members === 1 ? '' : 's'})`));
+
+  if (tooNew.length) {
+    console.log(`\n${tooNew.length} empty hat(s) spared — made in the last ${graceDays} days, someone may still be filling them:`);
+    tooNew.forEach((hat) => console.log(`   ${JSON.stringify(hat.title)}`));
+  }
 
   if (!doDelete) {
     console.log('\nEverything with even one movie or one draw is untouched.');

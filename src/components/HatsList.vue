@@ -52,6 +52,9 @@
         <div class="card-body">
           <p>It looks like you're not a member of any hats yet.</p>
           <p>You should make a new one or ask a friend to add you to theirs.</p>
+          <button class="btn btn-outline-secondary btn-sm" @click="$router.push('/tutorial')">
+            How does this work?
+          </button>
         </div>
       </div>
     </div>
@@ -129,6 +132,7 @@
 <script>
 import { dbDelete, dbGet, dbPatch, dbPost, dbPut, hatPath } from '../store/db.js';
 import { emailToMemberKey } from '../store/memberKey.mjs';
+import { hasSeenTutorial, shouldOfferTutorial } from '../assets/javascript/tutorial.js';
 
 export default {
   data () {
@@ -145,6 +149,13 @@ export default {
     this.loading = true;
     await this.getMemberHats();
     this.loading = false;
+
+    // A stranger's first moment in the app used to be this screen's lone
+    // "Add New Hat" button with nothing explaining what a hat is — which is
+    // where the junk hats came from. Explain first, once.
+    if (shouldOfferTutorial({ hatCount: this.memberHats.length, seen: hasSeenTutorial() })) {
+      this.$router.replace('/tutorial');
+    }
   },
   computed: {
     sortedMemberHats () {
@@ -239,7 +250,11 @@ export default {
         memberEmails: { [memberKey]: true },
         // Deleting the whole hat is the creator's call (hats from before
         // this field stay deletable by any member).
-        createdBy: memberKey
+        createdBy: memberKey,
+        // So an abandoned empty hat can be pruned by AGE — without this,
+        // the prune can't tell a hat made five minutes ago from one that
+        // has been empty since 2023, so it can only be run by hand.
+        createdAt: Date.now()
       }
 
       // No duplicate-title check anymore: the rules deny the title-level

@@ -50,6 +50,26 @@ describe('partitionHats', () => {
     expect(kept.map((hat) => hat.title).sort()).toEqual(['All Drawn', 'One Movie']);
   });
 
+  it('spares a freshly made empty hat, so someone filling one is safe', () => {
+    const now = Date.parse('2026-08-17T12:00:00Z');
+    const day = 24 * 60 * 60 * 1000;
+    const hats = {
+      'Made Today': { k1: { createdAt: now - (2 * day) } },
+      Abandoned: { k2: { createdAt: now - (30 * day) } }
+    };
+
+    const { empty, tooNew } = partitionHats(hats, { graceDays: 7, now });
+
+    expect(tooNew.map((hat) => hat.title)).toEqual(['Made Today']);
+    expect(empty.map((hat) => hat.title)).toEqual(['Abandoned']);
+  });
+
+  it('still prunes hats too old to know their own age', () => {
+    // Everything without createdAt predates the field by years.
+    const { empty } = partitionHats({ Legacy: { k: {} } }, { graceDays: 7 });
+    expect(empty.map((hat) => hat.title)).toEqual(['Legacy']);
+  });
+
   it('judges each record under a title separately', () => {
     const hats = {
       Doubled: {

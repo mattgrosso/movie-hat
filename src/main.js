@@ -10,6 +10,7 @@ import DrawnMovie from "./components/DrawnMovie.vue";
 import Hat from "./components/Hat.vue";
 import HatList from "./components/HatsList.vue";
 import Wrapped from "./components/Wrapped.vue";
+import Tutorial from "./components/Tutorial.vue";
 import './registerServiceWorker'
 
 const app = createApp(App);
@@ -34,6 +35,8 @@ const routes = [
   { path: '/hat-list', component: HatList },
   // Always reachable; the app only volunteers it around year's end.
   { path: '/wrapped', component: Wrapped },
+  // Offered unasked to anyone with no hats, replayable from the hat list.
+  { path: '/tutorial', component: Tutorial },
 ]
 
 const router = createRouter({
