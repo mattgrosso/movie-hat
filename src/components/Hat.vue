@@ -144,25 +144,21 @@ export default {
       margin-bottom: 0.5rem;
     }
 
+    // A stack of chart cards, so the drawer grows to whatever it holds
+    // rather than being clipped to one fixed square.
     .charts {
-      height: 0;
-      overflow: hidden;
-      width: 85vw;
-      transition: 0.25s height ease-in-out;
       margin: 0 auto;
+      max-height: 0;
+      overflow: hidden;
+      transition: 0.35s max-height ease-in-out;
+      width: 90%;
 
       &.visible {
-        height: 85vw;
+        max-height: 4000px;
       }
 
-      // 85vw of a desktop is a billboard. A fixed square reads better and
-      // keeps the chart's proportions predictable.
       @media (min-width: 768px) {
-        width: 540px;
-
-        &.visible {
-          height: 540px;
-        }
+        width: 560px;
       }
     }
 
