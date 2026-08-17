@@ -18,9 +18,15 @@
 //   - A hat is writable by a member, or by anyone CREATING one who puts
 //     themselves in that index — otherwise you could make a hat you can't
 //     then read.
-//   - `userHats/<you>` is readable only by you. It is writable by any signed-in
-//     user, because adding somebody to a hat means writing THEIR index. That
-//     is the same power the invite flow has always had.
+//   - DELETING a whole hat is reserved for its creator (todo.md's ask).
+//     Hats from before `createdBy` existed have no creator on record, so
+//     any member may delete those — exactly the power they always had.
+//   - `userHats/<you>` is readable only by you, and yours to change freely.
+//     Anyone signed in may CREATE an entry in someone else's index — that is
+//     what inviting them to a hat means — but may not change or remove one
+//     that exists. A junk entry planted by a stranger points at a hat its
+//     victim can't read, which is exactly what getMemberHats treats as
+//     stale and quietly removes.
 //
 // Deploying: `firebase deploy --only database` against project
 // movie-hat-9c418, or paste into the console's Rules tab. Supervised, with
@@ -39,6 +45,9 @@ const memberKeyExpression = UNSAFE_KEY_CHARACTERS.reduce(
 const signedIn = "auth != null && auth.token.email != null";
 const isMember = `data.child('memberEmails').child(${memberKeyExpression}).exists()`;
 const becomesMember = `newData.child('memberEmails').child(${memberKeyExpression}).exists()`;
+// Deleting a whole hat: the creator's call — except legacy hats, which have
+// no creator on record and keep working the way they always did.
+const mayDeleteHat = `(!data.child('createdBy').exists() || data.child('createdBy').val() === ${memberKeyExpression})`;
 
 const rules = {
   rules: {
@@ -50,22 +59,29 @@ const rules = {
       $title: {
         $hatKey: {
           '.read': `${signedIn} && ${isMember}`,
-          // A member may write. So may someone creating a hat that doesn't
-          // exist yet, provided they put themselves in the index — without
-          // that clause you could create a hat you were unable to read.
-          '.write': `${signedIn} && (${isMember} || (!data.exists() && ${becomesMember}))`,
+          // A member may write, though removing the WHOLE hat is reserved
+          // for its creator (any member, for hats too old to know theirs).
+          // Someone creating a hat that doesn't exist yet may also write,
+          // provided they put themselves in the index — without that clause
+          // you could create a hat you were unable to read.
+          '.write': `${signedIn} && ((${isMember} && (newData.exists() || ${mayDeleteHat})) || (!data.exists() && ${becomesMember}))`,
           // A hat may never end up with nobody able to read it.
           '.validate': "!newData.exists() || newData.hasChild('memberEmails')"
         }
       }
     },
 
-    // "Which hats are mine." Yours is yours to read; anyone signed in may add
-    // to someone else's, because that is what adding a member to a hat does.
+    // "Which hats are mine." Yours to read and change freely. Anyone signed
+    // in may CREATE an entry in someone else's index — that is what inviting
+    // them means — but not alter or remove one that already exists, which
+    // used to let any stranger erase anybody's whole hat list.
     userHats: {
       $memberKey: {
         '.read': `${signedIn} && $memberKey === ${memberKeyExpression}`,
-        '.write': signedIn
+        $entryKey: {
+          '.write': `${signedIn} && ($memberKey === ${memberKeyExpression} || (!data.exists() && newData.exists()))`,
+          '.validate': "!newData.exists() || newData.hasChildren(['title', 'hatKey'])"
+        }
       }
     }
   }

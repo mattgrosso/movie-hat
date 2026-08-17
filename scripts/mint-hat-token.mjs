@@ -19,7 +19,6 @@
 // It is given membership of the DEV HAT only. It cannot read or write any
 // other hat — the rules see to that, which is itself worth demonstrating.
 
-import { readFileSync } from 'fs';
 import { getAuth } from 'firebase-admin/auth';
 import { hatDatabase, adminGet, adminSet, adminRemove } from './hatDatabase.mjs';
 import { emailToMemberKey } from '../src/store/memberKey.mjs';
@@ -54,7 +53,7 @@ if (revoke) {
 // A real user, so the ID token carries an email for the rules to read.
 try {
   await auth.getUser(TESTER_UID);
-} catch (error) {
+} catch {
   await auth.createUser({ uid: TESTER_UID, email: TESTER_EMAIL, displayName: 'Movie Hat Tester' });
   console.log(`Created the tester account (${TESTER_EMAIL}).`);
 }

@@ -12,10 +12,16 @@
       <ul v-if="sortedMemberHats.length" class="p-0 m-0">
         <li class="card my-3" v-for="(hat, hatIndex) in sortedMemberHats" :key="hatIndex">
           <div class="card-header d-flex justify-content-between">
-            <button class="btn btn-danger ms-1" data-bs-toggle="modal" data-bs-target="#deleteHatModal" @click="deleteHatTitle = hat.title">
+            <button v-if="canDelete(hat)" class="btn btn-danger ms-1" title="Delete hat" data-bs-toggle="modal" data-bs-target="#deleteHatModal" @click="deleteHatTitle = hat.title">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
                 <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
                 <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+              </svg>
+            </button>
+            <button v-else class="btn btn-outline-danger ms-1" title="Leave hat" data-bs-toggle="modal" data-bs-target="#leaveHatModal" @click="leaveHatTitle = hat.title">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-right" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/>
+                <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/>
               </svg>
             </button>
             <button class="btn btn-primary" @click="goToHat(hat.title)">{{hat.title}}</button>
@@ -82,6 +88,24 @@
       </div>
     </div>
 
+    <div class="modal fade" id="leaveHatModal" tabindex="-1" aria-labelledby="leaveHatModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="leaveHatModalLabel">Leave {{leaveHatTitle}}?</h1>
+            <button ref="closeLeaveHatModal" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"/>
+          </div>
+          <div class="modal-body">
+            <p>The hat and its movies stay with the other members — you just won't see it anymore. A member can always add you back.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-danger" @click="leaveHat(leaveHatTitle)">Leave {{leaveHatTitle}}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="modal fade" id="deleteHatModal" tabindex="-1" aria-labelledby="deleteHatModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content">
@@ -112,6 +136,7 @@ export default {
       loading: false,
       newHatTitle: null,
       deleteHatTitle: null,
+      leaveHatTitle: null,
       memberHats: [],
       message: null
     }
@@ -146,16 +171,37 @@ export default {
       const memberKey = emailToMemberKey(this.$store.state.email);
       if (!memberKey) return;
 
-      const mine = await dbGet(`userHats/${memberKey}`);
+      let mine = null;
+      try {
+        mine = await dbGet(`userHats/${memberKey}`);
+      } catch {
+        this.$store.commit('setAppError', "Couldn't load your hats. You may need to sign in again.");
+        this.memberHats = [];
+        return;
+      }
+
       if (!mine) {
         this.memberHats = [];
         return;
       }
 
       const hats = await Promise.all(
-        Object.values(mine).map(async ({ title, hatKey }) => {
-          const hat = await dbGet(hatPath(title, hatKey));
-          return hat ? { ...hat, title, subKey: hatKey } : null;
+        Object.entries(mine).map(async ([entryKey, { title, hatKey }]) => {
+          try {
+            const hat = await dbGet(hatPath(title, hatKey));
+            return hat ? { ...hat, title, subKey: hatKey } : null;
+          } catch (error) {
+            // A refusal means the hat is gone or we were removed from it —
+            // either way the entry opens nothing, so clean it out of our own
+            // index rather than let it break this list forever. Anything
+            // else (network trouble) leaves the entry alone.
+            if (error.status === 401 || error.status === 403) {
+              try {
+                await dbDelete(`userHats/${memberKey}/${entryKey}`);
+              } catch { /* the entry survives to try again */ }
+            }
+            return null;
+          }
         })
       );
 
@@ -172,7 +218,10 @@ export default {
         members: [email],
         // The rules read this, not the list above. Without it the creator
         // can't read back the hat they just made.
-        memberEmails: { [memberKey]: true }
+        memberEmails: { [memberKey]: true },
+        // Deleting the whole hat is the creator's call (hats from before
+        // this field stay deletable by any member).
+        createdBy: memberKey
       }
 
       // Reading `hats/<title>` is a level nobody is allowed to read once the
@@ -182,7 +231,7 @@ export default {
       let alreadyExists = null;
       try {
         alreadyExists = await dbGet(`hats/${webSafe}`);
-      } catch (error) {
+      } catch {
         alreadyExists = null;
       }
 
@@ -219,20 +268,37 @@ export default {
         return;
       }
 
-      const newMemberKey = emailToMemberKey(input.value);
-      const payload = {
-        ...hat,
-        members: [...hat.members, input.value],
-        memberEmails: { ...(hat.memberEmails || {}), [newMemberKey]: true }
+      const newMember = input.value;
+      const newMemberKey = emailToMemberKey(newMember);
+      // Hats made before the app existed as it is now store members as a
+      // push-key map; newer ones as an array. Spreading the map would throw.
+      const members = Array.isArray(hat.members) ? hat.members : Object.values(hat.members || {});
+
+      if (members.some((email) => emailToMemberKey(email) === newMemberKey)) {
+        this.showMessage(`${newMember} is already a member of ${hat.title}.`, 5000);
+        input.value = null;
+        return;
       }
 
-      await dbPatch(hatPath(hat.title, hat.subKey), payload);
-
-      // So the hat shows up for them without them having to find it.
-      await dbPut(`userHats/${newMemberKey}/${emailToMemberKey(hat.title)}`, {
-        title: hat.title,
-        hatKey: hat.subKey
+      // Patch ONLY what changed. This used to send the whole hat object back,
+      // which included the page-load copies of `movies` and `history` — and a
+      // PATCH replaces each key it names, so anything another member had added
+      // since this page loaded was silently overwritten.
+      await dbPatch(hatPath(hat.title, hat.subKey), {
+        members: [...members, newMember],
+        memberEmails: { ...(hat.memberEmails || {}), [newMemberKey]: true }
       });
+
+      // So the hat shows up for them without them having to find it. If this
+      // half is refused, their membership above still stands.
+      try {
+        await dbPut(`userHats/${newMemberKey}/${emailToMemberKey(hat.title)}`, {
+          title: hat.title,
+          hatKey: hat.subKey
+        });
+      } catch (error) {
+        console.warn("Couldn't write the new member's hat index", error);
+      }
 
       input.value = null;
       this.getMemberHats();
@@ -242,7 +308,7 @@ export default {
       this.$store.dispatch("getHat");
 
       window.scroll({
-        top: top,
+        top: 0,
         behavior: 'smooth'
       });
 
@@ -259,19 +325,65 @@ export default {
       // means it went through — the old axios status check could never fail.
       await dbDelete(hatPath(title, hat.subKey));
 
-      // Leaves no dangling "this hat is mine" entries behind.
-      await Promise.all(
-        (hat.members || []).map((email) => {
-          const memberKey = emailToMemberKey(email);
-          return memberKey
-            ? dbDelete(`userHats/${memberKey}/${emailToMemberKey(title)}`)
-            : Promise.resolve();
-        })
-      );
+      // Our own index entry goes now. Other members' entries clean themselves
+      // up the next time they load this list and find the hat unreadable
+      // (see getMemberHats) — which also means this works once the rules stop
+      // letting us write other people's indexes.
+      const myKey = emailToMemberKey(this.$store.state.email);
+      try {
+        await dbDelete(`userHats/${myKey}/${emailToMemberKey(title)}`);
+      } catch (error) {
+        console.warn("Couldn't remove the hat from your index", error);
+      }
+
+      // A default pointing at a hat that no longer exists would error on
+      // every load until it self-healed.
+      if (this.$store.state.movieHatTitle === title) {
+        this.$store.commit('setMovieHatTitle', null);
+      }
 
       this.getMemberHats();
       this.$refs.closeDeleteHatModal.click();
       this.deleteHatTitle = null;
+    },
+    // Deleting a hat is the creator's call; anyone else gets "leave". Hats
+    // from before createdBy existed have no creator on record, so they keep
+    // the old anyone-may-delete behavior — and the last member standing may
+    // always delete, since leaving would only orphan the hat.
+    canDelete (hat) {
+      const myKey = emailToMemberKey(this.$store.state.email);
+      const members = Array.isArray(hat.members) ? hat.members : Object.values(hat.members || {});
+      return !hat.createdBy || hat.createdBy === myKey || members.length <= 1;
+    },
+    async leaveHat (title) {
+      const hat = this.memberHats.find((candidate) => candidate.title === title);
+      if (!hat) return;
+
+      const myKey = emailToMemberKey(this.$store.state.email);
+      const members = (Array.isArray(hat.members) ? hat.members : Object.values(hat.members || {}))
+        .filter((email) => emailToMemberKey(email) !== myKey);
+
+      // One atomic write, while we are still a member and allowed to make
+      // it. The memberEmails removal is path-targeted so nobody else's
+      // concurrent changes ride along.
+      await dbPatch(hatPath(hat.title, hat.subKey), {
+        members,
+        [`memberEmails/${myKey}`]: null
+      });
+
+      try {
+        await dbDelete(`userHats/${myKey}/${emailToMemberKey(title)}`);
+      } catch (error) {
+        console.warn("Couldn't remove the hat from your index", error);
+      }
+
+      if (this.$store.state.movieHatTitle === title) {
+        this.$store.commit('setMovieHatTitle', null);
+      }
+
+      this.getMemberHats();
+      this.$refs.closeLeaveHatModal.click();
+      this.leaveHatTitle = null;
     },
     validateEmail (email) {
       const valid = String(email)
@@ -324,6 +436,13 @@ export default {
 
 <style lang="scss">
   .hats {
+    // Reading a members list across a whole desktop screen is a chore;
+    // phones keep the full width they always had.
+    @media (min-width: 768px) {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
     .hats-list {
       .member {
         a {

@@ -6,7 +6,7 @@
       "$title": {
         "$hatKey": {
           ".read": "auth != null && auth.token.email != null && data.child('memberEmails').child(auth.token.email.toLowerCase().replace('.', '-').replace('$', '-').replace('#', '-').replace('[', '-').replace(']', '-').replace('/', '-')).exists()",
-          ".write": "auth != null && auth.token.email != null && (data.child('memberEmails').child(auth.token.email.toLowerCase().replace('.', '-').replace('$', '-').replace('#', '-').replace('[', '-').replace(']', '-').replace('/', '-')).exists() || (!data.exists() && newData.child('memberEmails').child(auth.token.email.toLowerCase().replace('.', '-').replace('$', '-').replace('#', '-').replace('[', '-').replace(']', '-').replace('/', '-')).exists()))",
+          ".write": "auth != null && auth.token.email != null && ((data.child('memberEmails').child(auth.token.email.toLowerCase().replace('.', '-').replace('$', '-').replace('#', '-').replace('[', '-').replace(']', '-').replace('/', '-')).exists() && (newData.exists() || (!data.child('createdBy').exists() || data.child('createdBy').val() === auth.token.email.toLowerCase().replace('.', '-').replace('$', '-').replace('#', '-').replace('[', '-').replace(']', '-').replace('/', '-')))) || (!data.exists() && newData.child('memberEmails').child(auth.token.email.toLowerCase().replace('.', '-').replace('$', '-').replace('#', '-').replace('[', '-').replace(']', '-').replace('/', '-')).exists()))",
           ".validate": "!newData.exists() || newData.hasChild('memberEmails')"
         }
       }
@@ -14,7 +14,10 @@
     "userHats": {
       "$memberKey": {
         ".read": "auth != null && auth.token.email != null && $memberKey === auth.token.email.toLowerCase().replace('.', '-').replace('$', '-').replace('#', '-').replace('[', '-').replace(']', '-').replace('/', '-')",
-        ".write": "auth != null && auth.token.email != null"
+        "$entryKey": {
+          ".write": "auth != null && auth.token.email != null && ($memberKey === auth.token.email.toLowerCase().replace('.', '-').replace('$', '-').replace('#', '-').replace('[', '-').replace(']', '-').replace('/', '-') || (!data.exists() && newData.exists()))",
+          ".validate": "!newData.exists() || newData.hasChildren(['title', 'hatKey'])"
+        }
       }
     }
   }
