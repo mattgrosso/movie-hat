@@ -65,6 +65,9 @@ export default createStore({
     movieHatTitle: readDefaultHat()?.title || null,
     dbKeyForHatTitle: readDefaultHat()?.hatKey || null,
     drawnMovie: null,
+    // True between tapping Draw and the reveal on the drawn-movie screen —
+    // that screen plays the hat animation while this is set.
+    drawRevealPending: false,
     movieChoices: null,
     // A human-readable problem the UI should show. Failures used to go only
     // to the console, which is how an outage looked like an empty app.
@@ -128,6 +131,9 @@ export default createStore({
     },
     setDrawnMovie (state, value) {
       state.drawnMovie = value;
+    },
+    setDrawRevealPending (state, value) {
+      state.drawRevealPending = Boolean(value);
     },
     setMovieChoices (state, value) {
       state.movieChoices = value;

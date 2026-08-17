@@ -1,6 +1,7 @@
 <template>
   <div class="drawn-movie">
-    <div v-if="drawnMovie" class="draw p-4">
+    <DrawingHat v-if="revealing" class="my-5"/>
+    <div v-else-if="drawnMovie" class="draw p-4">
       <div class="poster-wrapper">
         <a
           :href="`https://www.google.com/search?q=${drawnMovie.title} movie`"
@@ -62,13 +63,32 @@
 </template>
 
 <script>
+import DrawingHat from './DrawingHat.vue';
 import WhereToWatch from './WhereToWatch.vue';
 
 export default {
   components: {
+    DrawingHat,
     WhereToWatch
   },
+  data () {
+    return {
+      revealing: false
+    };
+  },
   mounted () {
+    // Arriving fresh from a draw: play the hat here, then let the poster
+    // reveal itself in place. A refresh or a walk back to this screen
+    // shows the result straight away.
+    if (this.$store.state.drawRevealPending) {
+      this.$store.commit('setDrawRevealPending', false);
+      const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+      if (!reducedMotion) {
+        this.revealing = true;
+        setTimeout(() => { this.revealing = false; }, 2400);
+      }
+    }
+
     // On a refresh the store starts empty: recover the draw from
     // localStorage, and re-read the hat so the draw count comes back.
     if (!this.$store.state.drawnMovie) {
