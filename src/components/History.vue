@@ -37,7 +37,7 @@
           <span class="text-white my-1 text-center">({{drawRank(movie)}} drawn)</span>
           <img
             v-if="movie.poster_path"
-            v-lazy="`https://image.tmdb.org/t/p/original${movie.poster_path}`"
+            v-lazy="`https://image.tmdb.org/t/p/w342${movie.poster_path}`"
             :alt="`${movie.title} poster`"
           />
           <img

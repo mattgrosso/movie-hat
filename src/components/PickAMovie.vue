@@ -6,7 +6,7 @@
         <img
           v-if="chosenMovie.poster_path"
           class="poster col-12"
-          :src="`https://image.tmdb.org/t/p/original${chosenMovie.poster_path}`"
+          :src="`https://image.tmdb.org/t/p/w342${chosenMovie.poster_path}`"
           align="center"
         >
         <img
@@ -55,7 +55,7 @@
           <img
             v-if="movie.poster_path"
             class="card-img-top"
-            :src="`https://image.tmdb.org/t/p/original${movie.poster_path}`"
+            :src="`https://image.tmdb.org/t/p/w342${movie.poster_path}`"
             align="center"
           >
           <img
@@ -80,7 +80,7 @@
                 </div>
                 <ul class="border border-dark">
                   <li class="streaming-provider" v-for="(streamer, index) in movie.streamers.flatrate" :key="index">
-                    <img class="streamer-logo" :src="`https://image.tmdb.org/t/p/original${streamer.logo_path}`">
+                    <img class="streamer-logo" :src="`https://image.tmdb.org/t/p/w92${streamer.logo_path}`">
                   </li>
                 </ul>
               </div>
@@ -92,7 +92,7 @@
                 </div>
                 <ul class="border border-dark">
                   <li class="streaming-provider" v-for="(streamer, index) in movie.streamers.rent" :key="index">
-                    <img class="streamer-logo" :src="`https://image.tmdb.org/t/p/original${streamer.logo_path}`">
+                    <img class="streamer-logo" :src="`https://image.tmdb.org/t/p/w92${streamer.logo_path}`">
                   </li>
                 </ul>
               </div>

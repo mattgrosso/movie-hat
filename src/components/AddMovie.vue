@@ -26,8 +26,6 @@
 </template>
 
 <script>
-import axios from 'axios';
-
 export default {
   data () {
     return {
@@ -41,9 +39,19 @@ export default {
     async addMovie () {
       this.loading = true;
 
-      const resp = await axios.get(`https://api.themoviedb.org/3/search/movie?api_key=${process.env.VUE_APP_TMDB_API_KEY}&language=en-US&query=${this.movieTitle}`);
+      let results = [];
+      try {
+        const response = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${process.env.VUE_APP_TMDB_API_KEY}&language=en-US&query=${encodeURIComponent(this.movieTitle)}`);
+        const data = await response.json();
+        results = data.results || [];
+      } catch (error) {
+        console.error(error);
+        this.showMessage("The movie search didn't answer. Please try again.", 6000);
+        this.loading = false;
+        return;
+      }
 
-      const choices = resp.data.results.map((result) => {
+      const choices = results.map((result) => {
         return {
           backdrop_path: result.backdrop_path,
           id: result.id,
@@ -56,47 +64,6 @@ export default {
           vote_count: result.vote_count
         }
       });
-
-      for (const result of choices) {
-        const resp = await this.getStreamingProviders(result.id);
-        const USProviders = resp?.data.results.US;
-
-        if (!USProviders) {
-          continue;
-        }
-
-        const streamers = {};
-
-        if (USProviders.flatrate) {
-          streamers.flatrate = USProviders.flatrate.map((provider) => {
-            if (!this.nameTooLong(provider.provider_name)) {
-              return provider;
-            } else {
-              return undefined;
-            }
-          }).filter((provider) => provider);
-        }
-
-        if (streamers.flatrate && streamers.flatrate.length > 5) {
-          streamers.flatrate.length = 5;
-        }
-
-        if (USProviders.rent) {
-          streamers.rent = USProviders.rent.map((provider) => {
-            if (!this.nameTooLong(provider.provider_name)) {
-              return provider;
-            } else {
-              return undefined;
-            }
-          }).filter((provider) => provider);
-        }
-
-        if (streamers.rent && streamers.rent.length > 5) {
-          streamers.rent.length = 5;
-        }
-
-        result.streamers = Object.keys(streamers).length ? streamers : null;
-      }
 
       choices.sort(this.sortByVotes);
 
@@ -114,15 +81,44 @@ export default {
         choices.length = 12;
       }
 
+      // All the provider lookups at once — running them one at a time was
+      // most of what the search spinner was waiting on.
+      await Promise.all(choices.map(async (movie) => {
+        const USProviders = await this.getStreamingProviders(movie.id);
+
+        if (!USProviders) {
+          movie.streamers = null;
+          return;
+        }
+
+        const shortNamed = (providers) =>
+          providers.filter((provider) => !this.nameTooLong(provider.provider_name)).slice(0, 5);
+
+        const streamers = {};
+
+        if (USProviders.flatrate) {
+          streamers.flatrate = shortNamed(USProviders.flatrate);
+        }
+
+        if (USProviders.rent) {
+          streamers.rent = shortNamed(USProviders.rent);
+        }
+
+        movie.streamers = Object.keys(streamers).length ? streamers : null;
+      }));
+
       this.$store.commit('setMovieChoices', choices);
       this.loading = false;
       this.$router.push('/pick-a-movie');
     },
     async getStreamingProviders (id) {
       try {
-        return await axios.get(`https://api.themoviedb.org/3/movie/${id}/watch/providers?api_key=${process.env.VUE_APP_TMDB_API_KEY}`);
+        const response = await fetch(`https://api.themoviedb.org/3/movie/${id}/watch/providers?api_key=${process.env.VUE_APP_TMDB_API_KEY}`);
+        const data = await response.json();
+        return data.results?.US || null;
       } catch (error) {
         console.error(error);
+        return null;
       }
     },
     nameTooLong (name) {
@@ -162,6 +158,14 @@ export default {
     justify-content: center;
     position: relative;
     width: 100%;
+
+    // Full width is right on a phone; on anything wider the search box
+    // turned into a runway.
+    form {
+      @media (min-width: 576px) {
+        max-width: 420px;
+      }
+    }
 
     .message {
       bottom: -12px;
