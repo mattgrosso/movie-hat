@@ -234,6 +234,20 @@ export default {
     .plot {
       height: 190px;
       position: relative;
+
+      // vue-chart-3 puts its own wrapper div between this and the canvas,
+      // and that wrapper carries chart.js's default 400px height — so the
+      // canvas sized to THAT and spilled over the next card. Making the
+      // wrapper fill the plot is what actually constrains the chart.
+      > div {
+        height: 100%;
+        position: relative;
+        width: 100%;
+      }
+
+      canvas {
+        max-height: 100%;
+      }
     }
   }
 }
