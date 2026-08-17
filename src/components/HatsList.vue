@@ -175,9 +175,16 @@ export default {
         memberEmails: { [memberKey]: true }
       }
 
-      const alreadyExists = await dbGet(`hats/${webSafe}`,
-        newHat
-      );
+      // Reading `hats/<title>` is a level nobody is allowed to read once the
+      // rules are on — access is per hat. So the duplicate-title check is
+      // best-effort: if the database refuses to answer, go ahead. Worst case
+      // is two records under one title, which the data already tolerates.
+      let alreadyExists = null;
+      try {
+        alreadyExists = await dbGet(`hats/${webSafe}`);
+      } catch (error) {
+        alreadyExists = null;
+      }
 
       if (alreadyExists) {
         this.showMessage("That hat title is already in use, please try another title.", 5000);
@@ -242,9 +249,25 @@ export default {
       this.$router.push("/");
     },
     async deleteHat (title) {
+      // Delete the RECORD, not the title node. Access is granted per hat, so
+      // once the rules are on, a write at `hats/<title>` sits at a level
+      // nobody is allowed to write and the delete would simply be refused.
+      const hat = this.memberHats.find((candidate) => candidate.title === title);
+      if (!hat) return;
+
       // dbDelete throws if the database refuses, so reaching the next line
       // means it went through — the old axios status check could never fail.
-      await dbDelete(`hats/${title}`);
+      await dbDelete(hatPath(title, hat.subKey));
+
+      // Leaves no dangling "this hat is mine" entries behind.
+      await Promise.all(
+        (hat.members || []).map((email) => {
+          const memberKey = emailToMemberKey(email);
+          return memberKey
+            ? dbDelete(`userHats/${memberKey}/${emailToMemberKey(title)}`)
+            : Promise.resolve();
+        })
+      );
 
       this.getMemberHats();
       this.$refs.closeDeleteHatModal.click();

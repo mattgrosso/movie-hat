@@ -18,7 +18,7 @@
 </template>
 
 <script>
-import { dbDelete, dbGet, dbPost, resolveHatKey } from '../store/db.js';
+import { dbDelete, dbPost, resolveHatKey } from '../store/db.js';
 import sample from 'lodash/sample';
 
 export default {
