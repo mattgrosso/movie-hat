@@ -39,15 +39,16 @@ export default {
       showBackToTop: false
     }
   },
-  mounted () {
-    const defaultMovieHatTitle = JSON.parse(window.localStorage.getItem('defaultMovieHatTitle'));
+  async mounted () {
+    // Wait out the router's initial navigation: a push made while it is
+    // still resolving gets overridden by it, which silently swallowed this
+    // redirect on a cold load.
+    await this.$router.isReady();
 
-    if (defaultMovieHatTitle) {
-      this.$store.commit("setMovieHatTitle", defaultMovieHatTitle);
-    }
-
+    // The remembered default hat is restored by the store itself now.
     if (!this.$store.state.movieHatTitle) {
       this.$router.push("/hat-list");
+      return;
     }
 
     this.$store.dispatch('getHat');
@@ -68,6 +69,13 @@ export default {
   },
   methods: {
     handleScroll () {
+      // History only renders when there IS history — on an empty hat this
+      // ref is absent and every scroll event used to throw.
+      if (!this.$refs.history) {
+        this.showBackToTop = false;
+        return;
+      }
+
       const historyTop = this.$refs.history.$el.getBoundingClientRect().top;
       if (historyTop < -500) {
         this.showBackToTop = true;
@@ -77,7 +85,7 @@ export default {
     },
     scrollToTop () {
       window.scroll({
-        top: top,
+        top: 0,
         behavior: 'smooth'
       });
     },
@@ -127,6 +135,16 @@ export default {
 
       &.visible {
         height: 85vw;
+      }
+
+      // 85vw of a desktop is a billboard. A fixed square reads better and
+      // keeps the chart's proportions predictable.
+      @media (min-width: 768px) {
+        width: 540px;
+
+        &.visible {
+          height: 540px;
+        }
       }
     }
 

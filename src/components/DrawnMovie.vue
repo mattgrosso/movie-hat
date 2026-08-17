@@ -10,7 +10,7 @@
             v-if="drawnMovie.poster_path"
             class="poster m-2 col-8"
             crossorigin="anonymous"
-            :src="`https://image.tmdb.org/t/p/original${drawnMovie.poster_path}`"
+            :src="`https://image.tmdb.org/t/p/w780${drawnMovie.poster_path}`"
             :alt="`${drawnMovie.title} Poster`"
             :title="drawnMovie.title"
           />
@@ -21,7 +21,7 @@
             align="center"
           >
         </a>
-        <p class="draw-count text-center col-12 m-0 text-white">
+        <p v-if="history && history.length" class="draw-count text-center col-12 m-0 text-white">
           We have drawn {{ history.length }} movies from the hat.
         </p>
         <p v-if="someTimeAgo" class="days-ago text-center col-12 m-0 text-white">
@@ -62,6 +62,29 @@
 
 <script>
 export default {
+  mounted () {
+    // On a refresh the store starts empty: recover the draw from
+    // localStorage, and re-read the hat so the draw count comes back.
+    if (!this.$store.state.drawnMovie) {
+      let remembered = null;
+      try {
+        remembered = JSON.parse(window.localStorage.getItem('lastDrawnMovie'));
+      } catch {
+        remembered = null;
+      }
+
+      if (remembered) {
+        this.$store.commit('setDrawnMovie', remembered);
+      } else {
+        this.$router.push('/');
+        return;
+      }
+    }
+
+    if (!this.$store.state.history) {
+      this.$store.dispatch('getHat');
+    }
+  },
   computed: {
     drawnMovie () {
       return this.$store.state.drawnMovie;
@@ -94,7 +117,7 @@ export default {
   },
   methods: {
     async shareMovie () {
-      const url = `https://image.tmdb.org/t/p/original${this.drawnMovie.poster_path}`;
+      const url = `https://image.tmdb.org/t/p/w780${this.drawnMovie.poster_path}`;
       if (navigator.share) {
         try {
           const addedBy = this.drawnMovie.addedBy ? `Added by: ${this.drawnMovie.addedBy}` : '';
@@ -110,8 +133,10 @@ export default {
           console.error('There was an error sharing the movie', err);
         }
       } else {
-        // Fallback for browsers that do not support the Web Share API
-        const members = this.$store.state.members.join(",");
+        // Fallback for browsers that do not support the Web Share API.
+        // `members` is an array on new hats, a push-key map on old ones, and
+        // absent entirely on a cold reload — Object.values handles all three.
+        const members = Object.values(this.$store.state.members || {}).join(",");
         window.location.href = `sms:/open?addresses=${members}&body=${url}`;
       }
     }

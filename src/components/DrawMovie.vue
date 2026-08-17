@@ -18,7 +18,7 @@
 </template>
 
 <script>
-import { dbDelete, dbPost, resolveHatKey } from '../store/db.js';
+import { dbPatch, hatPath, resolveHatKey } from '../store/db.js';
 import sample from 'lodash/sample';
 
 export default {
@@ -55,6 +55,9 @@ export default {
         await this.removeMovieFromHat(randomMovie);
 
         this.$store.commit('setDrawnMovie', randomMovie);
+        // So a refresh (or the PWA relaunching) on the drawn-movie screen
+        // still has something to show.
+        window.localStorage.setItem('lastDrawnMovie', JSON.stringify(randomMovie));
 
         this.$store.dispatch('getHat');
 
@@ -83,10 +86,15 @@ export default {
 
       const dbKey = this.$store.state.dbKeyForHatTitle;
 
-      // History first, then removal: a failure in between leaves the movie
-      // in both places, which is recoverable. The other order loses it.
-      await dbPost(`hats/${this.movieHatTitle}/${dbKey}/history`, movieForHistory);
-      await dbDelete(`hats/${this.movieHatTitle}/${dbKey}/movies/${movie.dbKey}`);
+      // One write, both halves: the movie lands in history and leaves the
+      // hat atomically, so a failure between the two steps can no longer
+      // strand it in both places (or worse). Push keys normally come from
+      // the server; a PATCH needs its own, and the draw timestamp is unique
+      // enough within one hat's history.
+      await dbPatch(hatPath(this.movieHatTitle, dbKey), {
+        [`history/drawn-${movieForHistory.dateDrawn}`]: movieForHistory,
+        [`movies/${movie.dbKey}`]: null
+      });
 
       this.$store.dispatch('getHat');
     },

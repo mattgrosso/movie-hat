@@ -55,7 +55,14 @@ export async function authToken () {
   try {
     // currentUser first (cheap, and correct once auth has settled); otherwise
     // wait for the session to be restored rather than assuming there is none.
-    const user = getAuth()?.currentUser || await authReady();
+    // authReady is only ever a "has auth settled yet" gate — the user always
+    // comes from currentUser, because the cached first result goes stale the
+    // moment somebody signs out or a different account signs in.
+    let user = getAuth()?.currentUser;
+    if (!user) {
+      await authReady();
+      user = getAuth()?.currentUser;
+    }
     if (!user) return null;
     return await user.getIdToken();
   } catch (error) {
@@ -129,13 +136,22 @@ export async function resolveHatKey (title, email) {
     try {
       const entry = await dbGet(`userHats/${memberKey}/${emailToMemberKey(title)}`);
       if (entry?.hatKey) return entry.hatKey;
-    } catch (error) {
+    } catch {
       // Fall through to the listing below.
     }
   }
 
-  const listed = await dbGet(hatPath(title));
-  return listed ? Object.keys(listed)[0] : null;
+  // With the rules on, this title-level read is refused for everyone — it
+  // exists for data from before the index did, and for the day the rules are
+  // ever loosened again. Refusal means "no answer", never a crash: this
+  // being unguarded was a silent-blank-screen bug for anyone whose index
+  // lacked the remembered hat.
+  try {
+    const listed = await dbGet(hatPath(title));
+    return listed ? Object.keys(listed)[0] : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Escapes a hat title for use in a path. Titles contain spaces and '&'. */

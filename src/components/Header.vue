@@ -51,6 +51,8 @@
 </template>
 
 <script>
+import { getAuth, signOut } from 'firebase/auth';
+
 export default {
   computed: {
     version () {
@@ -58,9 +60,18 @@ export default {
     },
   },
   methods: {
-    logOut () {
-      window.localStorage.removeItem('movieHatEmail');
+    async logOut () {
       this.$store.commit('setEmail', null);
+      this.$store.commit('setName', null);
+
+      // The part that was missing: without this, Firebase still had a live
+      // session, the sign-in gate still saw a user, and "Log Out" closed the
+      // modal and did nothing at all.
+      try {
+        await signOut(getAuth());
+      } catch (error) {
+        console.error('Sign-out failed', error);
+      }
     }
   },
 }

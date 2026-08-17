@@ -1,7 +1,7 @@
 import { createStore } from 'vuex'
 import { dbGet, hatPath, resolveHatKey } from './db.js'
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithCustomToken, onAuthStateChanged } from "firebase/auth";
 
 // Firebase
 const firebaseConfig = {
@@ -16,9 +16,24 @@ const firebaseConfig = {
 
 initializeApp(firebaseConfig);
 
+// localStorage can hold junk (a hand-cleared value, a stringified
+// `undefined` from an old bug) — junk means "nothing remembered", not a
+// crash before the app even mounts.
+function readLocal (key) {
+  try {
+    return JSON.parse(window.localStorage.getItem(key));
+  } catch {
+    return null;
+  }
+}
+
 export default createStore({
   state: {
-    email: null,
+    // Restored here, at creation, so every component sees the remembered
+    // values from its first render — this used to be scattered across
+    // Login.vue and Hat.vue mounted hooks, and any route that mounted first
+    // (a refresh on /drawn-movie) saw nulls.
+    email: readLocal('movieHatEmail'),
     // Whether Firebase itself says we're signed in, as opposed to an email
     // remembered in localStorage. Null until onAuthStateChanged first fires.
     //
@@ -30,14 +45,17 @@ export default createStore({
     // and every request fails.
     authUser: null,
     authResolved: false,
-    name: null,
+    name: readLocal('movieHatName'),
     movieHat: null,
     history: null,
     members: null,
-    movieHatTitle: null,
+    movieHatTitle: readLocal('defaultMovieHatTitle'),
     dbKeyForHatTitle: null,
     drawnMovie: null,
-    movieChoices: null
+    movieChoices: null,
+    // A human-readable problem the UI should show. Failures used to go only
+    // to the console, which is how an outage looked like an empty app.
+    appError: null
   },
   getters: {
     isDevHat: (state) => {
@@ -50,18 +68,30 @@ export default createStore({
       state.authResolved = true;
     },
     setEmail (state, value) {
-      window.localStorage.setItem('movieHatEmail', JSON.stringify(value));
+      if (value == null) {
+        window.localStorage.removeItem('movieHatEmail');
+      } else {
+        window.localStorage.setItem('movieHatEmail', JSON.stringify(value));
+      }
       state.email = value;
     },
     setName (state, value) {
-      window.localStorage.setItem('movieHatName', JSON.stringify(value));
+      if (value == null) {
+        window.localStorage.removeItem('movieHatName');
+      } else {
+        window.localStorage.setItem('movieHatName', JSON.stringify(value));
+      }
       state.name = value;
     },
     setMovieHat (state, value) {
       state.movieHat = value;
     },
     setMovieHatTitle (state, value) {
-      window.localStorage.setItem('defaultMovieHatTitle', JSON.stringify(value));
+      if (value == null) {
+        window.localStorage.removeItem('defaultMovieHatTitle');
+      } else {
+        window.localStorage.setItem('defaultMovieHatTitle', JSON.stringify(value));
+      }
       state.movieHatTitle = value;
     },
     setDbKeyForHatTitle (state, value) {
@@ -78,6 +108,9 @@ export default createStore({
     },
     setMovieChoices (state, value) {
       state.movieChoices = value;
+    },
+    setAppError (state, value) {
+      state.appError = value;
     }
   },
   actions: {
@@ -123,41 +156,75 @@ export default createStore({
         console.error(error);
       }
     },
+    /**
+     * Automated-testing sign-in (Cinema Roll's Login.vue testToken pattern).
+     * Only tokens minted by the Admin SDK (yarn mint-hat-token) can pass
+     * signInWithCustomToken, so this cannot reach a real account.
+     */
+    async loginWithTestToken (context, token) {
+      const result = await signInWithCustomToken(getAuth(), token);
+      // watchAuth adopts the email too, but not before the caller wants to
+      // navigate — commit it now so the first getHat has it.
+      if (result?.user?.email) {
+        context.commit('setEmail', result.user.email);
+        if (result.user.displayName) context.commit('setName', result.user.displayName);
+      }
+    },
     async getHat (context) {
-      const dbKey = await resolveHatKey(context.state.movieHatTitle, context.state.email);
+      const title = context.state.movieHatTitle;
+      if (!title) {
+        return;
+      }
+
+      const dbKey = await resolveHatKey(title, context.state.email);
 
       if (!dbKey) {
+        // The remembered hat opens nothing — deleted, or we're not a member.
+        // Forgetting it means the next load goes to the hat list instead of
+        // silently showing nothing forever.
+        context.commit('setAppError', `Couldn't open "${title}" — it may have been deleted, or you may no longer be a member.`);
+        context.commit('setMovieHatTitle', null);
+        context.commit('setMovieHat', []);
+        context.commit('setHistory', []);
         return;
       }
 
       context.commit("setDbKeyForHatTitle", dbKey);
 
-      const resp = { data: await dbGet(hatPath(context.state.movieHatTitle, dbKey)) };
+      let data = null;
+      try {
+        data = await dbGet(hatPath(title, dbKey));
+      } catch (error) {
+        const hint = error.status === 401 || error.status === 403
+          ? 'You may need to sign in again.'
+          : 'Please try again.';
+        context.commit('setAppError', `Couldn't load "${title}". ${hint}`);
+        return;
+      }
 
-      if (resp.data) {
+      if (data) {
         let hatAsArray = [];
 
-        if (resp.data.movies) {
-          hatAsArray = Object.keys(resp.data.movies).map((key) => {
-            const movie = { ...resp.data.movies[key], dbKey: key };
+        if (data.movies) {
+          hatAsArray = Object.keys(data.movies).map((key) => {
+            const movie = { ...data.movies[key], dbKey: key };
             return movie;
           });
         }
 
         let history = [];
 
-        if (resp.data.history) {
-          history = Object.keys(resp.data.history).map((key) => {
-            const movie = { ...resp.data.history[key], dbKey: key };
+        if (data.history) {
+          history = Object.keys(data.history).map((key) => {
+            const movie = { ...data.history[key], dbKey: key };
             return movie;
           });
         }
 
-        this.commit('setMembers', resp.data.members);
-        this.commit('setMovieHat', hatAsArray);
-        this.commit('setHistory', history);
-      } else {
-        console.log(resp);
+        context.commit('setAppError', null);
+        context.commit('setMembers', data.members);
+        context.commit('setMovieHat', hatAsArray);
+        context.commit('setHistory', history);
       }
     }
   },
