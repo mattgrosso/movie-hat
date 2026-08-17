@@ -15,21 +15,47 @@
 // means the request goes out unauthenticated and works exactly as before.
 // That is what makes this safe to ship on its own, ahead of the rules —
 // nothing changes for anyone until the rules change.
-import { getAuth } from 'firebase/auth';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { emailToMemberKey } from './memberKey.mjs';
 
 const DATABASE_URL = 'https://movie-hat-9c418-default-rtdb.firebaseio.com';
+
+// Firebase restores a persisted session ASYNCHRONOUSLY. For the first few
+// hundred milliseconds after a page load, `currentUser` is null even for
+// somebody who is perfectly signed in — and the app reads its hat during
+// exactly that window, at start-up.
+//
+// This caused a real outage (2026-08-17): every request on load went out
+// unauthenticated, the closed rules refused all of them, and the app showed
+// an empty screen with no error. Waiting for the FIRST auth callback before
+// deciding "nobody is signed in" is the fix.
+let firstAuthResult = null;
+
+function authReady () {
+  if (!firstAuthResult) {
+    firstAuthResult = new Promise((resolve) => {
+      const unsubscribe = onAuthStateChanged(
+        getAuth(),
+        (user) => { unsubscribe(); resolve(user || null); },
+        () => resolve(null)
+      );
+    });
+  }
+  return firstAuthResult;
+}
 
 /**
  * The current user's ID token, or null when nobody is signed in.
  *
  * getIdToken() refreshes on its own when the hour-long token is close to
- * expiring, which is the main reason to ask for it per-request rather than
+ * expiring, which is the main reason to ask for it per request rather than
  * holding one.
  */
 export async function authToken () {
   try {
-    const user = getAuth()?.currentUser;
+    // currentUser first (cheap, and correct once auth has settled); otherwise
+    // wait for the session to be restored rather than assuming there is none.
+    const user = getAuth()?.currentUser || await authReady();
     if (!user) return null;
     return await user.getIdToken();
   } catch (error) {
@@ -54,6 +80,11 @@ async function request (path, options = {}) {
   if (!response.ok) {
     const error = new Error(`Movie Hat database responded ${response.status}`);
     error.status = response.status;
+    // A silent 401 is what made the outage look like "nothing loads" rather
+    // than "you are signed out".
+    if (response.status === 401) {
+      console.warn('Movie Hat refused the request — not signed in?', path);
+    }
     throw error;
   }
 
