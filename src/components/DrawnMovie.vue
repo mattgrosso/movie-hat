@@ -36,6 +36,7 @@
         <p v-if="drawnMovie.note" class="drawn-note text-center col-12 m-0 text-white">
           Note: {{ drawnMovie.note }}
         </p>
+        <WhereToWatch :movie="drawnMovie"/>
       </div>
       <div class="details-wrapper px-4 py-2">
         <button
@@ -61,7 +62,12 @@
 </template>
 
 <script>
+import WhereToWatch from './WhereToWatch.vue';
+
 export default {
+  components: {
+    WhereToWatch
+  },
   mounted () {
     // On a refresh the store starts empty: recover the draw from
     // localStorage, and re-read the hat so the draw count comes back.
@@ -159,7 +165,10 @@ export default {
     justify-content: space-around;
   }
 
+  // The reveal: the poster arrives as if pulled from the hat, captions a
+  // beat behind it.
   .poster-wrapper {
+    animation: drawn-reveal 0.7s cubic-bezier(0.2, 0.8, 0.3, 1);
     text-align: center;
 
     .poster {
@@ -177,6 +186,7 @@ export default {
 
   .details-wrapper {
     align-items: center;
+    animation: drawn-fade-up 0.5s ease 0.4s backwards;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -186,6 +196,23 @@ export default {
       height: 250px;
     }
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    .poster-wrapper,
+    .details-wrapper {
+      animation: none;
+    }
+  }
+}
+
+@keyframes drawn-reveal {
+  from { opacity: 0; transform: translateY(-36px) rotate(-5deg) scale(0.65); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes drawn-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
 }
 
 .loading-spinner {

@@ -23,3 +23,6 @@ pnpm-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Code session checkpoints — machine-local scratch, not source
+.claude/RESUME.md

@@ -1,7 +1,16 @@
 <template>
   <div class="draw-movie p-4">
-    <div v-if="loading" class="spinner-grow text-primary" role="status">
-      <span class="visually-hidden">Loading...</span>
+    <div v-if="loading" class="hat-draw" role="status" aria-label="Drawing a movie from the hat">
+      <div class="tickets">
+        <span class="ticket" v-for="n in 3" :key="n" :class="`ticket-${n}`"></span>
+      </div>
+      <div class="hat">
+        <div class="opening"></div>
+        <div class="crown"></div>
+        <div class="band"></div>
+        <div class="brim"></div>
+      </div>
+      <p class="drawing-label text-white m-0">Drawing…</p>
     </div>
     <button
       v-else
@@ -52,7 +61,13 @@ export default {
 
         this.drawnMovie = randomMovie;
 
-        await this.removeMovieFromHat(randomMovie);
+        // The draw deserves a beat of suspense: hold the hat animation for
+        // a moment even when the network is instant. Anyone who asked their
+        // OS for reduced motion gets the result as fast as it comes.
+        const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+        const suspense = new Promise((resolve) => setTimeout(resolve, reducedMotion ? 0 : 2200));
+
+        await Promise.all([this.removeMovieFromHat(randomMovie), suspense]);
 
         this.$store.commit('setDrawnMovie', randomMovie);
         // So a refresh (or the PWA relaunching) on the drawn-movie screen
@@ -117,9 +132,127 @@ export default {
   position: relative;
   width: 100%;
 
-  .spinner-grow {
-    height: 75px;
-    width: 75px;
+  // The magician's hat, upside down, giving the hat a shake while paper
+  // tickets toss out of it. Pure CSS in the app's own black-and-white
+  // poster-mat idiom.
+  .hat-draw {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    padding-top: 46px;
+
+    .hat {
+      animation: hat-wobble 0.9s ease-in-out infinite;
+      height: 92px;
+      position: relative;
+      transform-origin: 50% 90%;
+      width: 150px;
+
+      .opening {
+        background: #1a1a1a;
+        border-radius: 50%;
+        height: 26px;
+        left: 25px;
+        position: absolute;
+        top: -2px;
+        width: 100px;
+        z-index: 3;
+      }
+
+      .crown {
+        background: black;
+        border-radius: 0 0 14px 14px;
+        height: 70px;
+        left: 25px;
+        position: absolute;
+        top: 10px;
+        width: 100px;
+        z-index: 2;
+      }
+
+      .band {
+        background: white;
+        height: 10px;
+        left: 25px;
+        position: absolute;
+        top: 58px;
+        width: 100px;
+        z-index: 2;
+      }
+
+      .brim {
+        background: black;
+        border-radius: 50%;
+        height: 22px;
+        left: 0;
+        position: absolute;
+        top: 68px;
+        width: 150px;
+        z-index: 1;
+      }
+    }
+
+    .tickets {
+      height: 0;
+      position: relative;
+      width: 0;
+      z-index: 4;
+
+      .ticket {
+        background: white;
+        border: 2px solid black;
+        height: 15px;
+        left: -12px;
+        opacity: 0;
+        position: absolute;
+        top: 4px;
+        width: 24px;
+      }
+
+      .ticket-1 { animation: ticket-toss 1.4s ease-out infinite; }
+      .ticket-2 { animation: ticket-toss-left 1.4s ease-out 0.45s infinite; }
+      .ticket-3 { animation: ticket-toss-right 1.4s ease-out 0.9s infinite; }
+    }
+
+    .drawing-label {
+      font-size: 0.8rem;
+      letter-spacing: 0.14em;
+      margin-top: 0.75rem !important;
+      text-transform: uppercase;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .hat { animation: none; }
+      .tickets .ticket { animation: none; }
+    }
+  }
+
+  @keyframes hat-wobble {
+    0%, 100% { transform: rotate(0deg); }
+    20% { transform: rotate(-7deg) translateY(1px); }
+    50% { transform: rotate(6deg) translateY(-2px); }
+    75% { transform: rotate(-4deg); }
+  }
+
+  @keyframes ticket-toss {
+    0% { opacity: 0; transform: translate(0, 6px) rotate(0deg); }
+    15% { opacity: 1; }
+    60% { opacity: 1; transform: translate(6px, -72px) rotate(260deg); }
+    100% { opacity: 0; transform: translate(10px, -30px) rotate(420deg); }
+  }
+
+  @keyframes ticket-toss-left {
+    0% { opacity: 0; transform: translate(0, 6px) rotate(0deg); }
+    15% { opacity: 1; }
+    60% { opacity: 1; transform: translate(-42px, -60px) rotate(-240deg); }
+    100% { opacity: 0; transform: translate(-54px, -18px) rotate(-380deg); }
+  }
+
+  @keyframes ticket-toss-right {
+    0% { opacity: 0; transform: translate(0, 6px) rotate(0deg); }
+    15% { opacity: 1; }
+    60% { opacity: 1; transform: translate(46px, -54px) rotate(300deg); }
+    100% { opacity: 0; transform: translate(58px, -14px) rotate(460deg); }
   }
 
   .current-count {
