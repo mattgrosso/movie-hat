@@ -12,6 +12,11 @@
         </svg>
       </button>
     </p>
+    <div v-if="showWrappedInvite" class="wrapped-invite col-12 d-flex justify-content-center px-3">
+      <button class="btn btn-outline-light btn-sm" @click="$router.push('/wrapped')">
+        See your {{ wrappedYearLabel }} Wrapped
+      </button>
+    </div>
     <Charts class="charts col-12 px-3" ref="charts"/>
     <hr v-if="showHistory" class="mx-auto">
     <History v-if="showHistory" ref="history"/>
@@ -26,6 +31,7 @@ import AddMovie from "./AddMovie.vue";
 import DrawMovie from "./DrawMovie.vue";
 import Charts from "./Charts.vue";
 import History from "./History.vue";
+import { isWrappedSeason, wrappedYear } from "../assets/javascript/wrapped.js";
 
 export default {
   components: {
@@ -65,6 +71,14 @@ export default {
     },
     moviesInHat () {
       return this.$store.state.movieHat?.length;
+    },
+    // The app volunteers Wrapped only around year's end — "something that
+    // would show up at the end of the year." /wrapped is always reachable.
+    showWrappedInvite () {
+      return isWrappedSeason() && Boolean(this.$store.state.history?.length);
+    },
+    wrappedYearLabel () {
+      return wrappedYear();
     }
   },
   methods: {
@@ -124,6 +138,10 @@ export default {
         justify-content: center;
         align-items: center;
       }
+    }
+
+    .wrapped-invite {
+      margin-bottom: 0.5rem;
     }
 
     .charts {
