@@ -71,7 +71,10 @@ export default createStore({
     movieChoices: null,
     // A human-readable problem the UI should show. Failures used to go only
     // to the console, which is how an outage looked like an empty app.
-    appError: null
+    appError: null,
+    // A newer deploy exists than the bundle this page is running. App.vue
+    // applies it at a quiet moment; the banner is the fallback.
+    updateAvailable: false
   },
   getters: {
     isDevHat: (state) => {
@@ -140,6 +143,9 @@ export default createStore({
     },
     setAppError (state, value) {
       state.appError = value;
+    },
+    setUpdateAvailable (state, value) {
+      state.updateAvailable = Boolean(value);
     }
   },
   actions: {
