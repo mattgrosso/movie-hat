@@ -212,7 +212,12 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  padding-bottom: 0.5rem;
+
+  // NO vertical padding here. Hat.vue puts the collapsing `.charts` class
+  // on this very element, and padding survives `max-height: 0` — 8px of
+  // padding-bottom left the top edge of the first frame peeking out while
+  // the drawer was shut. Breathing room below comes from the last card's
+  // margin instead, which the overflow clips properly.
 
   // Each chart in its own mat, like everything else in this app.
   .chart-card {
@@ -220,6 +225,10 @@ export default {
     border: 6px solid black;
     margin: 0;
     padding: 12px 12px 8px;
+
+    &:last-child {
+      margin-bottom: 0.5rem;
+    }
 
     figcaption {
       color: #1d2430;
