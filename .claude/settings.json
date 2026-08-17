@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(yarn deploy)",
+      "Bash(yarn predeploy)",
+      "Bash(yarn build)",
+      "Bash(yarn backup-hats:*)",
+      "Bash(VERSION_BUMP=patch yarn deploy)",
+      "Bash(VERSION_BUMP=minor yarn deploy)",
+      "Bash(VERSION_BUMP=major yarn deploy)",
+      "Bash(firebase deploy --only database)"
+    ]
+  }
+}
