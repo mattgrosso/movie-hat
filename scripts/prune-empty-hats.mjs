@@ -25,8 +25,8 @@
 // Takes a backup first when actually deleting.
 
 import { execFileSync } from 'child_process';
+import { adminGet, adminRemove } from './hatDatabase.mjs';
 
-const DATABASE_URL = 'https://movie-hat-9c418-default-rtdb.firebaseio.com';
 const doDelete = process.argv.includes('--delete');
 
 /**
@@ -52,12 +52,11 @@ export function partitionHats (hats) {
   return { empty, kept };
 }
 
-const response = await fetch(`${DATABASE_URL}/hats.json`);
-if (!response.ok) {
-  console.error(`database responded ${response.status}`);
+const hats = await adminGet('hats');
+if (!hats) {
+  console.error('no hats in the database');
   process.exit(1);
 }
-const hats = await response.json();
 const { empty, kept } = partitionHats(hats);
 
 console.log(`${empty.length + kept.length} hat records: ${empty.length} never used, ${kept.length} with content\n`);
@@ -79,14 +78,14 @@ for (const hat of empty) {
   // and the other one might have content.
   const siblings = Object.keys(hats[hat.title] || {}).length;
   const path = siblings > 1
-    ? `hats/${encodeURIComponent(hat.title)}/${hat.dbKey}.json`
-    : `hats/${encodeURIComponent(hat.title)}.json`;
+    ? `hats/${hat.title}/${hat.dbKey}`
+    : `hats/${hat.title}`;
 
-  const result = await fetch(`${DATABASE_URL}/${path}`, { method: 'DELETE' });
-  if (result.ok) {
+  try {
+    await adminRemove(path);
     removed += 1;
-  } else {
-    console.error(`  ! failed to remove ${JSON.stringify(hat.title)}: ${result.status}`);
+  } catch (error) {
+    console.error(`  ! failed to remove ${JSON.stringify(hat.title)}: ${error.message}`);
   }
 }
 

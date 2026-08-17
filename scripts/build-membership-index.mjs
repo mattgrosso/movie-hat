@@ -23,9 +23,9 @@
 // the UI renders. Running this twice is harmless.
 
 import { execFileSync } from 'child_process';
+import { adminGet, adminUpdate } from './hatDatabase.mjs';
 import { emailToMemberKey, membersOf, memberIndexFor } from '../src/store/memberKey.mjs';
 
-const DATABASE_URL = 'https://movie-hat-9c418-default-rtdb.firebaseio.com';
 const apply = process.argv.includes('--apply');
 
 /**
@@ -66,13 +66,11 @@ export function buildIndexes (hats) {
   return { updates, summary };
 }
 
-const response = await fetch(`${DATABASE_URL}/hats.json`);
-if (!response.ok) {
-  console.error(`database responded ${response.status}`);
+const hats = await adminGet('hats');
+if (!hats) {
+  console.error('no hats in the database');
   process.exit(1);
 }
-
-const hats = await response.json();
 const { updates, summary } = buildIndexes(hats);
 const memberEmailWrites = Object.keys(updates).filter((path) => path.endsWith('/memberEmails')).length;
 const userHatWrites = Object.keys(updates).filter((path) => path.startsWith('userHats/')).length;
@@ -102,15 +100,7 @@ console.log('\nBacking up first…');
 execFileSync('node', [new URL('./backup-hats.mjs', import.meta.url).pathname, '--quiet'], { stdio: 'inherit' });
 
 // One atomic multi-path update: either the whole index lands or none of it.
-const result = await fetch(`${DATABASE_URL}/.json`, {
-  method: 'PATCH',
-  body: JSON.stringify(updates)
-});
-
-if (!result.ok) {
-  console.error(`\nFailed to write the index: ${result.status}`);
-  process.exit(1);
-}
+await adminUpdate(updates);
 
 console.log(`\n✔ wrote ${Object.keys(updates).length} paths.`);
 process.exit(0);

@@ -11,9 +11,11 @@
 // to — the same reasoning behind Cinema Roll's scripts/backup-database.mjs,
 // which this mirrors.
 //
-// No credentials needed, which is itself the finding: the database is
-// world-readable over REST, so a plain GET returns every hat. That is also
-// why the lockdown work matters, and why this script exists first.
+// Reads with a service account (see scripts/hatDatabase.mjs). It used to
+// need no credentials at all — a plain unauthenticated GET returned every
+// hat, which was the finding that started the lockdown. Closing the database
+// broke this script, which is a good sign for the lockdown and a bad one for
+// the backups, so it now gets in the way it always should have.
 //
 // Restore path: scripts/restore-hats.mjs.
 
@@ -22,8 +24,8 @@ import { gzipSync } from 'zlib';
 import { homedir } from 'os';
 import { join } from 'path';
 import { execFileSync } from 'child_process';
+import { adminGet } from './hatDatabase.mjs';
 
-const DATABASE_URL = 'https://movie-hat-9c418-default-rtdb.firebaseio.com';
 const BACKUP_DIR = join(homedir(), 'movie-hat-backups');
 const S3_BUCKET = 'movie-hat-db-backups';
 const AWS_PROFILE = 'personal-deploy';
@@ -84,11 +86,7 @@ export function summarize (data) {
 
 async function main () {
   log('Reading the whole database…');
-  const response = await fetch(`${DATABASE_URL}/.json`);
-  if (!response.ok) {
-    throw new Error(`database responded ${response.status}`);
-  }
-  const data = await response.json();
+  const data = await adminGet('/');
   if (!data || !data.hats) {
     throw new Error('no hats in the response — refusing to write an empty backup');
   }

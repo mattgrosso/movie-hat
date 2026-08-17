@@ -25,8 +25,8 @@ import { gunzipSync } from 'zlib';
 import { homedir } from 'os';
 import { join } from 'path';
 import { execFileSync } from 'child_process';
+import { adminGet, adminSet } from './hatDatabase.mjs';
 
-const DATABASE_URL = 'https://movie-hat-9c418-default-rtdb.firebaseio.com';
 const BACKUP_DIR = join(homedir(), 'movie-hat-backups');
 
 const args = process.argv.slice(2);
@@ -63,9 +63,7 @@ export function diffHats (currentHats = {}, backupHats = {}) {
 }
 
 async function readCurrent () {
-  const response = await fetch(`${DATABASE_URL}/hats.json`);
-  if (!response.ok) throw new Error(`database responded ${response.status}`);
-  return (await response.json()) || {};
+  return (await adminGet('hats')) || {};
 }
 
 async function main () {
@@ -108,11 +106,7 @@ async function main () {
     console.log('Backing up the current state first…');
     execFileSync('node', [join(import.meta.dirname, 'backup-hats.mjs'), '--local-only', '--quiet'], { stdio: 'inherit' });
 
-    const put = await fetch(`${DATABASE_URL}/hats/${encodeURIComponent(onlyHat)}.json`, {
-      method: 'PUT',
-      body: JSON.stringify(replacement)
-    });
-    if (!put.ok) throw new Error(`restore failed: ${put.status}`);
+    await adminSet(`hats/${onlyHat}`, replacement);
     console.log(`✔ restored "${onlyHat}"`);
     process.exit(0);
   }
@@ -138,8 +132,7 @@ async function main () {
   console.log('Backing up the current state first…');
   execFileSync('node', [join(import.meta.dirname, 'backup-hats.mjs'), '--local-only', '--quiet'], { stdio: 'inherit' });
 
-  const put = await fetch(`${DATABASE_URL}/hats.json`, { method: 'PUT', body: JSON.stringify(backupHats) });
-  if (!put.ok) throw new Error(`restore failed: ${put.status}`);
+  await adminSet('hats', backupHats);
   console.log(`✔ restored ${Object.keys(backupHats).length} hats`);
   process.exit(0);
 }
