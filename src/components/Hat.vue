@@ -6,7 +6,12 @@
     <p class="current-count text-white text-center m-0 p-2 col-12">
       <span v-if="moviesInHat === 1">(There is currently {{ moviesInHat }} movie in the hat.)</span>
       <span v-else>(There are currently {{ moviesInHat }} movies in the hat.)</span>
-      <button class="btn btn-outline-light" @click="toggleGraph">
+      <button
+        class="btn btn-outline-light"
+        :aria-expanded="String(showCharts)"
+        aria-label="Show charts"
+        @click="toggleGraph"
+      >
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-graph-up" viewBox="0 0 16 16">
           <path fill-rule="evenodd" d="M0 0h1v15h15v1H0V0Zm14.817 3.113a.5.5 0 0 1 .07.704l-4.5 5.5a.5.5 0 0 1-.74.037L7.06 6.767l-3.656 5.027a.5.5 0 0 1-.808-.588l4-5.5a.5.5 0 0 1 .758-.06l2.609 2.61 4.15-5.073a.5.5 0 0 1 .704-.07Z"/>
         </svg>
@@ -17,7 +22,7 @@
         See your {{ wrappedYearLabel }} Wrapped
       </button>
     </div>
-    <Charts class="charts col-12 px-3" ref="charts"/>
+    <Charts v-if="showCharts" class="charts col-12 px-3"/>
     <hr v-if="showHistory" class="mx-auto">
     <History v-if="showHistory" ref="history"/>
     <div class="back-to-top" :class="{hidden: !showBackToTop}" @click="scrollToTop">
@@ -42,7 +47,8 @@ export default {
   },
   data () {
     return {
-      showBackToTop: false
+      showBackToTop: false,
+      showCharts: false
     }
   },
   async mounted () {
@@ -104,7 +110,12 @@ export default {
       });
     },
     toggleGraph () {
-      this.$refs.charts.$el.classList.toggle('visible');
+      // The charts are MOUNTED on demand rather than hidden with CSS. Six
+      // responsive canvases inside a height-animating container made
+      // chart.js re-render all six on every frame of the animation — enough
+      // to lock up a browser tab. Nothing to re-render, nothing to clip,
+      // and no stray sliver of a frame peeking out when closed.
+      this.showCharts = !this.showCharts;
     }
   },
 }
@@ -144,21 +155,20 @@ export default {
       margin-bottom: 0.5rem;
     }
 
-    // A stack of chart cards, so the drawer grows to whatever it holds
-    // rather than being clipped to one fixed square.
+    // The stack only exists while it is open (see toggleGraph), so there is
+    // no collapsed state to style — it fades in and takes whatever height
+    // its cards need.
     .charts {
+      animation: charts-in 0.3s ease-out;
       margin: 0 auto;
-      max-height: 0;
-      overflow: hidden;
-      transition: 0.35s max-height ease-in-out;
       width: 90%;
-
-      &.visible {
-        max-height: 4000px;
-      }
 
       @media (min-width: 768px) {
         width: 560px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        animation: none;
       }
     }
 
@@ -186,5 +196,10 @@ export default {
         padding: 6px 24px;
       }
     }
+  }
+
+  @keyframes charts-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: none; }
   }
 </style>
