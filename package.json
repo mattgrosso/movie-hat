@@ -11,6 +11,7 @@
     "generate-hat-rules": "node scripts/generate-hat-rules.mjs",
     "mint-hat-token": "node scripts/mint-hat-token.mjs",
     "fetch-bug-reports": "node scripts/fetch-bug-reports.mjs",
+    "resolve-bug-report": "node scripts/resolve-bug-report.mjs",
     "serve": "nodemon --watch .env --exec \"vue-cli-service serve\"",
     "build": "vue-cli-service build",
     "lint": "eslint .",
