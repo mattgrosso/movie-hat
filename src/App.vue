@@ -19,6 +19,10 @@
     <div v-else class="content">
       <router-view></router-view>
     </div>
+    <!-- Outside the login gate on purpose: the report that prompted this
+         button was a sign-in failure, which can only be reported from the
+         sign-in screen. -->
+    <BugReportButton/>
   </div>
 </template>
 
@@ -27,14 +31,17 @@ import Login from "./components/Login.vue";
 // Registered as AppHeader: "Header" is a reserved HTML element name.
 import AppHeader from "./components/Header.vue";
 import UpdateAvailableBanner from "./components/UpdateAvailableBanner.vue";
+import BugReportButton from "./components/BugReportButton.vue";
 import { reloadForUpdate, isSafeMomentForReload, shouldAutoAttempt } from "./utils/appUpdate.js";
+import { flushStashedBugReports } from "./utils/bugReports.js";
 
 export default {
   name: 'Movie-Hat',
   components: {
     AppHeader,
     Login,
-    UpdateAvailableBanner
+    UpdateAvailableBanner,
+    BugReportButton
   },
   data () {
     return {
@@ -187,6 +194,9 @@ export default {
     setInterval(() => {
       this.checkForServiceWorkerUpdate();
     }, 30 * 60 * 1000);
+
+    // Bug reports typed with no signal go out on the next launch.
+    flushStashedBugReports().catch(() => {});
   },
 }
 </script>

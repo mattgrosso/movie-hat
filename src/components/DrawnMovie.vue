@@ -41,13 +41,13 @@
       </div>
       <div class="details-wrapper px-4 py-2">
         <button
-          class="btn btn-primary col-12 col-sm-6 col-md-12 m-3"
+          class="btn btn-primary"
           @click="shareMovie"
         >
           Share
         </button>
         <button
-          class="back-button btn btn-success col-12 col-sm-6 col-md-12"
+          class="back-button btn btn-success"
           @click="$router.push('/')"
         >
           Home
@@ -173,17 +173,15 @@ export default {
 <style lang="scss">
 .draw {
   background-color: var(--bg-color);
+  // One centered column at every width. The old desktop layout put the
+  // buttons in a side column next to a poster that filled two-thirds of the
+  // screen; the draw reads like a movie one-sheet, so the poster stays the
+  // centerpiece — at a size that fits on screen — and the actions sit
+  // underneath it.
+  align-items: center;
   display: flex;
   flex-direction: column;
-  flex-wrap: wrap;
   justify-content: center;
-
-  @media screen and (min-width: 768px) {
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: center;
-    justify-content: space-around;
-  }
 
   // The reveal: the poster arrives as if pulled from the hat, captions a
   // beat behind it.
@@ -196,6 +194,15 @@ export default {
       border: 12px solid black;
       box-shadow: inset 0px 0px 9px 0px #424242;
       padding: 24px;
+
+      // col-8 handles phones; on a desktop the cap is the viewport's
+      // HEIGHT, or a tall poster pushes its own buttons below the fold.
+      // (w780 posters are 2:3, so the width cap rarely wins.)
+      @media screen and (min-width: 768px) {
+        max-height: min(62vh, 640px);
+        max-width: 420px;
+        width: auto;
+      }
     }
 
     .draw-count,
@@ -209,11 +216,21 @@ export default {
     animation: drawn-fade-up 0.5s ease 0.4s backwards;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    min-width: 150px;
+    gap: 0.75rem;
+    justify-content: center;
+    width: 100%;
 
-    @media screen and (min-width: 768px) {
-      height: 250px;
+    .btn {
+      width: min(100%, 320px);
+    }
+
+    // Side by side under the poster once there's room.
+    @media screen and (min-width: 576px) {
+      flex-direction: row;
+
+      .btn {
+        width: 160px;
+      }
     }
   }
 

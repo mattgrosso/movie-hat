@@ -290,23 +290,34 @@ export default {
 
       const newMember = input.value;
       const newMemberKey = emailToMemberKey(newMember);
-      // Hats made before the app existed as it is now store members as a
-      // push-key map; newer ones as an array. Spreading the map would throw.
-      const members = Array.isArray(hat.members) ? hat.members : Object.values(hat.members || {});
 
-      if (members.some((email) => emailToMemberKey(email) === newMemberKey)) {
-        this.showMessage(`${newMember} is already a member of ${hat.title}.`, 5000);
+      // Work from a FRESH read, not this page's copy of the hat. An installed
+      // PWA can hold a page-load snapshot for days, and a PATCH replaces each
+      // key it names wholesale — so writing `members` from a stale snapshot
+      // silently erases anyone added since this page loaded, and with them
+      // their access. (The movies/history half of this lesson is the comment
+      // below; this is the membership half.)
+      let fresh = null;
+      try {
+        fresh = await dbGet(hatPath(hat.title, hat.subKey));
+      } catch {
+        this.showMessage(`Couldn't reach ${hat.title} just now — try again.`, 5000);
         input.value = null;
         return;
       }
+      // Hats made before the app existed as it is now store members as a
+      // push-key map; newer ones as an array. Spreading the map would throw.
+      const members = Array.isArray(fresh?.members) ? fresh.members : Object.values(fresh?.members || {});
+      const alreadyListed = members.some((email) => emailToMemberKey(email) === newMemberKey);
 
-      // Patch ONLY what changed. This used to send the whole hat object back,
-      // which included the page-load copies of `movies` and `history` — and a
-      // PATCH replaces each key it names, so anything another member had added
-      // since this page loaded was silently overwritten.
+      // Patch ONLY what changed, and write the index entry path-targeted so
+      // nobody else's concurrent membership rides along. An already-listed
+      // member still gets the index writes below — re-adding someone is the
+      // one repair a member can perform when an index write once failed and
+      // left them listed but locked out.
       await dbPatch(hatPath(hat.title, hat.subKey), {
-        members: [...members, newMember],
-        memberEmails: { ...(hat.memberEmails || {}), [newMemberKey]: true }
+        ...(alreadyListed ? {} : { members: [...members, newMember] }),
+        [`memberEmails/${newMemberKey}`]: true
       });
 
       // So the hat shows up for them without them having to find it. If this
@@ -318,6 +329,10 @@ export default {
         });
       } catch (error) {
         console.warn("Couldn't write the new member's hat index", error);
+      }
+
+      if (alreadyListed) {
+        this.showMessage(`${newMember} was already a member of ${hat.title} — refreshed their access anyway.`, 5000);
       }
 
       input.value = null;
@@ -378,7 +393,12 @@ export default {
       if (!hat) return;
 
       const myKey = emailToMemberKey(this.$store.state.email);
-      const members = (Array.isArray(hat.members) ? hat.members : Object.values(hat.members || {}))
+      // Fresh read for the same reason addNewMemberTo takes one: `members`
+      // has to be written whole (it's an array), and writing it from a stale
+      // page-load snapshot erases anyone added since. Failing the read fails
+      // the leave — better than leaving with side effects.
+      const fresh = await dbGet(hatPath(hat.title, hat.subKey));
+      const members = (Array.isArray(fresh?.members) ? fresh.members : Object.values(fresh?.members || {}))
         .filter((email) => emailToMemberKey(email) !== myKey);
 
       // One atomic write, while we are still a member and allowed to make

@@ -19,17 +19,28 @@
 // is none of our business.
 //
 // So the rule here is deliberately the strictest one that still does the job:
-//   DELETE  a hat record with zero movies and zero history
+//   DELETE  a hat record with zero movies and zero history AND at most one
+//           member
 //   KEEP    absolutely everything else
 //
 // Not "few movies", not "old", not "looks like nonsense" — a hat with one
-// movie in it is a hat someone used.
+// movie in it is a hat someone used. And a hat with TWO members is a hat
+// someone shared: junk hats are made by one person who never returns, they
+// don't invite anybody. Learned the hard way (2026-08-21): the first prune
+// deleted "Chelsea and Kate watch movies" — empty, but two real people —
+// and its owner's next visit showed an empty hat list and then told her she
+// was no longer a member of her own hat.
+//
+// Deleting a hat also deletes its members' userHats entries. Leaving them
+// behind is what turned the pruned hat above into that error loop: the app
+// kept trying to open a hat that wasn't there.
 //
 // Takes a backup first when actually deleting.
 
 import { execFileSync } from 'child_process';
 import { pathToFileURL } from 'url';
 import { adminGet, adminRemove } from './hatDatabase.mjs';
+import { emailToMemberKey } from '../src/store/memberKey.mjs';
 
 const doDelete = process.argv.includes('--delete');
 
@@ -58,9 +69,16 @@ export function partitionHats (hats, { graceDays: grace = 7, now = Date.now() } 
       const movies = Object.keys(hat?.movies || {}).length;
       const history = Object.keys(hat?.history || {}).length;
       const members = Object.values(hat?.members || {});
-      const record = { title, dbKey, movies, history, members: members.length };
+      const record = { title, dbKey, movies, history, members: members.length, memberEmails: members };
 
       if (movies || history) {
+        kept.push(record);
+        return;
+      }
+
+      // Two members means somebody invited somebody: a shared hat is a real
+      // hat even before its first movie. Junk hats have one member, always.
+      if (members.length > 1) {
         kept.push(record);
         return;
       }
@@ -123,6 +141,26 @@ async function run () {
       removed += 1;
     } catch (error) {
       console.error(`  ! failed to remove ${JSON.stringify(hat.title)}: ${error.message}`);
+      continue;
+    }
+
+    // The member's own index must go with the hat. An entry left behind
+    // points at nothing: the app answers it with "you may no longer be a
+    // member", which is a frightening thing to tell someone about a hat we
+    // deleted ourselves.
+    for (const email of hat.memberEmails) {
+      const memberKey = emailToMemberKey(email);
+      if (!memberKey) continue;
+      try {
+        const entries = await adminGet(`userHats/${memberKey}`);
+        for (const [entryKey, entry] of Object.entries(entries || {})) {
+          if (entry?.hatKey === hat.dbKey) {
+            await adminRemove(`userHats/${memberKey}/${entryKey}`);
+          }
+        }
+      } catch (error) {
+        console.error(`  ! failed to clean ${memberKey}'s index: ${error.message}`);
+      }
     }
   }
 

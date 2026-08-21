@@ -21,6 +21,13 @@
 //   - DELETING a whole hat is reserved for its creator (todo.md's ask).
 //     Hats from before `createdBy` existed have no creator on record, so
 //     any member may delete those — exactly the power they always had.
+//   - `bugReports` is write-only: anyone — signed in OR NOT — may file one,
+//     nobody may read them back or touch one that exists (triage goes
+//     through `yarn fetch-bug-reports`, which bypasses rules). Signed-out
+//     filing is deliberate and unlike the other apps: the bug that prompted
+//     the button was a login failure, and a report box behind the login
+//     cannot hear about those. Push-only with a size-capped transcript, so
+//     the worst a stranger can do is leave a note.
 //   - `userHats/<you>` is readable only by you, and yours to change freely.
 //     Anyone signed in may CREATE an entry in someone else's index — that is
 //     what inviting them to a hat means — but may not change or remove one
@@ -68,6 +75,14 @@ const rules = {
           // A hat may never end up with nobody able to read it.
           '.validate': "!newData.exists() || newData.hasChild('memberEmails')"
         }
+      }
+    },
+
+    // Write-only, and open to the signed-out — see the header comment.
+    bugReports: {
+      $reportId: {
+        '.write': '!data.exists() && newData.exists()',
+        '.validate': "newData.hasChildren(['transcript', 'createdAt']) && newData.child('transcript').isString() && newData.child('transcript').val().length <= 5000"
       }
     },
 

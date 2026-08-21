@@ -50,6 +50,21 @@ describe('partitionHats', () => {
     expect(kept.map((hat) => hat.title).sort()).toEqual(['All Drawn', 'One Movie']);
   });
 
+  // The first prune deleted "Chelsea and Kate watch movies" — empty, but two
+  // real people who had added each other. Junk hats are made by one person
+  // who never returns; an invitation is proof of a real hat.
+  it('keeps an empty hat that has more than one member', () => {
+    const hats = {
+      Shared: { k1: { members: { a: 'kate@x.com', b: 'chelsea@y.com' } } },
+      Solo: { k2: { members: { a: 'stranger@z.com' } } }
+    };
+
+    const { empty, kept } = partitionHats(hats);
+
+    expect(kept.map((hat) => hat.title)).toEqual(['Shared']);
+    expect(empty.map((hat) => hat.title)).toEqual(['Solo']);
+  });
+
   it('spares a freshly made empty hat, so someone filling one is safe', () => {
     const now = Date.parse('2026-08-17T12:00:00Z');
     const day = 24 * 60 * 60 * 1000;

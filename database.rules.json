@@ -11,6 +11,12 @@
         }
       }
     },
+    "bugReports": {
+      "$reportId": {
+        ".write": "!data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['transcript', 'createdAt']) && newData.child('transcript').isString() && newData.child('transcript').val().length <= 5000"
+      }
+    },
     "userHats": {
       "$memberKey": {
         ".read": "auth != null && auth.token.email != null && $memberKey === auth.token.email.toLowerCase().replace('.', '-').replace('$', '-').replace('#', '-').replace('[', '-').replace(']', '-').replace('/', '-')",
