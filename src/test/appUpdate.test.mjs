@@ -7,47 +7,60 @@ import { isSafeMomentForReload, shouldAutoAttempt } from '../utils/appUpdate.js'
 
 const classList = (...names) => ({ contains: (name) => names.includes(name) });
 
+// An idle page, spelled out: every guard explicitly off, so each test below
+// switches on exactly the one thing it is about.
+const idle = (overrides = {}) => ({
+  activeElement: { tagName: 'BODY' },
+  bodyClassList: classList(),
+  revealing: false,
+  reporting: false,
+  routePath: '/',
+  ...overrides
+});
+
 describe('isSafeMomentForReload', () => {
   it('is safe on an idle page', () => {
-    expect(isSafeMomentForReload({
-      activeElement: { tagName: 'BODY' },
-      bodyClassList: classList(),
-      revealing: false
-    })).toBe(true);
+    expect(isSafeMomentForReload(idle())).toBe(true);
   });
 
   it('is unsafe while typing in an input, textarea, or select', () => {
     for (const tagName of ['INPUT', 'TEXTAREA', 'SELECT']) {
-      expect(isSafeMomentForReload({
-        activeElement: { tagName },
-        bodyClassList: classList(),
-        revealing: false
-      })).toBe(false);
+      expect(isSafeMomentForReload(idle({ activeElement: { tagName } }))).toBe(false);
     }
   });
 
   it('is unsafe while a Bootstrap modal is open', () => {
-    expect(isSafeMomentForReload({
-      activeElement: { tagName: 'BODY' },
-      bodyClassList: classList('modal-open'),
-      revealing: false
-    })).toBe(false);
+    expect(isSafeMomentForReload(idle({ bodyClassList: classList('modal-open') }))).toBe(false);
   });
 
   it('is unsafe during the draw reveal', () => {
-    expect(isSafeMomentForReload({
-      activeElement: { tagName: 'BODY' },
-      bodyClassList: classList(),
-      revealing: true
-    })).toBe(false);
+    expect(isSafeMomentForReload(idle({ revealing: true }))).toBe(false);
+  });
+
+  // The bug-report panel is hand-rolled, so `modal-open` is never set, and a
+  // phone user who dismisses the keyboard to re-read their report blurs the
+  // textarea. Neither of the checks above can see an unsent report; this one
+  // has to.
+  it('is unsafe while the bug-report panel is open, even with nothing focused', () => {
+    expect(isSafeMomentForReload(idle({ reporting: true }))).toBe(false);
+  });
+
+  // /pick-a-movie's search results and /tutorial's step live only in the
+  // store, so a reload there loses work rather than re-rendering it.
+  it('is unsafe on a screen whose whole state is in memory', () => {
+    for (const routePath of ['/pick-a-movie', '/tutorial']) {
+      expect(isSafeMomentForReload(idle({ routePath }))).toBe(false);
+    }
+  });
+
+  it('is safe on screens that rebuild themselves after a reload', () => {
+    for (const routePath of ['/', '/drawn-movie', '/hat-list', '/wrapped']) {
+      expect(isSafeMomentForReload(idle({ routePath }))).toBe(true);
+    }
   });
 
   it('tolerates a missing activeElement', () => {
-    expect(isSafeMomentForReload({
-      activeElement: null,
-      bodyClassList: classList(),
-      revealing: false
-    })).toBe(true);
+    expect(isSafeMomentForReload(idle({ activeElement: null }))).toBe(true);
   });
 });
 

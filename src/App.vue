@@ -54,8 +54,9 @@ export default {
   watch: {
     // Auto-apply updates: immediately when spotted at a fresh moment (just
     // launched or foregrounded — nothing is in progress yet), otherwise
-    // after a quiet stretch — and never while typing, mid-modal, or during
-    // the draw reveal. Cinema Roll's pattern, both of its lessons included.
+    // after a quiet stretch — and never while typing, mid-modal, during the
+    // draw reveal, with a bug report half-written, or on a screen that only
+    // exists in memory. Cinema Roll's pattern, both of its lessons included.
     '$store.state.updateAvailable' (available) {
       if (!available) return;
       this.armAutoUpdate();
@@ -149,7 +150,7 @@ export default {
       // Fresh moment (just launched or just foregrounded): nothing is in
       // flight yet — apply right away.
       const fresh = Date.now() - (this.lastBecameVisibleAt || 0) < 5000;
-      if (fresh && isSafeMomentForReload()) {
+      if (fresh && isSafeMomentForReload({ routePath: this.$route?.path || '' })) {
         reloadForUpdate();
         return;
       }
@@ -158,7 +159,7 @@ export default {
       if (this.autoUpdateTimer) clearInterval(this.autoUpdateTimer);
       this.autoUpdateTimer = setInterval(() => {
         const quiet = Date.now() - this.lastActivityAt > 25000;
-        if (quiet && isSafeMomentForReload()) {
+        if (quiet && isSafeMomentForReload({ routePath: this.$route?.path || '' })) {
           clearInterval(this.autoUpdateTimer);
           this.autoUpdateTimer = null;
           reloadForUpdate();
