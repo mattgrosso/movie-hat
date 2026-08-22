@@ -26,7 +26,7 @@
         </span>
         <div class="mat"></div>
       </h1>
-      <span class="version">{{version}}</span>
+      <span class="build-stamp">{{buildStamp}}</span>
     </div>
 
     <!-- Modals -->
@@ -52,11 +52,15 @@
 
 <script>
 import { getAuth, signOut } from 'firebase/auth';
+import { buildStamp } from '../utils/buildStamp.js';
 
 export default {
   computed: {
-    version () {
-      return process.env.VUE_APP_VERSION;
+    // The house build stamp — "v1.7.1 · built Aug 22, 1:32 AM". Was the bare
+    // version number; the version alone can't tell you whether the tab in
+    // front of you picked up the deploy you just did.
+    buildStamp () {
+      return buildStamp();
     },
   },
   methods: {
@@ -117,13 +121,19 @@ export default {
         }
       }
 
-      .version {
+      /* The house build stamp: present, readable, never competing for
+         attention. Sits just under the marquee on the blue page background,
+         where the bare version number used to. */
+      .build-stamp {
         bottom: 0px;
         color: white;
         font-size: 0.5rem;
+        font-variant-numeric: tabular-nums;
+        opacity: 0.85;
         position: absolute;
         right: 8px;
         transform: translateY(6px);
+        white-space: nowrap;
       }
     }
 
