@@ -9,14 +9,34 @@
           {{$store.state.email}}
         </p>
       </div>
-      <div
-        v-if="$store.state.movieHatTitle"
-        class="current-hat badge rounded-pill text-bg-dark"
-        @click="$router.push('/hat-list')"
-      >
-        <p class="text-white m-0">
-          {{$store.state.movieHatTitle}}
-        </p>
+      <div class="right-pills d-flex">
+        <!-- The way into /peek. Rendered only for the owner, so nobody else is
+             offered a button that spoils their own hat. Same caveat as the
+             screen it opens: this is a client-side check in a public bundle,
+             not a security boundary — see src/assets/javascript/peek.js. -->
+        <div
+          v-if="canPeek"
+          class="peek-link badge rounded-pill text-bg-dark"
+          title="Peek in the hat"
+          aria-label="Peek in the hat"
+          @click="$router.push('/peek')"
+        >
+          <!-- Inline, because bootstrap-icons is installed but its CSS is
+               never imported — the same reason every other icon here is SVG. -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-eye-fill" viewBox="0 0 16 16">
+            <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/>
+            <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/>
+          </svg>
+        </div>
+        <div
+          v-if="$store.state.movieHatTitle"
+          class="current-hat badge rounded-pill text-bg-dark"
+          @click="$router.push('/hat-list')"
+        >
+          <p class="text-white m-0">
+            {{$store.state.movieHatTitle}}
+          </p>
+        </div>
       </div>
     </div>
     <div class="header d-flex justify-content-center align-items-center">
@@ -53,9 +73,13 @@
 <script>
 import { getAuth, signOut } from 'firebase/auth';
 import { buildStamp } from '../utils/buildStamp.js';
+import { isOwner } from '../assets/javascript/peek.js';
 
 export default {
   computed: {
+    canPeek () {
+      return isOwner(this.$store.state.email);
+    },
     // The house build stamp — "v1.7.1 · built Aug 22, 1:32 AM". Was the bare
     // version number; the version alone can't tell you whether the tab in
     // front of you picked up the deploy you just did.
@@ -141,6 +165,17 @@ export default {
       padding: 6px 6px 0;
       .rounded-pill {
         cursor: pointer;
+      }
+
+      .right-pills {
+        gap: 4px;
+      }
+
+      /* Icon-only, so it needs its own centring — the sibling pills get
+         theirs from the <p> they wrap. */
+      .peek-link {
+        align-items: center;
+        display: flex;
       }
     }
 
