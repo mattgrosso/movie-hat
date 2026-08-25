@@ -11,6 +11,19 @@
         }
       }
     },
+    "mirrorFeed": {
+      ".read": false,
+      "$title": {
+        ".read": false,
+        "$hatKey": {
+          ".read": false,
+          ".write": "auth != null && auth.token.email != null && root.child('hats').child($title).child($hatKey).child('memberEmails').child(auth.token.email.toLowerCase().replace('.', '-').replace('$', '-').replace('#', '-').replace('[', '-').replace(']', '-').replace('/', '-')).exists()",
+          "$secret": {
+            ".read": true
+          }
+        }
+      }
+    },
     "bugReports": {
       "$reportId": {
         ".write": "!data.exists() && newData.exists()",

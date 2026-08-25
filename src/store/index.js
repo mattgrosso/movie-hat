@@ -1,5 +1,6 @@
 import { createStore } from 'vuex'
-import { dbGet, hatPath, resolveHatKey } from './db.js'
+import { dbGet, dbPatch, dbPut, hatPath, resolveHatKey } from './db.js'
+import { buildMirrorFeed } from '../assets/javascript/mirrorFeed.js'
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithCustomToken, onAuthStateChanged } from "firebase/auth";
 
@@ -74,7 +75,12 @@ export default createStore({
     appError: null,
     // A newer deploy exists than the bundle this page is running. App.vue
     // applies it at a quiet moment; the banner is the fallback.
-    updateAvailable: false
+    updateAvailable: false,
+
+    // Secret path segment for the current hat's Magic Mirror feed, or null if
+    // the feed has never been turned on for it. Per-hat: getHat sets it from
+    // whichever hat it just loaded.
+    mirrorFeedKey: null
   },
   getters: {
     isDevHat: (state) => {
@@ -143,6 +149,9 @@ export default createStore({
     },
     setAppError (state, value) {
       state.appError = value;
+    },
+    setMirrorFeedKey (state, value) {
+      state.mirrorFeedKey = value || null;
     },
     setUpdateAvailable (state, value) {
       state.updateAvailable = Boolean(value);
@@ -269,7 +278,78 @@ export default createStore({
         context.commit('setMembers', data.members);
         context.commit('setMovieHat', hatAsArray);
         context.commit('setHistory', history);
+        context.commit('setMirrorFeedKey', data.mirrorFeedKey);
+        context.dispatch('publishMirrorFeedIfStale');
       }
+    },
+
+    // ------------------------------------------------------------------
+    // Magic Mirror feed. See src/assets/javascript/mirrorFeed.js for why this
+    // exists: the mirror used to read a whole hat over unauthenticated REST,
+    // which the membership rules closed.
+    //
+    // The secret must never live in Movie Hat's public bundle, so it is
+    // generated per-hat at runtime and stored on the hat itself, where only
+    // its members can read it.
+    //
+    // Both actions take an explicit hat and fall back to the CURRENT one, so
+    // the draw path can call them bare while the hats list — which holds every
+    // hat you belong to, none of them necessarily current — passes its own.
+    async ensureMirrorFeedKey (context, { title, hatKey, existingKey } = {}) {
+      const hatTitle = title || context.state.movieHatTitle;
+      const dbKey = hatKey || context.state.dbKeyForHatTitle;
+      const isCurrentHat = dbKey === context.state.dbKeyForHatTitle;
+      if (!hatTitle || !dbKey) return null;
+
+      const existing = existingKey || (isCurrentHat ? context.state.mirrorFeedKey : null);
+      if (typeof existing === 'string' && existing.length >= 16) return existing;
+
+      const bytes = new Uint8Array(16);
+      window.crypto.getRandomValues(bytes);
+      const key = Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+
+      // PATCH, not PUT: the hat's .validate insists every write leaves
+      // memberEmails in place, and a PUT here would replace the whole hat.
+      await dbPatch(hatPath(hatTitle, dbKey), { mirrorFeedKey: key });
+      if (isCurrentHat) context.commit('setMirrorFeedKey', key);
+
+      return key;
+    },
+
+    async publishMirrorFeed (context, { title, hatKey, secret, history } = {}) {
+      const hatTitle = title || context.state.movieHatTitle;
+      const dbKey = hatKey || context.state.dbKeyForHatTitle;
+      const isCurrentHat = dbKey === context.state.dbKeyForHatTitle;
+      const feedKey = secret || (isCurrentHat ? context.state.mirrorFeedKey : null);
+      if (!hatTitle || !dbKey || !feedKey) return;
+
+      const feed = buildMirrorFeed(history || (isCurrentHat ? context.state.history : null));
+
+      try {
+        // Keyed by title AND hatKey, mirroring the hats path, because that is
+        // the only way the rules can reach this hat's memberEmails to decide
+        // whether the writer belongs to it.
+        await dbPut(`mirrorFeed/${encodeURIComponent(hatTitle)}/${dbKey}/${feedKey}`, feed);
+      } catch (error) {
+        // A mirror showing last week's pick is not worth interrupting a draw.
+        console.warn('Could not publish the mirror feed', error);
+      }
+    },
+
+    // Republish on load, at most every six hours. Drawing republishes
+    // immediately — that is the event this feed exists to carry — so this only
+    // covers a feed drifting out of date for other reasons.
+    async publishMirrorFeedIfStale (context) {
+      if (!context.state.mirrorFeedKey) return;
+
+      const stamp = `movieHat.mirrorFeed.lastPublish.${context.state.dbKeyForHatTitle}`;
+      const last = Number(window.localStorage.getItem(stamp) || 0);
+      if (Date.now() - last < 6 * 60 * 60 * 1000) return;
+
+      // Stamped BEFORE the publish, not after. A hat whose publish keeps
+      // failing would otherwise retry on every getHat for the whole session.
+      window.localStorage.setItem(stamp, String(Date.now()));
+      await context.dispatch('publishMirrorFeed');
     }
   },
   modules: {

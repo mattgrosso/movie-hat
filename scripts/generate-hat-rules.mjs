@@ -28,6 +28,11 @@
 //     the button was a login failure, and a report box behind the login
 //     cannot hear about those. Push-only with a size-capped transcript, so
 //     the worst a stranger can do is leave a note.
+//   - `mirrorFeed/<title>/<hatKey>/<secret>` is world-READABLE, and only at
+//     that depth — the levels above it are refused, so no hat is enumerable
+//     through it and no feed is findable without its secret. Only a member of
+//     the hat may publish. This is how the Magic Mirror, which cannot sign
+//     in, sees the latest pick without the hat being open to everyone.
 //   - `userHats/<you>` is readable only by you, and yours to change freely.
 //     Anyone signed in may CREATE an entry in someone else's index — that is
 //     what inviting them to a hat means — but may not change or remove one
@@ -55,6 +60,9 @@ const becomesMember = `newData.child('memberEmails').child(${memberKeyExpression
 // Deleting a whole hat: the creator's call — except legacy hats, which have
 // no creator on record and keep working the way they always did.
 const mayDeleteHat = `(!data.child('createdBy').exists() || data.child('createdBy').val() === ${memberKeyExpression})`;
+// Membership tested from the ROOT rather than from `data`, because the mirror
+// feed sits outside the hats tree and has to reach back into it.
+const isMemberOfHatAtRoot = `root.child('hats').child($title).child($hatKey).child('memberEmails').child(${memberKeyExpression}).exists()`;
 
 const rules = {
   rules: {
@@ -74,6 +82,34 @@ const rules = {
           '.write': `${signedIn} && ((${isMember} && (newData.exists() || ${mayDeleteHat})) || (!data.exists() && ${becomesMember}))`,
           // A hat may never end up with nobody able to read it.
           '.validate': "!newData.exists() || newData.hasChild('memberEmails')"
+        }
+      }
+    },
+
+    // The Magic Mirror feed. The hallway display has no keyboard and no
+    // login, so it cannot authenticate; it used to read a whole hat over
+    // unauthenticated REST, which is exactly what the hats rules closed.
+    // The app publishes just the latest pick here instead — see
+    // src/assets/javascript/mirrorFeed.js.
+    //
+    // Keyed by title AND hatKey, mirroring the hats path, because that is the
+    // only way a rule can reach the hat's memberEmails: rules cannot search
+    // hats/*/$hatKey without knowing the title.
+    //
+    // Public read is granted at the $secret level ONLY. mirrorFeed.json and
+    // mirrorFeed/<title>/<hatKey>.json are both refused, so no hat can be
+    // enumerated through this and no feed can be found without its 128-bit
+    // secret. The secret lives on the hat, readable only by its members.
+    mirrorFeed: {
+      '.read': false,
+      $title: {
+        '.read': false,
+        $hatKey: {
+          '.read': false,
+          '.write': `${signedIn} && ${isMemberOfHatAtRoot}`,
+          $secret: {
+            '.read': true
+          }
         }
       }
     },

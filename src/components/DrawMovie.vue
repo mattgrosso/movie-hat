@@ -90,7 +90,19 @@ export default {
         [`movies/${movie.dbKey}`]: null
       });
 
-      this.$store.dispatch('getHat');
+      // Past this point the draw HAS saved, so nothing below may reject: the
+      // caller's catch says "the draw didn't save — it's still in the hat",
+      // which would be a lie about a write that already succeeded.
+      //
+      // Awaited so the mirror feed is built from a history that already has
+      // this draw in it. The draw is exactly what the mirror is waiting for,
+      // so this publish skips the six-hourly throttle.
+      try {
+        await this.$store.dispatch('getHat');
+        await this.$store.dispatch('publishMirrorFeed');
+      } catch (error) {
+        console.warn('The draw saved, but refreshing the hat afterwards did not', error);
+      }
     },
     showMessage (message) {
       this.message = message;

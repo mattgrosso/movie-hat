@@ -45,6 +45,28 @@
               <input :ref="`newMemberInput${hatIndex}`" type="text" class="form-control" placeholder="Add Member" aria-label="Add Member" aria-describedby="add-member-button">
               <button class="btn btn-secondary" type="button" id="add-member-button" @click="addNewMemberTo(hat, hatIndex)">Add</button>
             </div>
+
+            <!-- Publishes this hat's latest pick for a wall display that
+                 cannot sign in. Folded away by default: most hats will never
+                 want it. -->
+            <div class="mirror-feed mt-3">
+              <button class="btn btn-link btn-sm p-0 mirror-feed-toggle" :aria-expanded="String(openMirrorFeedFor === hat.subKey)" @click="toggleMirrorFeed(hat)">
+                Magic Mirror
+              </button>
+              <div v-if="openMirrorFeedFor === hat.subKey" class="mirror-feed-body mt-2">
+                <p class="mirror-feed-blurb text-muted mb-2">
+                  Publishes just this hat's most recent pick — its title and poster — so a wall display can show it without signing in. The rest of the hat stays private.
+                </p>
+                <button v-if="!hat.mirrorFeedKey" class="btn btn-outline-secondary btn-sm" :disabled="enablingMirrorFeed" @click="enableMirrorFeed(hat)">
+                  {{ enablingMirrorFeed ? 'Turning it on…' : 'Turn on the mirror feed' }}
+                </button>
+                <template v-else>
+                  <input class="form-control form-control-sm mirror-feed-url mb-2" readonly :value="mirrorFeedUrlFor(hat)" @focus="$event.target.select()">
+                  <button class="btn btn-outline-secondary btn-sm" @click="copyMirrorFeedUrl(hat)">Copy URL</button>
+                  <p class="mirror-feed-hint text-muted mt-2 mb-0">Anyone with this URL can see the latest pick. Republished whenever you draw.</p>
+                </template>
+              </div>
+            </div>
           </div>
         </li>
       </ul>
@@ -130,7 +152,7 @@
 </template>
 
 <script>
-import { dbDelete, dbGet, dbPatch, dbPost, dbPut, hatPath } from '../store/db.js';
+import { buildUrl, dbDelete, dbGet, dbPatch, dbPost, dbPut, hatPath } from '../store/db.js';
 import { emailToMemberKey } from '../store/memberKey.mjs';
 import { hasSeenTutorial, shouldOfferTutorial } from '../assets/javascript/tutorial.js';
 
@@ -142,7 +164,9 @@ export default {
       deleteHatTarget: null,
       leaveHatTarget: null,
       memberHats: [],
-      message: null
+      message: null,
+      openMirrorFeedFor: null,
+      enablingMirrorFeed: false
     }
   },
   async mounted () {
@@ -175,6 +199,46 @@ export default {
     }
   },
   methods: {
+    toggleMirrorFeed (hat) {
+      this.openMirrorFeedFor = this.openMirrorFeedFor === hat.subKey ? null : hat.subKey;
+    },
+    mirrorFeedUrlFor (hat) {
+      if (!hat?.mirrorFeedKey) return '';
+      return buildUrl(`mirrorFeed/${encodeURIComponent(hat.title)}/${hat.subKey}/${hat.mirrorFeedKey}`);
+    },
+    // Mint the secret, then publish through it. Two steps, in this order —
+    // publishing before the key exists would write to `mirrorFeed/.../null`.
+    async enableMirrorFeed (hat) {
+      this.message = null;
+      this.enablingMirrorFeed = true;
+
+      try {
+        const key = await this.$store.dispatch('ensureMirrorFeedKey', {
+          title: hat.title,
+          hatKey: hat.subKey,
+          existingKey: hat.mirrorFeedKey
+        });
+
+        await this.$store.dispatch('publishMirrorFeed', {
+          title: hat.title,
+          hatKey: hat.subKey,
+          secret: key,
+          history: hat.history
+        });
+
+        // The card is a plain object from getMemberHats, so it needs telling.
+        hat.mirrorFeedKey = key;
+      } catch (error) {
+        console.error('Could not turn the mirror feed on', error);
+        this.showMessage('Could not turn the mirror feed on. Please try again.', 6000);
+      } finally {
+        this.enablingMirrorFeed = false;
+      }
+    },
+    copyMirrorFeedUrl (hat) {
+      navigator.clipboard?.writeText(this.mirrorFeedUrlFor(hat));
+      this.showMessage('Mirror feed URL copied.', 3000);
+    },
     async getMemberHats () {
       // Was: download every hat in the app and filter client-side. That stops
       // working the moment you can't read hats you don't belong to, which is
@@ -485,6 +549,27 @@ export default {
       .member {
         a {
           font-size: 0.75rem;
+        }
+      }
+
+      .mirror-feed {
+        border-top: 1px solid #e6e6e6;
+        padding-top: 0.75rem;
+
+        .mirror-feed-toggle {
+          font-size: 0.8rem;
+          text-decoration: none;
+        }
+
+        .mirror-feed-blurb,
+        .mirror-feed-hint {
+          font-size: 0.72rem;
+        }
+
+        // The URL is long and has no break opportunities; a phone gets a
+        // field it can scroll rather than a card that overflows.
+        .mirror-feed-url {
+          font-size: 0.7rem;
         }
       }
     }
