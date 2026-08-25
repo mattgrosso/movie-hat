@@ -67,41 +67,20 @@
                     <span v-if="movie.note">{{ movie.note }}</span>
                   </div>
                 </div>
+                <!-- Still two taps, but the SAME button both times: it arms on
+                     the first tap and removes on the second. An expanding
+                     confirm panel underneath pushed every row below it down
+                     and moved this button out from under your finger, which is
+                     both annoying and the way a mis-tap happens.
+                     Fixed width, so even the changing label cannot shift it. -->
                 <button
-                  v-if="confirmingKey !== movie.dbKey"
-                  class="btn btn-outline-danger btn-sm ms-2 text-nowrap"
+                  class="btn btn-sm ms-2 text-nowrap peek-remove"
+                  :class="confirmingKey === movie.dbKey ? 'btn-danger' : 'btn-outline-danger'"
                   :disabled="removingKey === movie.dbKey"
-                  @click="confirmingKey = movie.dbKey"
+                  @click="confirmingKey === movie.dbKey ? removeMovie(movie) : armRemove(movie)"
                 >
-                  Remove
+                  {{ removeLabel(movie) }}
                 </button>
-              </div>
-
-              <!-- Two-step, and it names the film. Removing is permanent and
-                   there is no undo, so a mis-tap in a list of hundreds should
-                   not be able to quietly take out the wrong one. -->
-              <div v-if="confirmingKey === movie.dbKey" class="peek-confirm mt-2">
-                <img
-                  v-if="movie.poster_path"
-                  class="peek-confirm-poster"
-                  :src="`https://image.tmdb.org/t/p/w92${movie.poster_path}`"
-                  :alt="movie.title"
-                >
-                <div class="flex-grow-1">
-                  <p class="peek-confirm-text m-0 mb-2">
-                    Take <strong>{{ movie.title }}</strong> out of {{ selectedTitle }} for good?
-                  </p>
-                  <button
-                    class="btn btn-danger btn-sm me-2"
-                    :disabled="removingKey === movie.dbKey"
-                    @click="removeMovie(movie)"
-                  >
-                    {{ removingKey === movie.dbKey ? 'Removing…' : 'Remove it' }}
-                  </button>
-                  <button class="btn btn-outline-secondary btn-sm" @click="confirmingKey = null">
-                    Cancel
-                  </button>
-                </div>
               </div>
             </li>
           </ul>
@@ -136,8 +115,13 @@ export default {
       loadingMovies: false,
       confirmingKey: null,
       removingKey: null,
+      // Not reactive state, just a handle — see armRemove.
+      disarmTimer: null,
       message: null
     }
+  },
+  beforeUnmount () {
+    window.clearTimeout(this.disarmTimer);
   },
   async mounted () {
     await this.$router.isReady();
@@ -156,14 +140,27 @@ export default {
   computed: {
     shown () {
       return visibleMovies(this.movies, { query: this.query, sort: this.sort });
-    },
-    selectedTitle () {
-      return this.myHats.find((hat) => hat.hatKey === this.selectedKey)?.title || 'this hat';
     }
   },
   methods: {
     year (movie) {
       return movieYear(movie);
+    },
+    removeLabel (movie) {
+      if (this.removingKey === movie.dbKey) return 'Removing…';
+      if (this.confirmingKey === movie.dbKey) return 'Sure?';
+      return 'Remove';
+    },
+    // Arming disarms itself after a few seconds. Without the old Cancel button
+    // there is otherwise no way back out, and a row left armed is a row where
+    // the next stray tap deletes something.
+    armRemove (movie) {
+      this.confirmingKey = movie.dbKey;
+
+      window.clearTimeout(this.disarmTimer);
+      this.disarmTimer = window.setTimeout(() => {
+        this.confirmingKey = null;
+      }, 4000);
     },
     toggleSort () {
       this.sort = this.sort === 'title' ? 'added' : 'title';
@@ -198,6 +195,7 @@ export default {
       this.selectedKey = hatKey;
       this.query = '';
       this.confirmingKey = null;
+      window.clearTimeout(this.disarmTimer);
       this.movies = [];
 
       const hat = this.myHats.find((entry) => entry.hatKey === hatKey);
@@ -221,6 +219,9 @@ export default {
       if (!hat) return;
 
       this.removingKey = movie.dbKey;
+      // This row is being acted on now; the disarm timer has nothing left to
+      // disarm, and letting it fire later could clear a different armed row.
+      window.clearTimeout(this.disarmTimer);
 
       try {
         // PATCH with null, exactly as the draw does when a movie leaves the
@@ -286,20 +287,12 @@ export default {
         color: #6c757d;
         font-size: 0.72rem;
       }
-    }
 
-    .peek-confirm {
-      display: flex;
-      gap: 0.75rem;
-
-      .peek-confirm-poster {
-        border-radius: 3px;
-        flex: 0 0 auto;
-        width: 46px;
-      }
-
-      .peek-confirm-text {
-        font-size: 0.8rem;
+      /* Wide enough for the longest of "Remove", "Sure?" and "Removing…", so
+         the button keeps one footprint through all three and nothing on the
+         row shifts under your finger between the two taps. */
+      .peek-remove {
+        min-width: 6rem;
       }
     }
 
