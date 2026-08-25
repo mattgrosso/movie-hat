@@ -37,6 +37,16 @@ const routes = [
   { path: '/wrapped', component: Wrapped },
   // Offered unasked to anyone with no hats, replayable from the hat list.
   { path: '/tutorial', component: Tutorial },
+  // Hidden: look inside a hat and take a movie back out. Nothing links here,
+  // and the screen bounces anyone who isn't the owner — see
+  // src/assets/javascript/peek.js for what that gate is and is not.
+  //
+  // Loaded on demand so a screen almost nobody can open costs nobody the
+  // download.
+  {
+    path: '/peek',
+    component: () => import(/* webpackChunkName: "peek" */ './components/PeekInHat.vue')
+  },
 ]
 
 const router = createRouter({
