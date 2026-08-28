@@ -125,6 +125,23 @@ export async function unsubscribeThisDevice () {
 }
 
 /**
+ * Opening the app clears the icon badge — whatever draws it was counting,
+ * the user is now looking at them. Resets both the OS badge and the stored
+ * per-member count the Lambda increments (push/<memberKey>/badge), so the
+ * next draw starts the count from zero again. Best-effort; never prompts.
+ */
+export async function clearBadgeOnOpen () {
+  try {
+    navigator.clearAppBadge?.().catch(() => {});
+    const memberKey = myMemberKey();
+    if (!memberKey || !(await deviceSubscribed())) return;
+    await dbPut(`push/${memberKey}/badge`, 0);
+  } catch {
+    // A failed clear just means the badge lingers until the next open.
+  }
+}
+
+/**
  * Self-heal on app open: re-save this device's subscription if permission is
  * already granted (repairs rotated endpoints, refreshes lastSeenAt). Never
  * prompts; no-op for devices that never opted in.

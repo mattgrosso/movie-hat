@@ -177,11 +177,24 @@ const dbDelete = async (path) => {
   if (!res.ok) throw new Error(`RTDB DELETE ${path} failed: ${res.status}`);
 };
 
+const dbSet = async (path, value) => {
+  const token = await getDbToken();
+  const res = await fetch(`${DATABASE_URL}/${path}.json`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(value)
+  });
+  if (!res.ok) throw new Error(`RTDB PUT ${path} failed: ${res.status}`);
+};
+
 // --- Sending ----------------------------------------------------------------
 
-const buildPayload = ({ title, body, navigate = '/', tag }) => {
+const buildPayload = ({ title, body, navigate = '/', tag, appBadge }) => {
   const notification = { title, body, navigate: `${APP_URL}${navigate}` };
   if (tag) notification.tag = tag;
+  // Icon badge — declarative web push renders this on iOS without waking the
+  // service worker; push-sw.js applies it elsewhere. Absent = unchanged.
+  if (typeof appBadge === 'number') notification.app_badge = appBadge;
   return JSON.stringify({ web_push: 8030, notification });
 };
 
@@ -262,17 +275,25 @@ exports.handler = async (event) => {
       // "mattgrosso drew Heat" — members are known by email; the local part
       // is the closest thing to a name the data has.
       const drawerName = auth.email.split('@')[0];
-      const payload = buildPayload({
-        title: `${drawerName} drew ${movieTitle}`,
-        body: `From ${title}. Tap to see the pick.`,
-        tag: `drawn-${hatKey}`
-      });
 
       const others = Object.keys(memberEmails).filter((key) => key !== myKey);
       let notified = 0;
       await Promise.all(others.map(async (memberKey) => {
         try {
-          notified += await sendToMember(memberKey, payload);
+          // Per-member icon badge: draws this member hasn't seen yet,
+          // tracked at push/<memberKey>/badge. The app resets it to 0 on
+          // open (utils/push.js clearBadge), so the count is "since you
+          // last looked", which is what a badge means.
+          const unseen = (Number(await dbGet(`push/${memberKey}/badge`)) || 0) + 1;
+          const payload = buildPayload({
+            title: `${drawerName} drew ${movieTitle}`,
+            body: `From ${title}. Tap to see the pick.`,
+            tag: `drawn-${hatKey}`,
+            appBadge: unseen
+          });
+          const delivered = await sendToMember(memberKey, payload);
+          if (delivered > 0) await dbSet(`push/${memberKey}/badge`, unseen);
+          notified += delivered;
         } catch (error) {
           console.error(`Draw push to ${memberKey} failed:`, error.message);
         }

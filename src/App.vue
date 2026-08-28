@@ -34,7 +34,7 @@ import UpdateAvailableBanner from "./components/UpdateAvailableBanner.vue";
 import BugReportButton from "./components/BugReportButton.vue";
 import { reloadForUpdate, isSafeMomentForReload, shouldAutoAttempt } from "./utils/appUpdate.js";
 import { flushStashedBugReports } from "./utils/bugReports.js";
-import { refreshSubscriptionIfGranted } from "./utils/push.js";
+import { refreshSubscriptionIfGranted, clearBadgeOnOpen } from "./utils/push.js";
 
 export default {
   name: 'Movie-Hat',
@@ -66,7 +66,9 @@ export default {
     // device's subscription (repairs rotated endpoints; no-op for devices
     // that never opted in — it never prompts).
     '$store.state.email' (email) {
-      if (email) refreshSubscriptionIfGranted();
+      if (!email) return;
+      refreshSubscriptionIfGranted();
+      clearBadgeOnOpen();
     }
   },
   computed: {
@@ -175,6 +177,16 @@ export default {
     }
   },
   mounted () {
+    // The email watcher above misses the normal relaunch (email is restored
+    // from localStorage at store init, before this component exists), and a
+    // relaunch is exactly when a badge needs clearing — the user is looking
+    // at the app the badge was pointing them to. Both calls are no-ops for
+    // devices that never opted in.
+    if (this.$store.state.email) {
+      refreshSubscriptionIfGranted();
+      clearBadgeOnOpen();
+    }
+
     // visibilitychange alone is unreliable on iOS, particularly for a
     // home-screen-installed PWA — it sometimes just doesn't fire when the
     // app comes back to the foreground. pageshow and focus are more
@@ -185,6 +197,9 @@ export default {
       if (document.visibilityState === 'visible') {
         this.lastBecameVisibleAt = Date.now();
         this.checkForServiceWorkerUpdate();
+        // Foregrounding an installed PWA doesn't remount this component, and
+        // it's the most common way a badge gets looked at.
+        clearBadgeOnOpen();
       }
     });
     window.addEventListener('pageshow', () => {
