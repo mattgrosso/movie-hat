@@ -134,6 +134,19 @@ const rules = {
           '.validate': "!newData.exists() || newData.hasChildren(['title', 'hatKey'])"
         }
       }
+    },
+
+    // Push notification subscriptions (2026-08-28, Matt: "get a notification
+    // when somebody draws a movie from a hat that you're in"). Each device's
+    // web-push subscription, keyed by the member it belongs to; yours alone
+    // to read and write. The sender (the movie-hat-push Lambda) reads these
+    // with the Admin SDK, which bypasses rules entirely — nothing else ever
+    // reads someone else's subscriptions.
+    push: {
+      $memberKey: {
+        '.read': `${signedIn} && $memberKey === ${memberKeyExpression}`,
+        '.write': `${signedIn} && $memberKey === ${memberKeyExpression}`
+      }
     }
   }
 };

@@ -34,6 +34,7 @@ import UpdateAvailableBanner from "./components/UpdateAvailableBanner.vue";
 import BugReportButton from "./components/BugReportButton.vue";
 import { reloadForUpdate, isSafeMomentForReload, shouldAutoAttempt } from "./utils/appUpdate.js";
 import { flushStashedBugReports } from "./utils/bugReports.js";
+import { refreshSubscriptionIfGranted } from "./utils/push.js";
 
 export default {
   name: 'Movie-Hat',
@@ -60,6 +61,12 @@ export default {
     '$store.state.updateAvailable' (available) {
       if (!available) return;
       this.armAutoUpdate();
+    },
+    // Push subscription self-heal: once a session exists, re-save this
+    // device's subscription (repairs rotated endpoints; no-op for devices
+    // that never opted in — it never prompts).
+    '$store.state.email' (email) {
+      if (email) refreshSubscriptionIfGranted();
     }
   },
   computed: {

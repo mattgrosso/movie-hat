@@ -15,6 +15,7 @@
 
 <script>
 import { dbPatch, hatPath, resolveHatKey } from '../store/db.js';
+import { announceDraw } from '../utils/push.js';
 import sample from 'lodash/sample';
 
 export default {
@@ -93,7 +94,16 @@ export default {
       // Past this point the draw HAS saved, so nothing below may reject: the
       // caller's catch says "the draw didn't save — it's still in the hat",
       // which would be a lie about a write that already succeeded.
-      //
+
+      // Tell the hat's OTHER members (2026-08-28). Fire-and-forget by
+      // contract — announceDraw never throws — and the movie title rides
+      // along because a draw is shared history the moment it lands.
+      announceDraw({
+        title: this.movieHatTitle,
+        hatKey: dbKey,
+        movieTitle: movieForHistory.title
+      });
+
       // Awaited so the mirror feed is built from a history that already has
       // this draw in it. The draw is exactly what the mirror is waiting for,
       // so this publish skips the six-hourly throttle.

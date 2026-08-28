@@ -53,6 +53,10 @@ module.exports = defineConfig({
     workboxOptions: {
       skipWaiting: true,
       clientsClaim: true,
+      // Push notification handlers (public/push-sw.js) — GenerateSW has no
+      // hand-written worker, so extra behaviour rides in via importScripts.
+      // Same arrangement as Cinema Roll's.
+      importScripts: ['push-sw.js'],
     },
   },
 })
