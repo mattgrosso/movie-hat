@@ -10,12 +10,10 @@
 // boundary: the database rules already refuse any hat you are not a member of,
 // so the worst anybody can do by getting past this is spoil their own hat.
 // The gate's job is to keep a spoiler tool from being stumbled into, nothing
-// more. Do not let anything sensitive come to depend on it.
-export const OWNER_EMAIL = 'mattgrosso@gmail.com';
-
-export function isOwner (email) {
-  return typeof email === 'string' && email.trim().toLowerCase() === OWNER_EMAIL;
-}
+// more. Do not let anything sensitive come to depend on it. (The request
+// button ALSO gates on isOwner, but its real boundary is in the rules — see
+// owner.mjs.)
+export { OWNER_EMAIL, isOwner } from './owner.mjs';
 
 /** The year a movie came out, or '' when the date is missing or unparseable. */
 export function movieYear (movie) {

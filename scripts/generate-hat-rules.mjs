@@ -47,6 +47,7 @@
 
 import { writeFileSync } from 'fs';
 import { UNSAFE_KEY_CHARACTERS, KEY_REPLACEMENT_CHARACTER } from '../src/store/memberKey.mjs';
+import { OWNER_EMAIL } from '../src/assets/javascript/owner.mjs';
 
 // auth.token.email → the member key, in the rules language.
 const memberKeyExpression = UNSAFE_KEY_CHARACTERS.reduce(
@@ -55,6 +56,9 @@ const memberKeyExpression = UNSAFE_KEY_CHARACTERS.reduce(
 );
 
 const signedIn = "auth != null && auth.token.email != null";
+// Matt, and only Matt. Google emails arrive in the token as the account has
+// them (his is all lowercase), but lowercasing costs nothing.
+const isOwner = `auth != null && auth.token.email != null && auth.token.email.toLowerCase() === '${OWNER_EMAIL}'`;
 const isMember = `data.child('memberEmails').child(${memberKeyExpression}).exists()`;
 const becomesMember = `newData.child('memberEmails').child(${memberKeyExpression}).exists()`;
 // Deleting a whole hat: the creator's call — except legacy hats, which have
@@ -154,19 +158,22 @@ const rules = {
     // README.md, "Movie requests". Cinema Roll writes here too, through its
     // Movie Hat sign-in, so the service watches one node.
     //
-    // Anyone signed in may read a row (the button shows what became of a
-    // request, whoever made it) and may CREATE one — status 'pending', under
-    // their own address, keyed by an integer TMDb id. Nobody may change a
-    // row that is pending, processing, added or already in the library:
-    // the key IS the duplicate check, and only the service (Admin SDK,
-    // which bypasses these rules) moves `status` along. A row that ended in
-    // 'error' may be written over — that is the retry — and nothing may be
-    // deleted from the client.
+    // MATT ONLY (his call, 2026-09-09: "I only want this button available
+    // to me"). A request fills the disk on his Mac mini, so the owner's
+    // address — hard-coded in owner.mjs, the same constant the app hides
+    // the button behind — is the only one that may read or create a row.
+    // Creating means status 'pending', under his own address, keyed by an
+    // integer TMDb id. Nothing may change a row that is pending,
+    // processing, added or already in the library: the key IS the
+    // duplicate check, and only the service (Admin SDK, which bypasses
+    // these rules) moves `status` along. A row that ended in 'error' may
+    // be written over — that is the retry — and nothing may be deleted
+    // from the client.
     requests: {
       '.read': false,
       $tmdbId: {
-        '.read': signedIn,
-        '.write': `${signedIn} && newData.exists() && (!data.exists() || data.child('status').val() === 'error')`,
+        '.read': isOwner,
+        '.write': `${isOwner} && newData.exists() && (!data.exists() || data.child('status').val() === 'error')`,
         '.validate': [
           "$tmdbId.matches(/^[1-9][0-9]{0,9}$/)",
           "newData.hasChildren(['tmdbId', 'title', 'status', 'source', 'requestedBy', 'createdAt'])",

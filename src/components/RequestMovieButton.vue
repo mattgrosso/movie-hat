@@ -22,11 +22,13 @@
 // Cinema Roll); this file is Movie Hat's binding of it to dbGet/dbPut and
 // the store's email.
 //
-// Rendered only for a signed-in user because the rules require one; the
-// button is otherwise a promise the database would refuse.
+// Rendered for MATT ONLY (his call, 2026-09-09) — a request fills the disk
+// on his Mac mini. The database rules enforce the same address, so hiding
+// the button is a courtesy to everyone else, not the boundary.
 import { computed, watch, onBeforeUnmount } from 'vue';
 import { useStore } from 'vuex';
 import { dbGet, dbPut } from '../store/db.js';
+import { isOwner } from '../assets/javascript/owner.mjs';
 import { useRequestMovie, isValidTmdbId } from '../utils/requestMovie.js';
 
 export default {
@@ -36,7 +38,7 @@ export default {
   },
   setup (props) {
     const store = useStore();
-    const signedIn = computed(() => Boolean(store.state.email));
+    const signedIn = computed(() => isOwner(store.state.email));
 
     const { row, requesting, error, label, settled, canRequest, load, request, stop } = useRequestMovie({
       read: dbGet,
@@ -45,8 +47,8 @@ export default {
       email: () => store.state.email
     });
 
-    // Read the row as soon as there is a movie AND a session: a request made
-    // last week (or by somebody else in the hat) shows its state on arrival.
+    // Read the row as soon as there is a movie AND it's Matt: a request made
+    // last week shows its state on arrival.
     watch(
       () => [props.movie?.id, signedIn.value],
       ([tmdbId, ready]) => {
