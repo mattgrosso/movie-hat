@@ -172,6 +172,20 @@ describe('useRequestMovie', () => {
     expect(h.timers).toHaveLength(1);
   });
 
+  it('takes a preloaded row instead of reading, and still polls one in flight', async () => {
+    const h = harness();
+
+    await h.load(12101, { status: 'processing' });
+    expect(h.read).not.toHaveBeenCalled();
+    expect(h.label.value).toBe('Adding…');
+    expect(h.timers).toHaveLength(1);
+
+    await h.load(12101, null);
+    expect(h.read).not.toHaveBeenCalled();
+    expect(h.row.value).toBeNull();
+    expect(h.timers).toHaveLength(0);
+  });
+
   it('does not poll a request that already settled', async () => {
     const h = harness({ rows: { 'requests/12101': { status: 'exists' } } });
 

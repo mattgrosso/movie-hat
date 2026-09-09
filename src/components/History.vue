@@ -52,6 +52,15 @@
             <p v-else-if="movie.note">"{{movie.note}}"</p>
           </div>
         </a>
+        <!-- Matt only (the button hides itself for everyone else). Rendered
+             once the requests index is in, so each button gets its row
+             rather than reading its own. -->
+        <RequestMovieButton
+          v-if="requests"
+          :movie="movie"
+          :initial-row="requests[movie.id] || null"
+          compact
+        />
       </li>
     </ul>
   </div>
@@ -59,12 +68,40 @@
 
 <script>
 import ordinal from "ordinal-js";
+import RequestMovieButton from './RequestMovieButton.vue';
+import { dbGet } from '../store/db.js';
+import { isOwner } from '../assets/javascript/owner.mjs';
 
 export default {
+  components: {
+    RequestMovieButton
+  },
   data () {
     return {
       selectedSort: 'watch_order',
-      sortOrder: "ascending"
+      sortOrder: "ascending",
+      // tmdbId → request row, read ONCE for the whole list (Matt only —
+      // the rules let nobody else list the node). Null until it's in, so
+      // no button renders before it has its row.
+      requests: null
+    }
+  },
+  watch: {
+    '$store.state.email': {
+      immediate: true,
+      async handler (email) {
+        if (!isOwner(email)) {
+          this.requests = null;
+          return;
+        }
+        try {
+          this.requests = (await dbGet('requests')) || {};
+        } catch (error) {
+          // Offline or refused: no buttons, rather than a page of errors.
+          console.warn('Could not read movie requests', error);
+          this.requests = null;
+        }
+      }
     }
   },
   computed: {
@@ -214,6 +251,12 @@ export default {
 
       &.no-value {
         display: none;
+      }
+
+      .request-movie {
+        // Tucked under the frame; the li is flex-wrap so this takes its
+        // own line, and the negative margin closes most of the gap.
+        margin-top: -0.35rem;
       }
 
       a {

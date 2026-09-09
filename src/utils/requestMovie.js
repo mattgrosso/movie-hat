@@ -100,8 +100,8 @@ export function requestLabel (row, { requesting = false } = {}) {
  * in flight), `error` (a human-readable failure, or null), `label` (button
  * text), `settled` (nothing more will happen), and:
  *
- *   load(tmdbId)                → read the row once; keep polling if it is
- *                                 still in flight
+ *   load(tmdbId, preloaded?)   → read the row once (or take the one given);
+ *                                 keep polling if it is still in flight
  *   request({ tmdbId, title }) → write 'pending', then poll for the outcome
  *   stop()                     → end polling (call on unmount)
  */
@@ -155,20 +155,31 @@ export function useRequestMovie ({ read, write, source, email, now = Date.now, s
     schedule(tmdbId, now());
   }
 
-  async function load (tmdbId) {
+  /**
+   * Read the row once. A page with many buttons (the home page's drawn
+   * list) reads the whole `requests` node itself and hands each button
+   * its row as `preloaded` — pass `null` for "there isn't one" — so a
+   * hundred buttons don't make a hundred reads. Polling for a row still
+   * in flight goes through `read` either way.
+   */
+  async function load (tmdbId, preloaded) {
     stop();
     error.value = null;
     if (!isValidTmdbId(tmdbId)) {
       row.value = null;
       return null;
     }
-    try {
-      row.value = await read(requestPath(tmdbId));
-    } catch (readError) {
-      // Not signed in, or offline: the button simply has no history to
-      // show. It still works if tapped — the write reports its own failure.
-      console.warn('Could not read the movie request', readError);
-      row.value = null;
+    if (preloaded !== undefined) {
+      row.value = preloaded;
+    } else {
+      try {
+        row.value = await read(requestPath(tmdbId));
+      } catch (readError) {
+        // Not signed in, or offline: the button simply has no history to
+        // show. It still works if tapped — the write reports its own failure.
+        console.warn('Could not read the movie request', readError);
+        row.value = null;
+      }
     }
     if (row.value && !TERMINAL_STATUSES.includes(row.value.status)) watch(tmdbId);
     return row.value;

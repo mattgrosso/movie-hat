@@ -161,7 +161,8 @@ const rules = {
     // MATT ONLY (his call, 2026-09-09: "I only want this button available
     // to me"). A request fills the disk on his Mac mini, so the owner's
     // address — hard-coded in owner.mjs, the same constant the app hides
-    // the button behind — is the only one that may read or create a row.
+    // the button behind — is the only one that may read (or list) or
+    // create a row.
     // Creating means status 'pending', under his own address, keyed by an
     // integer TMDb id. Nothing may change a row that is pending,
     // processing, added or already in the library: the key IS the
@@ -170,9 +171,10 @@ const rules = {
     // be written over — that is the retry — and nothing may be deleted
     // from the client.
     requests: {
-      '.read': false,
+      // The home page reads the whole node once to label every drawn
+      // movie, rather than one read per movie.
+      '.read': isOwner,
       $tmdbId: {
-        '.read': isOwner,
         '.write': `${isOwner} && newData.exists() && (!data.exists() || data.child('status').val() === 'error')`,
         '.validate': [
           "$tmdbId.matches(/^[1-9][0-9]{0,9}$/)",
