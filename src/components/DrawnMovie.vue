@@ -52,6 +52,9 @@
         >
           Home
         </button>
+        <!-- Under Share/Home rather than beside them: it's the one action
+             here that talks to a machine, and it reports back in place. -->
+        <RequestMovieButton :movie="drawnMovie" class="request-row"/>
       </div>
     </div>
     <div v-else class="loading-spinner">
@@ -65,11 +68,13 @@
 <script>
 import DrawingHat from './DrawingHat.vue';
 import WhereToWatch from './WhereToWatch.vue';
+import RequestMovieButton from './RequestMovieButton.vue';
 
 export default {
   components: {
     DrawingHat,
-    WhereToWatch
+    WhereToWatch,
+    RequestMovieButton
   },
   data () {
     return {
@@ -224,12 +229,22 @@ export default {
       width: min(100%, 320px);
     }
 
-    // Side by side under the poster once there's room.
+    // Side by side under the poster once there's room. The request button
+    // takes its own full row underneath, so its changing label has space.
     @media screen and (min-width: 576px) {
       flex-direction: row;
+      flex-wrap: wrap;
 
       .btn {
         width: 160px;
+      }
+
+      .request-row {
+        flex-basis: 100%;
+
+        .btn {
+          width: 336px;
+        }
       }
     }
   }

@@ -147,6 +147,37 @@ const rules = {
         '.read': `${signedIn} && $memberKey === ${memberKeyExpression}`,
         '.write': `${signedIn} && $memberKey === ${memberKeyExpression}`
       }
+    },
+
+    // "Request this movie" (2026-09-08): a row per TMDb id asking the Mac
+    // mini to add the movie to Radarr — see src/utils/requestMovie.js and
+    // README.md, "Movie requests". Cinema Roll writes here too, through its
+    // Movie Hat sign-in, so the service watches one node.
+    //
+    // Anyone signed in may read a row (the button shows what became of a
+    // request, whoever made it) and may CREATE one — status 'pending', under
+    // their own address, keyed by an integer TMDb id. Nobody may change a
+    // row that is pending, processing, added or already in the library:
+    // the key IS the duplicate check, and only the service (Admin SDK,
+    // which bypasses these rules) moves `status` along. A row that ended in
+    // 'error' may be written over — that is the retry — and nothing may be
+    // deleted from the client.
+    requests: {
+      '.read': false,
+      $tmdbId: {
+        '.read': signedIn,
+        '.write': `${signedIn} && newData.exists() && (!data.exists() || data.child('status').val() === 'error')`,
+        '.validate': [
+          "$tmdbId.matches(/^[1-9][0-9]{0,9}$/)",
+          "newData.hasChildren(['tmdbId', 'title', 'status', 'source', 'requestedBy', 'createdAt'])",
+          "newData.child('tmdbId').isNumber()",
+          "newData.child('title').isString() && newData.child('title').val().length <= 300",
+          "newData.child('status').val() === 'pending'",
+          "(newData.child('source').val() === 'movie-hat' || newData.child('source').val() === 'cinema-roll')",
+          "newData.child('requestedBy').val() === auth.token.email",
+          "newData.child('createdAt').isNumber()"
+        ].join(' && ')
+      }
     }
   }
 };
