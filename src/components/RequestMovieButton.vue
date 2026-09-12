@@ -17,6 +17,9 @@
       {{ label }}
     </button>
     <p v-if="error" class="request-movie__error m-0">{{ error }}</p>
+    <!-- The note spells out what "Downloading" means; the compact list
+         button carries it in its tooltip instead. -->
+    <p v-else-if="note && !compact" class="request-movie__note m-0">{{ note }}</p>
   </div>
 </template>
 
@@ -58,7 +61,7 @@ export default {
     const store = useStore();
     const signedIn = computed(() => mayRequest(store.state.email));
 
-    const { row, requesting, error, label, settled, canRequest, load, request, stop } = useRequestMovie({
+    const { row, requesting, error, label, note, settled, canRequest, load, request, stop } = useRequestMovie({
       read: dbGet,
       write: dbPut,
       source: 'movie-hat',
@@ -80,9 +83,9 @@ export default {
 
     const buttonClass = computed(() => {
       const status = row.value?.status;
-      if (status === 'added' || status === 'exists') return 'btn-success';
+      if (status === 'exists' || (status === 'added' && settled.value)) return 'btn-success';
       if (status === 'error') return 'btn-danger';
-      if (status === 'pending' || status === 'processing' || requesting.value) return 'btn-secondary';
+      if (status === 'pending' || status === 'processing' || status === 'added' || requesting.value) return 'btn-secondary';
       return 'btn-outline-light';
     });
 
@@ -90,11 +93,11 @@ export default {
       const who = row.value?.requestedBy;
       const status = row.value?.status;
       if (status === 'error' && row.value?.error) return String(row.value.error);
-      if (who && status && status !== 'error') return `Requested by ${who}`;
+      if (who && status && status !== 'error') return [note.value, `Requested by ${who}`].filter(Boolean).join(' ');
       return 'Ask the Mac mini to add this movie to the library';
     });
 
-    return { signedIn, row, requesting, error, label, settled, canRequest, request, buttonClass, tooltip };
+    return { signedIn, row, requesting, error, label, note, settled, canRequest, request, buttonClass, tooltip };
   }
 };
 </script>
@@ -123,6 +126,13 @@ export default {
   &__error {
     color: #ffc107;
     font-size: 0.75rem;
+    text-align: center;
+  }
+
+  &__note {
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.7rem;
+    line-height: 1.3;
     text-align: center;
   }
 

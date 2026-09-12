@@ -9,8 +9,11 @@
 // A Node service on Matt's Mac mini (not in this repo — see README.md,
 // "Movie requests") watches that node with the Admin SDK, hands the movie to
 // Radarr, and moves `status` through 'processing' to one of 'added',
-// 'exists' or 'error'. The client only ever writes 'pending'; the rules
-// refuse anything else, and refuse touching a row that is already in flight.
+// 'exists' or 'error'. 'added' means Radarr TOOK the request — the file is
+// still on its way, and the service stamps `importedAt` when it lands (the
+// push Lambda then tells the requester). The client only ever writes
+// 'pending'; the rules refuse anything else, and refuse touching a row that
+// is already in flight.
 //
 // The row is keyed by TMDb id, which is the whole duplicate-prevention
 // story: two people requesting the same movie collide on the same key, the
@@ -32,8 +35,16 @@ import { ref, computed } from 'vue';
 
 export const REQUEST_SOURCES = ['movie-hat', 'cinema-roll'];
 export const REQUEST_STATUSES = ['pending', 'processing', 'added', 'exists', 'error'];
-// Nothing further will happen to these; polling stops.
-export const TERMINAL_STATUSES = ['added', 'exists', 'error'];
+// Nothing further will happen to these; polling stops. 'added' is NOT here:
+// an added row is still downloading until it carries `importedAt`.
+export const TERMINAL_STATUSES = ['exists', 'error'];
+
+/** Has this row reached a state nothing further will change? */
+export function isSettled (row) {
+  if (!row) return false;
+  if (row.status === 'added') return typeof row.importedAt === 'number';
+  return TERMINAL_STATUSES.includes(row.status);
+}
 
 // Two speeds. The first few minutes poll quickly, because that is when the
 // answer usually arrives and the person is watching the button. After that
@@ -116,16 +127,36 @@ export function canRequestOver (existing) {
 /**
  * Button text for a row's state. `null` row → the idle call to action.
  * `short` is for a button that shares a row with others, or sits in a list.
+ *
+ * The wording is careful about one thing (Matt, 2026-09-12): nothing may
+ * sound like the movie is ready until the file has actually landed. So an
+ * 'added' row says "Downloading" until it carries `importedAt`, and only
+ * then "Ready to watch". 'exists' really is already there.
  */
 export function requestLabel (row, { requesting = false, short = false } = {}) {
   if (requesting) return 'Requesting…';
   switch (row?.status) {
-    case 'pending': return 'Requested';
-    case 'processing': return 'Adding…';
-    case 'added': return short ? 'Added' : 'Added to library';
-    case 'exists': return short ? 'In library' : 'Already in library';
+    case 'pending': return short ? 'Requested' : 'Requested — waiting to start';
+    case 'processing': return short ? 'Starting…' : 'Starting the download…';
+    case 'added': return isSettled(row)
+      ? (short ? 'Ready' : 'Ready to watch')
+      : (short ? 'Downloading' : 'Downloading — you’ll get a notification');
+    case 'exists': return short ? 'In library' : 'Already in the library';
     case 'error': return short ? 'Try again' : 'Couldn’t add — try again';
     default: return short ? 'Request' : 'Request this movie';
+  }
+}
+
+/**
+ * A line under the button, for the states where the label alone could be
+ * misread. `null` when the label says it all.
+ */
+export function requestNote (row) {
+  switch (row?.status) {
+    case 'pending': return 'The download starts once nobody is watching Plex. You’ll get a notification when it’s ready.';
+    case 'processing': return 'You’ll get a notification when it’s ready.';
+    case 'added': return isSettled(row) ? null : 'Still downloading. You’ll get a notification when it’s ready.';
+    default: return null;
   }
 }
 
@@ -140,7 +171,8 @@ export function requestLabel (row, { requesting = false, short = false } = {}) {
  *
  * Returns refs: `row` (the database row, or null), `requesting` (a write is
  * in flight), `error` (a human-readable failure, or null), `label` (button
- * text), `settled` (nothing more will happen), and:
+ * text), `note` (a line of explanation under it, or null), `settled`
+ * (nothing more will happen), and:
  *
  *   load(tmdbId, preloaded?)   → read the row once (or take the one given);
  *                                 keep polling if it is still in flight
@@ -162,7 +194,8 @@ export function useRequestMovie ({ read, write, source, email, short = false, no
   let stopListening = null; // undoes onForeground while polling
 
   const label = computed(() => requestLabel(row.value, { requesting: requesting.value, short }));
-  const settled = computed(() => TERMINAL_STATUSES.includes(row.value?.status));
+  const settled = computed(() => isSettled(row.value));
+  const note = computed(() => (requesting.value ? null : requestNote(row.value)));
   const canRequest = computed(() => !requesting.value && canRequestOver(row.value));
 
   const currentEmail = () => {
@@ -205,7 +238,7 @@ export function useRequestMovie ({ read, write, source, email, short = false, no
       checking = false;
     }
     if (watching !== tmdbId) return;
-    if (TERMINAL_STATUSES.includes(row.value?.status)) {
+    if (isSettled(row.value)) {
       stop();
     } else {
       schedule(tmdbId);
@@ -252,7 +285,7 @@ export function useRequestMovie ({ read, write, source, email, short = false, no
         row.value = null;
       }
     }
-    if (row.value && !TERMINAL_STATUSES.includes(row.value.status)) watch(tmdbId);
+    if (row.value && !isSettled(row.value)) watch(tmdbId);
     return row.value;
   }
 
@@ -293,5 +326,5 @@ export function useRequestMovie ({ read, write, source, email, short = false, no
     }
   }
 
-  return { row, requesting, error, label, settled, canRequest, load, request, stop };
+  return { row, requesting, error, label, note, settled, canRequest, load, request, stop };
 }

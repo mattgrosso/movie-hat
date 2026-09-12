@@ -53,8 +53,10 @@
           Home
         </button>
         <!-- Third of the row, same as the other two; its label stays short
-             so the three read as one set. -->
-        <RequestMovieButton :movie="drawnMovie" short/>
+             so the three read as one set. Its note is lifted out to span
+             the row (display: contents), so the grid sees the button and
+             the note as two items. -->
+        <RequestMovieButton :movie="drawnMovie" short class="request-slot"/>
       </div>
     </div>
     <div v-else class="loading-spinner">
@@ -216,32 +218,39 @@ export default {
     }
   }
 
-  // Share · Home · Request: one row of three equal columns at every width,
-  // capped so they don't sprawl on a desktop. A grid rather than flex so
-  // the columns are equal by construction — the request button's wrapper
-  // (which can also hold an error line) is the third column, and its own
-  // button fills it.
+  // Share · Home · Request: one row of three columns at every width, capped
+  // so they don't sprawl on a desktop. A grid rather than flex so the
+  // columns are fixed by construction — the request column is a little
+  // wider, because "Downloading" is the longest word in the row and it has
+  // to fit at 390px without an ellipsis.
   .details-wrapper {
     animation: drawn-fade-up 0.5s ease 0.4s backwards;
     display: grid;
     gap: 0.5rem;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr);
     margin: 0 auto;
     max-width: 480px;
     width: 100%;
 
     .btn {
+      font-size: 0.95rem;
       overflow: hidden;
-      padding-left: 0.5rem;
-      padding-right: 0.5rem;
+      padding-left: 0.4rem;
+      padding-right: 0.4rem;
       text-overflow: ellipsis;
       white-space: nowrap;
       width: 100%;
     }
 
-    .request-movie {
-      align-items: stretch;
-      min-width: 0;
+    .request-movie.request-slot {
+      display: contents;
+    }
+
+    // The explanation under the request button reads across the whole row.
+    .request-movie__note,
+    .request-movie__error {
+      grid-column: 1 / -1;
+      margin-top: -0.25rem;
     }
   }
 

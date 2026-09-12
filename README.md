@@ -26,8 +26,8 @@ See [Configuration Reference](https://cli.vuejs.org/config/).
 ## Movie requests (Radarr on the Mac mini)
 
 The drawn-movie screen has a **Request** button, shown only to the people
-in `REQUESTER_EMAILS` (`src/assets/javascript/owner.mjs` — Matt, and Seth
-since 2026-09-11; the rules enforce the same list, so nobody else can create
+in `REQUESTER_EMAILS` (`src/assets/javascript/owner.mjs` — Matt, Seth and
+Brian; the rules enforce the same list, so nobody else can create
 a row even by hand). To add someone, add their address to that list, then
 `yarn generate-hat-rules && firebase deploy --only database`. It writes
 one row to this project's Realtime Database and a Node service on the Mac

@@ -32,6 +32,7 @@ describe('mayRequest', () => {
   it('lets in everyone on the requester list, however they capitalise it', () => {
     expect(REQUESTER_EMAILS).toContain(OWNER_EMAIL);
     expect(REQUESTER_EMAILS).toContain('hopper.seth@gmail.com');
+    expect(REQUESTER_EMAILS).toContain('brian.goegan@gmail.com');
     for (const email of REQUESTER_EMAILS) expect(mayRequest(email)).toBe(true);
     expect(mayRequest('Hopper.Seth@Gmail.com')).toBe(true);
     expect(mayRequest(' hopper.seth@gmail.com ')).toBe(true);

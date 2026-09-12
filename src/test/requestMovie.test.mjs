@@ -4,6 +4,8 @@ import {
   canRequestOver,
   isValidTmdbId,
   requestLabel,
+  requestNote,
+  isSettled,
   requestPath,
   useRequestMovie,
   POLL_INTERVAL_MS,
@@ -77,17 +79,41 @@ describe('requestLabel', () => {
   it('names every state the button can be in', () => {
     expect(requestLabel(null)).toBe('Request this movie');
     expect(requestLabel(null, { requesting: true })).toBe('Requesting…');
-    expect(requestLabel({ status: 'pending' })).toBe('Requested');
-    expect(requestLabel({ status: 'processing' })).toBe('Adding…');
-    expect(requestLabel({ status: 'added' })).toBe('Added to library');
-    expect(requestLabel({ status: 'exists' })).toBe('Already in library');
+    expect(requestLabel({ status: 'pending' })).toMatch(/^Requested/);
+    expect(requestLabel({ status: 'processing' })).toMatch(/^Starting/);
+    expect(requestLabel({ status: 'added' })).toMatch(/^Downloading/);
+    expect(requestLabel({ status: 'added', importedAt: 1 })).toBe('Ready to watch');
+    expect(requestLabel({ status: 'exists' })).toBe('Already in the library');
     expect(requestLabel({ status: 'error' })).toMatch(/try again/);
+  });
+
+  it('never says a movie is there before the file has landed', () => {
+    for (const short of [false, true]) {
+      expect(requestLabel({ status: 'added' }, { short })).not.toMatch(/library|ready|added/i);
+      expect(requestLabel({ status: 'pending' }, { short })).not.toMatch(/library|ready/i);
+      expect(requestLabel({ status: 'processing' }, { short })).not.toMatch(/library|ready/i);
+    }
+    expect(isSettled({ status: 'added' })).toBe(false);
+    expect(isSettled({ status: 'added', importedAt: 1 })).toBe(true);
+    expect(isSettled({ status: 'exists' })).toBe(true);
+    expect(isSettled({ status: 'error' })).toBe(true);
+    expect(isSettled(null)).toBe(false);
+  });
+
+  it('explains the waiting states and promises the notification', () => {
+    expect(requestNote({ status: 'pending' })).toMatch(/Plex.*notification/);
+    expect(requestNote({ status: 'processing' })).toMatch(/notification/);
+    expect(requestNote({ status: 'added' })).toMatch(/Still downloading.*notification/);
+    expect(requestNote({ status: 'added', importedAt: 1 })).toBeNull();
+    expect(requestNote({ status: 'exists' })).toBeNull();
+    expect(requestNote(null)).toBeNull();
   });
 
   it('has a short form for a button that shares a row', () => {
     expect(requestLabel(null, { short: true })).toBe('Request');
     expect(requestLabel({ status: 'pending' }, { short: true })).toBe('Requested');
-    expect(requestLabel({ status: 'added' }, { short: true })).toBe('Added');
+    expect(requestLabel({ status: 'added' }, { short: true })).toBe('Downloading');
+    expect(requestLabel({ status: 'added', importedAt: 1 }, { short: true })).toBe('Ready');
     expect(requestLabel({ status: 'exists' }, { short: true })).toBe('In library');
     expect(requestLabel({ status: 'error' }, { short: true })).toBe('Try again');
   });
@@ -155,7 +181,8 @@ describe('useRequestMovie', () => {
 
     expect(h.write).toHaveBeenCalledWith('requests/12101', expect.objectContaining({ status: 'pending' }));
     expect(h.row.value.status).toBe('pending');
-    expect(h.label.value).toBe('Requested');
+    expect(h.label.value).toMatch(/^Requested/);
+    expect(h.note.value).toMatch(/notification/);
     expect(h.requesting.value).toBe(false);
     expect(h.timers).toHaveLength(1);
     expect(h.timers[0].ms).toBe(POLL_INTERVAL_MS);
@@ -163,14 +190,23 @@ describe('useRequestMovie', () => {
     // The service picks it up …
     h.store['requests/12101'] = { ...h.store['requests/12101'], status: 'processing' };
     await h.tick();
-    expect(h.label.value).toBe('Adding…');
+    expect(h.label.value).toMatch(/^Starting/);
     expect(h.settled.value).toBe(false);
     expect(h.timers).toHaveLength(1);
 
-    // … and finishes.
+    // … Radarr takes it, which is NOT the end: the file is still coming.
     h.store['requests/12101'] = { ...h.store['requests/12101'], status: 'added', radarrId: 7 };
     await h.tick();
-    expect(h.label.value).toBe('Added to library');
+    expect(h.label.value).toMatch(/^Downloading/);
+    expect(h.note.value).toMatch(/Still downloading/);
+    expect(h.settled.value).toBe(false);
+    expect(h.timers).toHaveLength(1);
+
+    // … and the file lands.
+    h.store['requests/12101'] = { ...h.store['requests/12101'], importedAt: 5 };
+    await h.tick();
+    expect(h.label.value).toBe('Ready to watch');
+    expect(h.note.value).toBeNull();
     expect(h.settled.value).toBe(true);
     expect(h.canRequest.value).toBe(false);
     expect(h.timers).toHaveLength(0);
@@ -187,16 +223,16 @@ describe('useRequestMovie', () => {
     }
     expect(fastPolls).toBe(Math.ceil(POLL_FAST_WINDOW_MS / POLL_INTERVAL_MS));
     expect(h.timers[0].ms).toBe(POLL_SLOW_INTERVAL_MS);
-    expect(h.label.value).toBe('Requested');
+    expect(h.label.value).toMatch(/^Requested/);
 
     // A film's length later, the Mac mini gets to it.
     for (let i = 0; i < 240; i += 1) await h.tick();
     expect(h.timers).toHaveLength(1);
     expect(h.timers[0].ms).toBe(POLL_SLOW_INTERVAL_MS);
 
-    h.store['requests/12101'] = { ...h.store['requests/12101'], status: 'added', radarrId: 7 };
+    h.store['requests/12101'] = { ...h.store['requests/12101'], status: 'added', radarrId: 7, importedAt: 9 };
     await h.tick();
-    expect(h.label.value).toBe('Added to library');
+    expect(h.label.value).toBe('Ready to watch');
     expect(h.timers).toHaveLength(0);
     expect(h.foregroundHandlers).toHaveLength(0);
   });
@@ -211,10 +247,10 @@ describe('useRequestMovie', () => {
     expect(h.read).not.toHaveBeenCalled();
     expect(h.timers).toHaveLength(0);
 
-    h.store['requests/12101'] = { ...h.store['requests/12101'], status: 'added', radarrId: 7 };
+    h.store['requests/12101'] = { ...h.store['requests/12101'], status: 'added', radarrId: 7, importedAt: 9 };
     await h.show();
     expect(h.read).toHaveBeenCalledTimes(1);
-    expect(h.label.value).toBe('Added to library');
+    expect(h.label.value).toBe('Ready to watch');
     expect(h.timers).toHaveLength(0);
   });
 
@@ -237,9 +273,22 @@ describe('useRequestMovie', () => {
 
     await h.load(12101);
 
-    expect(h.label.value).toBe('Requested');
+    expect(h.label.value).toMatch(/^Requested/);
     expect(h.canRequest.value).toBe(false);
     expect(h.timers).toHaveLength(1);
+  });
+
+  it('keeps watching an added row until the file lands', async () => {
+    const h = harness({ rows: { 'requests/12101': { status: 'added', radarrId: 7 } } });
+
+    await h.load(12101);
+
+    expect(h.label.value).toMatch(/^Downloading/);
+    expect(h.timers).toHaveLength(1);
+
+    await h.load(12101, { status: 'added', radarrId: 7, importedAt: 9 });
+    expect(h.label.value).toBe('Ready to watch');
+    expect(h.timers).toHaveLength(0);
   });
 
   it('takes a preloaded row instead of reading, and still polls one in flight', async () => {
@@ -247,7 +296,7 @@ describe('useRequestMovie', () => {
 
     await h.load(12101, { status: 'processing' });
     expect(h.read).not.toHaveBeenCalled();
-    expect(h.label.value).toBe('Adding…');
+    expect(h.label.value).toMatch(/^Starting/);
     expect(h.timers).toHaveLength(1);
 
     await h.load(12101, null);
@@ -261,7 +310,7 @@ describe('useRequestMovie', () => {
 
     await h.load(12101);
 
-    expect(h.label.value).toBe('Already in library');
+    expect(h.label.value).toBe('Already in the library');
     expect(h.timers).toHaveLength(0);
   });
 
@@ -273,7 +322,7 @@ describe('useRequestMovie', () => {
     await h.request({ tmdbId: 12101, title: 'Soylent Green' });
 
     expect(h.error.value).toBeNull();
-    expect(h.label.value).toBe('Adding…');
+    expect(h.label.value).toMatch(/^Starting/);
   });
 
   it('reports a refusal when there is no row to explain it', async () => {
