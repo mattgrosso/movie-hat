@@ -7,7 +7,8 @@ import {
   requestPath,
   useRequestMovie,
   POLL_INTERVAL_MS,
-  POLL_TIMEOUT_MS
+  POLL_FAST_WINDOW_MS,
+  POLL_SLOW_INTERVAL_MS
 } from '../utils/requestMovie.js';
 
 // Every write goes to requests/<tmdbId> — the key IS the duplicate check.
@@ -96,6 +97,9 @@ function harness ({ rows = {}, writeError = null, source = 'movie-hat' } = {}) {
     store[path] = value;
   });
 
+  let visible = true;
+  const foregroundHandlers = [];
+
   const api = useRequestMovie({
     read,
     write,
@@ -103,7 +107,12 @@ function harness ({ rows = {}, writeError = null, source = 'movie-hat' } = {}) {
     email: () => 'someone@example.com',
     now: () => clock,
     setTimer: (fn, ms) => { const id = { fn, ms }; timers.push(id); return id; },
-    clearTimer: (id) => { const i = timers.indexOf(id); if (i >= 0) timers.splice(i, 1); }
+    clearTimer: (id) => { const i = timers.indexOf(id); if (i >= 0) timers.splice(i, 1); },
+    isVisible: () => visible,
+    onForeground: (handler) => {
+      foregroundHandlers.push(handler);
+      return () => { const i = foregroundHandlers.indexOf(handler); if (i >= 0) foregroundHandlers.splice(i, 1); };
+    }
   });
 
   // Fires the next scheduled poll, advancing the clock by its delay.
@@ -115,7 +124,19 @@ function harness ({ rows = {}, writeError = null, source = 'movie-hat' } = {}) {
     return true;
   }
 
-  return { ...api, store, read, write, timers, tick, advance: (ms) => { clock += ms; } };
+  return {
+    ...api,
+    store,
+    read,
+    write,
+    timers,
+    tick,
+    advance: (ms) => { clock += ms; },
+    hide: () => { visible = false; },
+    // The page comes back in front of someone (and, as on iOS, says so twice).
+    show: async () => { visible = true; await Promise.all([...foregroundHandlers, ...foregroundHandlers].map((handler) => handler())); },
+    foregroundHandlers
+  };
 }
 
 describe('useRequestMovie', () => {
@@ -147,19 +168,60 @@ describe('useRequestMovie', () => {
     expect(h.timers).toHaveLength(0);
   });
 
-  it('stops polling after the timeout, leaving the row as last seen', async () => {
+  it('slows down after the fast window but never gives up on a row in flight', async () => {
     const h = harness();
     await h.request({ tmdbId: 12101, title: 'Soylent Green' });
 
-    let polls = 0;
-    while (h.timers.length && polls < 1000) {
+    let fastPolls = 0;
+    while (h.timers[0].ms === POLL_INTERVAL_MS) {
       await h.tick();
-      polls += 1;
+      fastPolls += 1;
     }
-
-    expect(polls).toBe(Math.ceil(POLL_TIMEOUT_MS / POLL_INTERVAL_MS));
-    expect(h.row.value.status).toBe('pending');
+    expect(fastPolls).toBe(Math.ceil(POLL_FAST_WINDOW_MS / POLL_INTERVAL_MS));
+    expect(h.timers[0].ms).toBe(POLL_SLOW_INTERVAL_MS);
     expect(h.label.value).toBe('Requested');
+
+    // A film's length later, the Mac mini gets to it.
+    for (let i = 0; i < 240; i += 1) await h.tick();
+    expect(h.timers).toHaveLength(1);
+    expect(h.timers[0].ms).toBe(POLL_SLOW_INTERVAL_MS);
+
+    h.store['requests/12101'] = { ...h.store['requests/12101'], status: 'added', radarrId: 7 };
+    await h.tick();
+    expect(h.label.value).toBe('Added to library');
+    expect(h.timers).toHaveLength(0);
+    expect(h.foregroundHandlers).toHaveLength(0);
+  });
+
+  it('goes quiet while the page is hidden and reads at once when it returns', async () => {
+    const h = harness();
+    await h.request({ tmdbId: 12101, title: 'Soylent Green' });
+    expect(h.foregroundHandlers).toHaveLength(1);
+
+    h.hide();
+    await h.tick();
+    expect(h.read).not.toHaveBeenCalled();
+    expect(h.timers).toHaveLength(0);
+
+    h.store['requests/12101'] = { ...h.store['requests/12101'], status: 'added', radarrId: 7 };
+    await h.show();
+    expect(h.read).toHaveBeenCalledTimes(1);
+    expect(h.label.value).toBe('Added to library');
+    expect(h.timers).toHaveLength(0);
+  });
+
+  it('a return to the foreground cuts a slow tick short', async () => {
+    const h = harness();
+    await h.request({ tmdbId: 12101, title: 'Soylent Green' });
+    h.advance(POLL_FAST_WINDOW_MS);
+    await h.tick();
+    expect(h.timers[0].ms).toBe(POLL_SLOW_INTERVAL_MS);
+    const readsBefore = h.read.mock.calls.length;
+
+    await h.show();
+
+    expect(h.read.mock.calls.length).toBe(readsBefore + 1);
+    expect(h.timers).toHaveLength(1);
   });
 
   it('shows an existing request on load and keeps watching one still in flight', async () => {
@@ -252,5 +314,6 @@ describe('useRequestMovie', () => {
     h.stop();
 
     expect(h.timers).toHaveLength(0);
+    expect(h.foregroundHandlers).toHaveLength(0);
   });
 });

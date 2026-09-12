@@ -34,6 +34,11 @@ its Movie Hat sign-in, so the service only watches one place.
 
 The client side is `src/utils/requestMovie.js` (shared with Cinema Roll —
 keep the two copies identical) and `src/components/RequestMovieButton.vue`.
+The button polls the row over REST: every 2.5s for the first three minutes,
+then every 30s for as long as the row is `pending`/`processing` — the
+service holds a request while someone is watching Plex, which can be a whole
+film. Polling pauses while the page is hidden and reads at once when it
+comes back to the foreground.
 The rules live in `scripts/generate-hat-rules.mjs` under `requests`.
 
 ### The row

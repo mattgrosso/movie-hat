@@ -35,10 +35,48 @@ export const REQUEST_STATUSES = ['pending', 'processing', 'added', 'exists', 'er
 // Nothing further will happen to these; polling stops.
 export const TERMINAL_STATUSES = ['added', 'exists', 'error'];
 
+// Two speeds. The first few minutes poll quickly, because that is when the
+// answer usually arrives and the person is watching the button. After that
+// the row is being held on purpose — the Mac mini waits for whoever is
+// watching Plex to finish before it downloads, which can be a whole film —
+// so polling drops to a slow tick and carries on until the row settles.
+// Nothing polls while the page is hidden; coming back to the foreground
+// reads at once (see `listenForForeground`), which is how an installed PWA
+// that sat in the background for an hour learns the movie was added.
 export const POLL_INTERVAL_MS = 2500;
-// If the Mac mini is asleep the row can sit pending indefinitely; the button
-// keeps saying "Requested" and the next visit polls afresh.
-export const POLL_TIMEOUT_MS = 3 * 60 * 1000;
+export const POLL_FAST_WINDOW_MS = 3 * 60 * 1000;
+export const POLL_SLOW_INTERVAL_MS = 30 * 1000;
+
+/**
+ * Is the page in front of someone? Anything that isn't a browser (tests,
+ * SSR) counts as visible so polling behaves as before.
+ */
+export function pageIsVisible () {
+  return typeof document === 'undefined' || document.visibilityState !== 'hidden';
+}
+
+/**
+ * Call `handler` whenever the page comes back to the foreground. Returns
+ * the function that stops listening.
+ *
+ * visibilitychange alone is unreliable on iOS, particularly for a
+ * home-screen-installed PWA — it sometimes just doesn't fire when the app
+ * returns. pageshow and focus are more consistent there; listening to all
+ * three is the set the auto-update code settled on. The handler must
+ * tolerate being called twice for one return.
+ */
+export function listenForForeground (handler) {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return () => {};
+  const onVisibility = () => { if (document.visibilityState === 'visible') handler(); };
+  document.addEventListener('visibilitychange', onVisibility);
+  window.addEventListener('pageshow', handler);
+  window.addEventListener('focus', handler);
+  return () => {
+    document.removeEventListener('visibilitychange', onVisibility);
+    window.removeEventListener('pageshow', handler);
+    window.removeEventListener('focus', handler);
+  };
+}
 
 export const requestPath = (tmdbId) => `requests/${tmdbId}`;
 
@@ -104,14 +142,20 @@ export function requestLabel (row, { requesting = false } = {}) {
  *                                 keep polling if it is still in flight
  *   request({ tmdbId, title }) → write 'pending', then poll for the outcome
  *   stop()                     → end polling (call on unmount)
+ *
+ * `now`, `setTimer`, `clearTimer`, `isVisible` and `onForeground` exist so
+ * the tests can drive the clock and the page's visibility by hand.
  */
-export function useRequestMovie ({ read, write, source, email, now = Date.now, setTimer = setTimeout, clearTimer = clearTimeout }) {
+export function useRequestMovie ({ read, write, source, email, now = Date.now, setTimer = setTimeout, clearTimer = clearTimeout, isVisible = pageIsVisible, onForeground = listenForForeground }) {
   const row = ref(null);
   const requesting = ref(false);
   const error = ref(null);
 
   let timer = null;
   let watching = null; // the tmdbId being polled, so a stale tick can't land
+  let startedAt = 0; // when polling for `watching` began: picks the speed
+  let checking = false; // a read is in flight; a second trigger waits
+  let stopListening = null; // undoes onForeground while polling
 
   const label = computed(() => requestLabel(row.value, { requesting: requesting.value }));
   const settled = computed(() => TERMINAL_STATUSES.includes(row.value?.status));
@@ -126,33 +170,56 @@ export function useRequestMovie ({ read, write, source, email, now = Date.now, s
     if (timer) clearTimer(timer);
     timer = null;
     watching = null;
+    if (stopListening) stopListening();
+    stopListening = null;
   }
 
-  function schedule (tmdbId, startedAt) {
-    timer = setTimer(async () => {
+  function schedule (tmdbId) {
+    const fast = now() - startedAt < POLL_FAST_WINDOW_MS;
+    // Returning the promise lets the tests await a tick; timers ignore it.
+    timer = setTimer(() => {
       timer = null;
-      if (watching !== tmdbId) return;
-      try {
-        row.value = await read(requestPath(tmdbId));
-      } catch (readError) {
-        // A blip mid-poll is not worth alarming anyone over; try again.
-        console.warn('Could not check on the movie request', readError);
-      }
-      if (watching !== tmdbId) return;
-      const done = TERMINAL_STATUSES.includes(row.value?.status);
-      const timedOut = now() - startedAt >= POLL_TIMEOUT_MS;
-      if (done || timedOut) {
-        stop();
-      } else {
-        schedule(tmdbId, startedAt);
-      }
-    }, POLL_INTERVAL_MS);
+      return check(tmdbId);
+    }, fast ? POLL_INTERVAL_MS : POLL_SLOW_INTERVAL_MS);
+  }
+
+  /**
+   * Read the row and decide what happens next: stop if it settled, poll
+   * again if it hasn't, or go quiet if nobody is looking — the foreground
+   * listener picks it back up.
+   */
+  async function check (tmdbId) {
+    if (watching !== tmdbId || checking) return;
+    if (!isVisible()) return;
+    checking = true;
+    try {
+      row.value = await read(requestPath(tmdbId));
+    } catch (readError) {
+      // A blip mid-poll is not worth alarming anyone over; try again.
+      console.warn('Could not check on the movie request', readError);
+    } finally {
+      checking = false;
+    }
+    if (watching !== tmdbId) return;
+    if (TERMINAL_STATUSES.includes(row.value?.status)) {
+      stop();
+    } else {
+      schedule(tmdbId);
+    }
   }
 
   function watch (tmdbId) {
     stop();
     watching = tmdbId;
-    schedule(tmdbId, now());
+    startedAt = now();
+    // Back in front of someone: don't wait out a slow tick, look now.
+    stopListening = onForeground(() => {
+      if (watching !== tmdbId) return;
+      if (timer) clearTimer(timer);
+      timer = null;
+      return check(tmdbId);
+    });
+    schedule(tmdbId);
   }
 
   /**
