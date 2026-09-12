@@ -70,7 +70,7 @@
 import ordinal from "ordinal-js";
 import RequestMovieButton from './RequestMovieButton.vue';
 import { dbGet } from '../store/db.js';
-import { isOwner } from '../assets/javascript/owner.mjs';
+import { mayRequest } from '../assets/javascript/owner.mjs';
 
 export default {
   components: {
@@ -80,9 +80,9 @@ export default {
     return {
       selectedSort: 'watch_order',
       sortOrder: "ascending",
-      // tmdbId → request row, read ONCE for the whole list (Matt only —
-      // the rules let nobody else list the node). Null until it's in, so
-      // no button renders before it has its row.
+      // tmdbId → request row, read ONCE for the whole list (requesters
+      // only — the rules let nobody else list the node). Null until it's
+      // in, so no button renders before it has its row.
       requests: null
     }
   },
@@ -90,7 +90,7 @@ export default {
     '$store.state.email': {
       immediate: true,
       async handler (email) {
-        if (!isOwner(email)) {
+        if (!mayRequest(email)) {
           this.requests = null;
           return;
         }

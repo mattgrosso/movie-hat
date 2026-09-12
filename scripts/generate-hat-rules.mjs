@@ -47,7 +47,7 @@
 
 import { writeFileSync } from 'fs';
 import { UNSAFE_KEY_CHARACTERS, KEY_REPLACEMENT_CHARACTER } from '../src/store/memberKey.mjs';
-import { OWNER_EMAIL } from '../src/assets/javascript/owner.mjs';
+import { OWNER_EMAIL, REQUESTER_EMAILS } from '../src/assets/javascript/owner.mjs';
 
 // auth.token.email → the member key, in the rules language.
 const memberKeyExpression = UNSAFE_KEY_CHARACTERS.reduce(
@@ -59,6 +59,9 @@ const signedIn = "auth != null && auth.token.email != null";
 // Matt, and only Matt. Google emails arrive in the token as the account has
 // them (his is all lowercase), but lowercasing costs nothing.
 const isOwner = `auth != null && auth.token.email != null && auth.token.email.toLowerCase() === '${OWNER_EMAIL}'`;
+// The people allowed to ask the Mac mini for a download — the same list the
+// button shows itself to.
+const isRequester = `auth != null && auth.token.email != null && (${REQUESTER_EMAILS.map((email) => `auth.token.email.toLowerCase() === '${email}'`).join(' || ')})`;
 const isMember = `data.child('memberEmails').child(${memberKeyExpression}).exists()`;
 const becomesMember = `newData.child('memberEmails').child(${memberKeyExpression}).exists()`;
 // Deleting a whole hat: the creator's call — except legacy hats, which have
@@ -162,8 +165,8 @@ const rules = {
     // to me"). A request fills the disk on his Mac mini, so the owner's
     // address — hard-coded in owner.mjs, the same constant the app hides
     // the button behind — is the only one that may read (or list) or
-    // create a row.
-    // Creating means status 'pending', under his own address, keyed by an
+    // create a row — Matt, and anyone he has added to REQUESTER_EMAILS.
+    // Creating means status 'pending', under their own address, keyed by an
     // integer TMDb id. Nothing may change a row that is pending,
     // processing, added or already in the library: the key IS the
     // duplicate check, and only the service (Admin SDK, which bypasses
@@ -173,9 +176,9 @@ const rules = {
     requests: {
       // The home page reads the whole node once to label every drawn
       // movie, rather than one read per movie.
-      '.read': isOwner,
+      '.read': isRequester,
       $tmdbId: {
-        '.write': `${isOwner} && newData.exists() && (!data.exists() || data.child('status').val() === 'error')`,
+        '.write': `${isRequester} && newData.exists() && (!data.exists() || data.child('status').val() === 'error')`,
         '.validate': [
           "$tmdbId.matches(/^[1-9][0-9]{0,9}$/)",
           "newData.hasChildren(['tmdbId', 'title', 'status', 'source', 'requestedBy', 'createdAt'])",

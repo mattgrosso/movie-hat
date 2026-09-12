@@ -9,7 +9,15 @@
 //                      that hat who has a subscribed device.
 //   POST /push/test  - a test notification to the caller's own devices.
 //
-// Both routes are gated on a verified Firebase ID token from THIS app's
+// Plus one sweep, on an EventBridge schedule (`movie-hat-push-sweep`, every
+// two minutes, 2026-09-11): a movie request whose download has finished
+// tells the person who asked for it. The Mac mini service that talks to
+// Radarr stamps `requests/<tmdbId>/importedAt` when the file lands; this
+// sweep notifies each such row once and stamps `notifiedAt`. A poll rather
+// than a call from the service, so the service needs no credentials for
+// this Lambda and the two can be deployed without knowing about each other.
+//
+// Both HTTP routes are gated on a verified Firebase ID token from THIS app's
 // project (movie-hat-9c418) - the audience/issuer checks below are what stop
 // a valid token from any other Firebase project. /push/drawn additionally
 // verifies the caller is a member of the hat they claim to be announcing
@@ -223,9 +231,69 @@ const sendToMember = async (memberKey, payload) => {
   return delivered;
 };
 
+// --- Download-finished sweep -----------------------------------------------
+
+// A row imported longer ago than this is old news: it gets stamped, not
+// announced. Guards the first deploy (rows imported before the sweep
+// existed) and any long outage.
+const IMPORT_NEWS_WINDOW_MS = 24 * 3600 * 1000;
+
+/**
+ * Tell each requester whose movie has finished downloading, once. Returns
+ * counts for the log.
+ */
+const sweepFinishedRequests = async (now = Date.now()) => {
+  const rows = (await dbGet('requests')) || {};
+  const result = { rows: 0, announced: 0, stale: 0, unreachable: 0 };
+  for (const [tmdbId, row] of Object.entries(rows)) {
+    if (!row || typeof row.importedAt !== 'number' || row.notifiedAt) continue;
+    result.rows += 1;
+
+    if (now - row.importedAt > IMPORT_NEWS_WINDOW_MS) {
+      await dbSet(`requests/${tmdbId}/notifiedAt`, now);
+      result.stale += 1;
+      continue;
+    }
+
+    const memberKey = emailToMemberKey(row.requestedBy);
+    try {
+      let delivered = 0;
+      if (memberKey) {
+        // Same per-member badge the draw announcement uses: things that
+        // happened since this person last opened the app.
+        const unseen = (Number(await dbGet(`push/${memberKey}/badge`)) || 0) + 1;
+        const movieTitle = row.radarrTitle || row.title || 'Your movie';
+        const payload = buildPayload({
+          title: `${movieTitle} is ready to watch`,
+          body: 'Your request finished downloading. Tap to see it.',
+          tag: `imported-${tmdbId}`,
+          appBadge: unseen
+        });
+        delivered = await sendToMember(memberKey, payload);
+        if (delivered > 0) await dbSet(`push/${memberKey}/badge`, unseen);
+      }
+      // Stamped either way: no subscribed device means there is nobody to
+      // tell, not something to retry every two minutes.
+      await dbSet(`requests/${tmdbId}/notifiedAt`, now);
+      if (delivered > 0) result.announced += 1;
+      else result.unreachable += 1;
+    } catch (error) {
+      console.error(`Finished-download push for ${tmdbId} failed:`, error.message);
+    }
+  }
+  return result;
+};
+
 // --- Handler ----------------------------------------------------------------
 
 exports.handler = async (event) => {
+  // The EventBridge schedule, not a browser: no token, no CORS, no body.
+  if (event?.source === 'aws.events') {
+    const result = await sweepFinishedRequests();
+    if (result.rows) console.log('Finished-download sweep:', JSON.stringify(result));
+    return result;
+  }
+
   activeOrigin = event.headers?.origin || event.headers?.Origin || ALLOWED_ORIGINS[0];
   const method = event.requestContext?.http?.method;
   const path = event.rawPath || '';

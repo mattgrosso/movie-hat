@@ -52,9 +52,9 @@
         >
           Home
         </button>
-        <!-- Under Share/Home rather than beside them: it's the one action
-             here that talks to a machine, and it reports back in place. -->
-        <RequestMovieButton :movie="drawnMovie" class="request-row"/>
+        <!-- Third of the row, same as the other two; its label stays short
+             so the three read as one set. -->
+        <RequestMovieButton :movie="drawnMovie" short/>
       </div>
     </div>
     <div v-else class="loading-spinner">
@@ -216,36 +216,32 @@ export default {
     }
   }
 
+  // Share · Home · Request: one row of three equal columns at every width,
+  // capped so they don't sprawl on a desktop. A grid rather than flex so
+  // the columns are equal by construction — the request button's wrapper
+  // (which can also hold an error line) is the third column, and its own
+  // button fills it.
   .details-wrapper {
-    align-items: center;
     animation: drawn-fade-up 0.5s ease 0.4s backwards;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    justify-content: center;
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0 auto;
+    max-width: 480px;
     width: 100%;
 
     .btn {
-      width: min(100%, 320px);
+      overflow: hidden;
+      padding-left: 0.5rem;
+      padding-right: 0.5rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      width: 100%;
     }
 
-    // Side by side under the poster once there's room. The request button
-    // takes its own full row underneath, so its changing label has space.
-    @media screen and (min-width: 576px) {
-      flex-direction: row;
-      flex-wrap: wrap;
-
-      .btn {
-        width: 160px;
-      }
-
-      .request-row {
-        flex-basis: 100%;
-
-        .btn {
-          width: 336px;
-        }
-      }
+    .request-movie {
+      align-items: stretch;
+      min-width: 0;
     }
   }
 

@@ -25,9 +25,11 @@ See [Configuration Reference](https://cli.vuejs.org/config/).
 
 ## Movie requests (Radarr on the Mac mini)
 
-The drawn-movie screen has a **Request this movie** button, shown to Matt
-only (`OWNER_EMAIL` in `src/assets/javascript/owner.mjs`; the rules enforce
-the same address, so nobody else can create a row even by hand). It writes
+The drawn-movie screen has a **Request** button, shown only to the people
+in `REQUESTER_EMAILS` (`src/assets/javascript/owner.mjs` — Matt, and Seth
+since 2026-09-11; the rules enforce the same list, so nobody else can create
+a row even by hand). To add someone, add their address to that list, then
+`yarn generate-hat-rules && firebase deploy --only database`. It writes
 one row to this project's Realtime Database and a Node service on the Mac
 mini (not in this repo) does the rest. Cinema Roll will write to the same node through
 its Movie Hat sign-in, so the service only watches one place.
@@ -56,12 +58,17 @@ requests/<tmdbId>: {
   radarrId:    number
   radarrTitle: string
   year:        number
-  processedAt: number   ms
+  processingAt: number  ms, when the service picked the row up
+  processedAt: number   ms, when Radarr answered
+  importedAt:  number   ms, when the downloaded file landed in the library
   error:       string   why it failed, shown to the user in the button's tooltip
+
+  // Written by the push Lambda only:
+  notifiedAt:  number   ms, when the requester was told the download finished
 }
 ```
 
-Only the owner's account can read or create rows. A row can only be created
+Only requesters' accounts can read or create rows. A row can only be created
 with `status: 'pending'`, and only when no row exists for that id or the
 existing one is `'error'` (that is the retry).
 The rules refuse everything else, which is what makes the key a duplicate
@@ -80,6 +87,17 @@ check. Clients cannot delete rows.
    `processedAt`.
 4. On any failure set `status: 'error'` and a short human `error`. The
    button offers a retry, which overwrites the row with a fresh `'pending'`.
-5. `requestedBy` will always be the owner's address; the rules see to it.
+5. `requestedBy` is always one of `REQUESTER_EMAILS`; the rules see to it.
+6. When the file is imported, set `importedAt`. That is what the
+   finished-download notification keys on.
+
+### "Your movie is ready" notifications
+
+`aws-lambda/push-notify.js` also runs on an EventBridge schedule
+(`movie-hat-push-sweep`, every two minutes). Each sweep reads `requests`,
+and any row with an `importedAt` and no `notifiedAt` gets one push to
+whoever `requestedBy` names ("Little Miss Sunshine is ready to watch"), then
+a `notifiedAt` stamp. A row imported more than a day ago is stamped without
+a notification, so a redeploy or an outage never announces a backlog.
 
 Deploy rules with `yarn generate-hat-rules && firebase deploy --only database`.

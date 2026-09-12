@@ -83,6 +83,14 @@ describe('requestLabel', () => {
     expect(requestLabel({ status: 'exists' })).toBe('Already in library');
     expect(requestLabel({ status: 'error' })).toMatch(/try again/);
   });
+
+  it('has a short form for a button that shares a row', () => {
+    expect(requestLabel(null, { short: true })).toBe('Request');
+    expect(requestLabel({ status: 'pending' }, { short: true })).toBe('Requested');
+    expect(requestLabel({ status: 'added' }, { short: true })).toBe('Added');
+    expect(requestLabel({ status: 'exists' }, { short: true })).toBe('In library');
+    expect(requestLabel({ status: 'error' }, { short: true })).toBe('Try again');
+  });
 });
 
 // A fake database plus fake timers, so the polling can be stepped by hand.

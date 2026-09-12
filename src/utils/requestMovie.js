@@ -113,16 +113,19 @@ export function canRequestOver (existing) {
   return !existing || existing.status === 'error';
 }
 
-/** Button text for a row's state. `null` row → the idle call to action. */
-export function requestLabel (row, { requesting = false } = {}) {
+/**
+ * Button text for a row's state. `null` row → the idle call to action.
+ * `short` is for a button that shares a row with others, or sits in a list.
+ */
+export function requestLabel (row, { requesting = false, short = false } = {}) {
   if (requesting) return 'Requesting…';
   switch (row?.status) {
     case 'pending': return 'Requested';
     case 'processing': return 'Adding…';
-    case 'added': return 'Added to library';
-    case 'exists': return 'Already in library';
-    case 'error': return 'Couldn’t add — try again';
-    default: return 'Request this movie';
+    case 'added': return short ? 'Added' : 'Added to library';
+    case 'exists': return short ? 'In library' : 'Already in library';
+    case 'error': return short ? 'Try again' : 'Couldn’t add — try again';
+    default: return short ? 'Request' : 'Request this movie';
   }
 }
 
@@ -133,6 +136,7 @@ export function requestLabel (row, { requesting = false } = {}) {
  *   write(path, value) → PUT `value` at `path`
  *   source             → 'movie-hat' | 'cinema-roll'
  *   email              → the signed-in address (a string, or a ref/getter)
+ *   short              → short labels (see requestLabel)
  *
  * Returns refs: `row` (the database row, or null), `requesting` (a write is
  * in flight), `error` (a human-readable failure, or null), `label` (button
@@ -146,7 +150,7 @@ export function requestLabel (row, { requesting = false } = {}) {
  * `now`, `setTimer`, `clearTimer`, `isVisible` and `onForeground` exist so
  * the tests can drive the clock and the page's visibility by hand.
  */
-export function useRequestMovie ({ read, write, source, email, now = Date.now, setTimer = setTimeout, clearTimer = clearTimeout, isVisible = pageIsVisible, onForeground = listenForForeground }) {
+export function useRequestMovie ({ read, write, source, email, short = false, now = Date.now, setTimer = setTimeout, clearTimer = clearTimeout, isVisible = pageIsVisible, onForeground = listenForForeground }) {
   const row = ref(null);
   const requesting = ref(false);
   const error = ref(null);
@@ -157,7 +161,7 @@ export function useRequestMovie ({ read, write, source, email, now = Date.now, s
   let checking = false; // a read is in flight; a second trigger waits
   let stopListening = null; // undoes onForeground while polling
 
-  const label = computed(() => requestLabel(row.value, { requesting: requesting.value }));
+  const label = computed(() => requestLabel(row.value, { requesting: requesting.value, short }));
   const settled = computed(() => TERMINAL_STATUSES.includes(row.value?.status));
   const canRequest = computed(() => !requesting.value && canRequestOver(row.value));
 

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { REQUESTER_EMAILS, mayRequest } from '../assets/javascript/owner.mjs';
 import {
   OWNER_EMAIL,
   isOwner,
@@ -24,6 +25,27 @@ describe('isOwner', () => {
     expect(isOwner('')).toBe(false);
     expect(isOwner(null)).toBe(false);
     expect(isOwner(undefined)).toBe(false);
+  });
+});
+
+describe('mayRequest', () => {
+  it('lets in everyone on the requester list, however they capitalise it', () => {
+    expect(REQUESTER_EMAILS).toContain(OWNER_EMAIL);
+    expect(REQUESTER_EMAILS).toContain('hopper.seth@gmail.com');
+    for (const email of REQUESTER_EMAILS) expect(mayRequest(email)).toBe(true);
+    expect(mayRequest('Hopper.Seth@Gmail.com')).toBe(true);
+    expect(mayRequest(' hopper.seth@gmail.com ')).toBe(true);
+  });
+
+  it('refuses everyone else', () => {
+    expect(mayRequest('hopperseth@gmail.com')).toBe(false);
+    expect(mayRequest('someone@example.com')).toBe(false);
+    expect(mayRequest('')).toBe(false);
+    expect(mayRequest(null)).toBe(false);
+  });
+
+  it('keeps the list lowercase, as the rules compare it', () => {
+    for (const email of REQUESTER_EMAILS) expect(email).toBe(email.toLowerCase());
   });
 });
 

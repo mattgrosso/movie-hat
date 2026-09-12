@@ -14,7 +14,7 @@
         <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
         <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
       </svg>
-      {{ compact && !row && !requesting ? 'Request' : label }}
+      {{ label }}
     </button>
     <p v-if="error" class="request-movie__error m-0">{{ error }}</p>
   </div>
@@ -28,13 +28,14 @@
 // Cinema Roll); this file is Movie Hat's binding of it to dbGet/dbPut and
 // the store's email.
 //
-// Rendered for MATT ONLY (his call, 2026-09-09) — a request fills the disk
-// on his Mac mini. The database rules enforce the same address, so hiding
-// the button is a courtesy to everyone else, not the boundary.
+// Rendered only for the people in REQUESTER_EMAILS (Matt, and Seth since
+// 2026-09-11) — a request fills the disk on Matt's Mac mini. The database
+// rules enforce the same list, so hiding the button is a courtesy to
+// everyone else, not the boundary.
 import { computed, watch, onBeforeUnmount } from 'vue';
 import { useStore } from 'vuex';
 import { dbGet, dbPut } from '../store/db.js';
-import { isOwner } from '../assets/javascript/owner.mjs';
+import { mayRequest } from '../assets/javascript/owner.mjs';
 import { useRequestMovie, isValidTmdbId } from '../utils/requestMovie.js';
 
 export default {
@@ -44,6 +45,9 @@ export default {
     // Small and quiet, for a list of many (the home page's drawn movies):
     // text-sized, no box, a download glyph in place of the long label.
     compact: { type: Boolean, default: false },
+    // Short labels ("Added" for "Added to library") where the button shares
+    // a row with others. Compact implies it.
+    short: { type: Boolean, default: false },
     // The row for this movie, when the parent read the whole `requests`
     // node already — `null` for "none". Leave undefined and the button
     // reads its own. This is what keeps a hundred buttons from making a
@@ -52,17 +56,18 @@ export default {
   },
   setup (props) {
     const store = useStore();
-    const signedIn = computed(() => isOwner(store.state.email));
+    const signedIn = computed(() => mayRequest(store.state.email));
 
     const { row, requesting, error, label, settled, canRequest, load, request, stop } = useRequestMovie({
       read: dbGet,
       write: dbPut,
       source: 'movie-hat',
-      email: () => store.state.email
+      email: () => store.state.email,
+      short: props.compact || props.short
     });
 
-    // Read the row as soon as there is a movie AND it's Matt: a request made
-    // last week shows its state on arrival.
+    // Read the row as soon as there is a movie AND it's someone who may
+    // request: a request made last week shows its state on arrival.
     watch(
       () => [props.movie?.id, signedIn.value],
       ([tmdbId, ready]) => {
