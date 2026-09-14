@@ -30,6 +30,13 @@
         v-for="movie in sortedHistory"
         :key="movie.dbKey"
       >
+        <!-- The frame wraps the link so the "i" can sit on the poster without
+             living inside the anchor (a button inside a link is a tap that
+             goes two places). Small and subtle on purpose — bug report,
+             2026-09-13: "something small and subtle for each poster on the
+             home screen that would show me the details of when it was added
+             to the hat exactly, then by whom". -->
+        <div class="poster-frame">
         <a
           :href="`https://www.google.com/search?q=${movie.title} movie`"
           target="_blank"
@@ -52,6 +59,19 @@
             <p v-else-if="movie.note">"{{movie.note}}"</p>
           </div>
         </a>
+        <button
+          type="button"
+          class="poster-info"
+          :class="{ open: detailsOpenFor === movie.dbKey }"
+          :aria-expanded="String(detailsOpenFor === movie.dbKey)"
+          :aria-label="`Details for ${movie.title}`"
+          @click="toggleDetails(movie)"
+        >i</button>
+        <div v-if="detailsOpenFor === movie.dbKey" class="poster-details">
+          <p v-for="line in detailLines(movie)" :key="line">{{ line }}</p>
+          <p v-if="!detailLines(movie).length" class="poster-details-empty">Nothing more is known about this one.</p>
+        </div>
+        </div>
         <!-- Matt only (the button hides itself for everyone else). Rendered
              once the requests index is in, so each button gets its row
              rather than reading its own. -->
@@ -69,6 +89,7 @@
 <script>
 import ordinal from "ordinal-js";
 import RequestMovieButton from './RequestMovieButton.vue';
+import { historyDetailLines } from '../assets/javascript/historyDetails.js';
 import { dbGet } from '../store/db.js';
 import { mayRequest } from '../assets/javascript/owner.mjs';
 
@@ -80,6 +101,9 @@ export default {
     return {
       selectedSort: 'watch_order',
       sortOrder: "ascending",
+      // dbKey of the one poster whose details are unfolded; one at a time,
+      // so the list doesn't turn into a wall of captions.
+      detailsOpenFor: null,
       // tmdbId → request row, read ONCE for the whole list (requesters
       // only — the rules let nobody else list the node). Null until it's
       // in, so no button renders before it has its row.
@@ -127,6 +151,12 @@ export default {
     }
   },
   methods: {
+    toggleDetails (movie) {
+      this.detailsOpenFor = this.detailsOpenFor === movie.dbKey ? null : movie.dbKey;
+    },
+    detailLines (movie) {
+      return historyDetailLines(movie, { rank: this.drawRank(movie) });
+    },
     toggleSortOrder () {
       if (this.sortOrder === "ascending") {
         this.sortOrder = "descending";
@@ -259,10 +289,77 @@ export default {
         margin-top: -0.35rem;
       }
 
+      .poster-frame {
+        position: relative;
+        width: 100%;
+      }
+
+      // The "i": a small dark dot in the poster's top-right corner, quiet
+      // enough not to compete with the ribbon in the other corner. The
+      // frame's 12px border plus its 24px padding is where the poster
+      // starts; the button sits just inside that.
+      .poster-info {
+        align-items: center;
+        background: rgba(0, 0, 0, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        border-radius: 50%;
+        color: white;
+        cursor: pointer;
+        display: flex;
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: 0.75rem;
+        font-style: italic;
+        font-weight: 700;
+        height: 24px;
+        justify-content: center;
+        line-height: 1;
+        padding: 0;
+        position: absolute;
+        right: 18px;
+        top: 18px;
+        width: 24px;
+
+        // Press feedback only — a phone keeps :hover stuck after a tap.
+        &:active,
+        &.open {
+          background: white;
+          color: black;
+        }
+      }
+
+      // Same white card and black frame as the poster, so it reads as the
+      // back of the card rather than a popup.
+      .poster-details {
+        background: white;
+        border: 12px solid black;
+        border-top: none;
+        box-shadow: inset 0px 0px 9px 0px #424242;
+        padding: 12px 16px;
+        width: 100%;
+
+        p {
+          color: black;
+          font-size: 0.6rem;
+          line-height: 1.5;
+          margin: 0;
+          overflow-wrap: anywhere;
+          text-align: left;
+        }
+
+        .poster-details-empty {
+          color: #555;
+          font-style: italic;
+        }
+      }
+
       a {
         background: white;
         border: 12px solid black;
         box-shadow: inset 0px 0px 9px 0px #424242;
+        // Block, explicitly: the link used to be a flex item of the li,
+        // which blockified it; inside .poster-frame it is a plain inline
+        // and its width, padding and border would stop laying out.
+        display: block;
         overflow: hidden;
         padding: 24px;
         position: relative;
