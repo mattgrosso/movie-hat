@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
+    <meta name="theme-color" content="#000000">
+    <!-- Bootstrap's CSS is bundled from npm (src/main.js) — a CDN copy here
+         double-loaded it and broke offline use of the installed app. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Monoton&display=swap" rel="stylesheet">
+    <!--[if IE]><link rel="icon" href="/img/icons/apple-touch-icon.png"><![endif]-->
+    <link rel="apple-touch-icon" href="/img/icons/apple-touch-icon.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/img/icons/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/img/icons/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/img/icons/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/img/icons/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/img/icons/apple-touch-icon-180x180.png">
+    <link rel="manifest" href="/manifest.json">
+    <title>movie-hat</title>
+    <!--
+      Everything from here to the closing head tag used to be injected at
+      build time by @vue/cli-plugin-pwa (from the `pwa` block of the old
+      vue.config.js), appended after the tags above. Vite (2026-09-14)
+      injects nothing but its own script/link tags, so the injected set is
+      now hand-written, verbatim and in the same order — duplicates included
+      (a second manifest link, a second theme-color, a second
+      apple-touch-icon) and the IE-conditional wrapper that plugin put
+      around the original <link rel="icon"> above. The shipped head is thus
+      the one every installed phone already knows; the manifest it points at
+      is public/manifest.json, that plugin's generated file copied as-is.
+      Note /img/icons/favicon.svg does not exist in public/ — that link was
+      already shipping before the move and browsers fall through to the
+      PNGs, so it stays for identical behaviour.
+
+      Do NOT write the closing head tag inside a comment anywhere in this
+      file: Vite injects the entry script and stylesheet immediately before
+      the FIRST literal occurrence of it, and a commented one swallows both
+      — a blank page that every test, lint and build still passes.
+    -->
+    <link rel="icon" type="image/svg+xml" href="/img/icons/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/img/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/img/icons/favicon-16x16.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Movie Hat">
+    <link rel="apple-touch-icon" href="/img/icons/apple-touch-icon-152x152.png">
+    <link rel="mask-icon" href="/img/icons/safari-pinned-tab.svg" color="#ffffff">
+    <meta name="msapplication-TileImage" content="/img/icons/msapplication-icon-144x144.png">
+    <meta name="msapplication-TileColor" content="#ffffff">
+  </head>
+  <body class="body">
+    <noscript>
+      <strong>We're sorry but movie-hat doesn't work properly without JavaScript enabled. Please enable it to continue.</strong>
+    </noscript>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

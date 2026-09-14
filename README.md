@@ -9,10 +9,22 @@ yarn install
 ```
 yarn serve
 ```
+Vite's dev server, on the old Vue CLI port 8080 and bound to every
+interface (so the phone on the LAN can reach it). It restarts itself when
+`.env` changes.
 
 ### Compiles and minifies for production
 ```
 yarn build
+```
+`yarn build` never bumps the version — it builds whatever `VUE_APP_VERSION`
+`.env` holds, so check builds are free. `yarn deploy` runs
+`scripts/bump-and-build.mjs`, which bumps first and rolls the bump back if
+the build fails.
+
+### Previews the production build
+```
+yarn preview
 ```
 
 ### Lints and fixes files
@@ -20,8 +32,22 @@ yarn build
 yarn lint
 ```
 
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+### Build configuration
+Vite (`vite.config.mjs`), since 2026-09-14 — it replaced Vue CLI 5/webpack
+(`vue.config.js`, `babel.config.js`). That file explains each choice, but the
+three worth knowing:
+
+- Every `process.env.VUE_APP_*` / `process.env.BASE_URL` read in `src/` is
+  statically replaced via Vite's `define`, exactly as webpack's DefinePlugin
+  did, so the house modules stay byte-identical to Cinema Roll's.
+- The entry bundle is deliberately named `js/app.<hex hash>.js`, because
+  `App.vue`'s update check matches that pattern off `index.html`.
+- `vite-plugin-pwa` generates `service-worker.js` (that exact name — every
+  installed phone checks it for updates) and pulls in `public/push-sw.js`
+  via `importScripts`. `public/manifest.json` is a committed static file: it
+  is what `@vue/cli-plugin-pwa` used to generate, byte-for-byte, and the
+  `<head>` tags that plugin injected are now hand-written in `index.html`
+  (at the repo root, not `public/`).
 
 ## Movie requests (Radarr on the Mac mini)
 

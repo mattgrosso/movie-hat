@@ -26,3 +26,6 @@ pnpm-debug.log*
 
 # Claude Code session checkpoints — machine-local scratch, not source
 .claude/RESUME.md
+
+# Vite writes vite.config.mjs.timestamp-<n>.mjs beside the config while loading it
+vite.config.*.timestamp-*

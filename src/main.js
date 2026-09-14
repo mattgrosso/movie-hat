@@ -45,7 +45,10 @@ const routes = [
   // download.
   {
     path: '/peek',
-    component: () => import(/* webpackChunkName: "peek" */ './components/PeekInHat.vue')
+    // (Under webpack a `webpackChunkName: "peek"` hint named the chunk; Vite
+    // names it after the component, js/PeekInHat.<hash>.js. Nothing refers to
+    // either name, so the hint is gone rather than translated.)
+    component: () => import('./components/PeekInHat.vue')
   },
 ]
 
