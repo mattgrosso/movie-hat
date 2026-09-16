@@ -86,7 +86,10 @@ export default {
       if (status === 'exists' || (status === 'added' && settled.value)) return 'btn-success';
       if (status === 'error') return 'btn-danger';
       if (status === 'pending' || status === 'processing' || status === 'added' || requesting.value) return 'btn-secondary';
-      return 'btn-outline-light';
+      // Solid, not outlined: on the drawn-movie page it sits beside a blue
+      // Share and a green Home, and an outline on the dark page read as
+      // "transparent... doesn't really show up" (report, 2026-09-15).
+      return 'btn-request';
     });
 
     const tooltip = computed(() => {
@@ -114,13 +117,19 @@ export default {
     width: min(100%, 320px);
   }
 
-  .btn-outline-light {
-    border-color: #999;
+  // Idle state. White on #6f42c1 is ~6:1. Press feedback only — a phone
+  // keeps :hover stuck after a tap.
+  .btn-request,
+  .btn-request:disabled {
+    background: #6f42c1;
+    border-color: #6f42c1;
     color: white;
   }
 
-  .btn-outline-light:hover {
-    color: #222;
+  .btn-request:active {
+    background: #59359a;
+    border-color: #59359a;
+    color: white;
   }
 
   &__error {
@@ -143,7 +152,7 @@ export default {
     gap: 0;
 
     .btn,
-    .btn.btn-outline-light,
+    .btn.btn-request,
     .btn.btn-secondary,
     .btn.btn-success,
     .btn.btn-danger {

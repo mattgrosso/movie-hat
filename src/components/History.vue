@@ -67,9 +67,21 @@
           :aria-label="`Details for ${movie.title}`"
           @click="toggleDetails(movie)"
         >i</button>
+        <!-- The back of the card: the title, the facts in two columns, and
+             where it's streaming (bug report, 2026-09-15: "add in there also
+             the places that it can be streamed since we're pulling that
+             anyway, and the style of that whole open panel should be a
+             little nicer"). -->
         <div v-if="detailsOpenFor === movie.dbKey" class="poster-details">
-          <p v-for="line in detailLines(movie)" :key="line">{{ line }}</p>
-          <p v-if="!detailLines(movie).length" class="poster-details-empty">Nothing more is known about this one.</p>
+          <p class="poster-details-title">{{ movie.title }}</p>
+          <dl v-if="detailRows(movie).length" class="poster-details-rows">
+            <template v-for="row in detailRows(movie)" :key="row.label">
+              <dt>{{ row.label }}</dt>
+              <dd>{{ row.value }}</dd>
+            </template>
+          </dl>
+          <p v-else class="poster-details-empty">Nothing more is known about this one.</p>
+          <WhereToWatch :movie="movie" show-empty/>
         </div>
         </div>
         <!-- Matt only (the button hides itself for everyone else). Rendered
@@ -89,13 +101,15 @@
 <script>
 import ordinal from "ordinal-js";
 import RequestMovieButton from './RequestMovieButton.vue';
-import { historyDetailLines } from '../assets/javascript/historyDetails.js';
+import WhereToWatch from './WhereToWatch.vue';
+import { historyDetailRows } from '../assets/javascript/historyDetails.js';
 import { dbGet } from '../store/db.js';
 import { mayRequest } from '../assets/javascript/owner.mjs';
 
 export default {
   components: {
-    RequestMovieButton
+    RequestMovieButton,
+    WhereToWatch
   },
   data () {
     return {
@@ -154,8 +168,8 @@ export default {
     toggleDetails (movie) {
       this.detailsOpenFor = this.detailsOpenFor === movie.dbKey ? null : movie.dbKey;
     },
-    detailLines (movie) {
-      return historyDetailLines(movie, { rank: this.drawRank(movie) });
+    detailRows (movie) {
+      return historyDetailRows(movie, { rank: this.drawRank(movie) });
     },
     toggleSortOrder () {
       if (this.sortOrder === "ascending") {
@@ -334,21 +348,67 @@ export default {
         border: 12px solid black;
         border-top: none;
         box-shadow: inset 0px 0px 9px 0px #424242;
-        padding: 12px 16px;
+        color: black;
+        padding: 12px 16px 14px;
+        text-align: left;
         width: 100%;
 
-        p {
-          color: black;
-          font-size: 0.6rem;
-          line-height: 1.5;
-          margin: 0;
+        .poster-details-title {
+          font-size: 0.75rem;
+          font-weight: 700;
+          line-height: 1.3;
+          margin: 0 0 0.4rem;
           overflow-wrap: anywhere;
-          text-align: left;
+        }
+
+        // Two columns: small-caps labels, the facts beside them.
+        .poster-details-rows {
+          column-gap: 0.6rem;
+          display: grid;
+          grid-template-columns: max-content minmax(0, 1fr);
+          margin: 0;
+          row-gap: 0.2rem;
+
+          dt {
+            // #666 on white is ~5.7:1.
+            color: #666;
+            font-size: 0.5rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            line-height: 1.6;
+            text-transform: uppercase;
+          }
+
+          dd {
+            font-size: 0.6rem;
+            line-height: 1.4;
+            margin: 0;
+            overflow-wrap: anywhere;
+          }
         }
 
         .poster-details-empty {
           color: #555;
+          font-size: 0.6rem;
           font-style: italic;
+          margin: 0;
+        }
+
+        // The streaming strip, in the card's own ink, under a hairline.
+        .where-to-watch {
+          border-top: 1px solid #ddd;
+          color: black;
+          margin-top: 0.6rem;
+          padding-top: 0.6rem;
+
+          .where-to-watch-link {
+            justify-content: flex-start !important;
+          }
+
+          .where-to-watch-empty {
+            color: #555;
+            opacity: 1;
+          }
         }
       }
 

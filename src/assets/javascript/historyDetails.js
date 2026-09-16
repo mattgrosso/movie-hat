@@ -6,8 +6,10 @@
 //
 // Everything here is already on the history record — `timeStamp` is written
 // when a movie goes INTO the hat (PickAMovie), `dateDrawn` when it comes
-// out (DrawMovie) — it just never had anywhere to show. Plain lines, so the
-// component renders them as text and never as markup.
+// out (DrawMovie) — it just never had anywhere to show. Label/value rows
+// since 2026-09-16 ("the style of that whole open panel should be a little
+// nicer"), so the panel can set them in two columns; both halves are plain
+// text and the component never renders them as markup.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -32,41 +34,44 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 /**
  * @param {object} movie   a history record
  * @param {{ rank?: string }} options  the draw's ordinal ("3rd"), if known
- * @returns {string[]}  one fact per line, most interesting first
+ * @returns {Array<{ label: string, value: string }>}  one fact per row, most interesting first
  */
-export const historyDetailLines = (movie, { rank } = {}) => {
-  const lines = [];
-  if (!movie) return lines;
+export const historyDetailRows = (movie, { rank } = {}) => {
+  const rows = [];
+  if (!movie) return rows;
 
   const added = asDate(movie.timeStamp);
   const drawn = asDate(movie.dateDrawn);
 
-  if (movie.addedBy && added) lines.push(`Added by ${movie.addedBy} on ${formatWhen(added)}`);
-  else if (movie.addedBy) lines.push(`Added by ${movie.addedBy}`);
-  else if (added) lines.push(`Added ${formatWhen(added)}`);
+  if (movie.addedBy && added) rows.push({ label: 'Added', value: `by ${movie.addedBy}, ${formatWhen(added)}` });
+  else if (movie.addedBy) rows.push({ label: 'Added', value: `by ${movie.addedBy}` });
+  else if (added) rows.push({ label: 'Added', value: formatWhen(added) });
 
   if (drawn) {
-    lines.push(`Drawn ${formatWhen(drawn)}${rank ? ` · ${rank} draw` : ''}`);
+    rows.push({ label: 'Drawn', value: `${formatWhen(drawn)}${rank ? ` · ${rank} draw` : ''}` });
   } else if (rank) {
-    lines.push(`${rank} draw`);
+    rows.push({ label: 'Drawn', value: `${rank} draw` });
   }
 
   if (added && drawn) {
-    lines.push(`Waited in the hat ${plural(daysBetween(added, drawn), 'day')}`);
+    rows.push({ label: 'In the hat', value: plural(daysBetween(added, drawn), 'day') });
   }
 
-  if (movie.note) lines.push(`Note: ${movie.note}`);
+  if (movie.note) rows.push({ label: 'Note', value: String(movie.note) });
 
   if (movie.release_date) {
     const released = asDate(movie.release_date);
-    lines.push(released
-      ? `Released ${released.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`
-      : `Released ${movie.release_date}`);
+    rows.push({
+      label: 'Released',
+      value: released
+        ? released.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+        : String(movie.release_date)
+    });
   }
 
   if (Number.isFinite(Number(movie.vote_average)) && Number(movie.vote_average) > 0) {
-    lines.push(`TMDB rating ${Number(movie.vote_average).toFixed(1)}`);
+    rows.push({ label: 'TMDB', value: `${Number(movie.vote_average).toFixed(1)} / 10` });
   }
 
-  return lines;
+  return rows;
 };
