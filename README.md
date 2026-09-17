@@ -127,3 +127,34 @@ a `notifiedAt` stamp. A row imported more than a day ago is stamped without
 a notification, so a redeploy or an outage never announces a backlog.
 
 Deploy rules with `yarn generate-hat-rules && firebase deploy --only database`.
+
+### One canonical origin (`infra/canonical-host.js`)
+
+CloudFront distribution `EBSAAKUEVN304` answers for both `movie-hat.com` and
+`www.movie-hat.com`. Until 2026-09-17 it served the app on both with no
+redirect, and two origins mean two PWA scopes: installing from each gave a
+separate Home Screen icon (iOS names the second one "Movie Hat 2", which is
+the "hat" one bug report saw in a notification header), each with its own
+storage and its own push subscription. It also broke notification taps —
+`APP_URL` pointed at `www`, so a tap landed outside the installed app's scope
+and iOS opened it in an in-app browser instead of the app.
+
+**`movie-hat.com` is canonical.** It is where the app is installed from and
+what the invite email in `HatsList.vue` points at. A CloudFront Function
+(`movie-hat-canonical-host`, runtime `cloudfront-js-2.0`) runs on
+viewer-request and 301s any `www` request to the bare domain, path and query
+preserved; every other host passes through untouched.
+
+Redeploy the function after editing:
+
+```
+aws cloudfront describe-function --name movie-hat-canonical-host --profile personal   # for the ETag
+aws cloudfront update-function --name movie-hat-canonical-host --if-match <etag> \
+  --function-config Comment="Redirect www.movie-hat.com to the canonical bare domain",Runtime=cloudfront-js-2.0 \
+  --function-code fileb://infra/canonical-host.js --profile personal
+aws cloudfront publish-function --name movie-hat-canonical-host --if-match <new etag> --profile personal
+```
+
+`aws cloudfront test-function` takes a viewer-request event object and is
+worth running before publishing — the function sits in front of every request
+to the site.
