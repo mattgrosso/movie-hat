@@ -37,7 +37,16 @@ const FIREBASE_PROJECT_ID = 'movie-hat-9c418';
 const DATABASE_URL = 'https://movie-hat-9c418-default-rtdb.firebaseio.com';
 const FIREBASE_CERT_URL =
   'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com';
-const APP_URL = 'https://www.movie-hat.com';
+// The BARE domain, deliberately. One CloudFront distribution serves both
+// movie-hat.com and www.movie-hat.com with no redirect between them, so they
+// are two separate PWA scopes. Everyone installs from the bare one -- it is
+// what the invite email in HatsList.vue tells people to visit, and every bug
+// report ever filed came from it -- so a notification pointing at www lands
+// OUTSIDE the installed app scope, and iOS answers that by opening the URL
+// in an in-app browser instead of handing it to the app. That is report
+// -P1kJdlGJpzL0at-54jt: "it brought me to the Movie Hat app, but then it
+// seemed to open the like embedded Safari within the Movie Hat app".
+const APP_URL = 'https://movie-hat.com';
 
 const ALLOWED_ORIGINS = [
   'https://www.movie-hat.com',
