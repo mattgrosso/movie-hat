@@ -41,7 +41,7 @@
           :href="`https://www.google.com/search?q=${movie.title} movie`"
           target="_blank"
         >
-          <span class="text-white my-1 text-center">({{drawRank(movie)}} drawn)</span>
+          <span class="draw-band text-white my-1 text-center">({{drawRank(movie)}} drawn)</span>
           <img
             v-if="movie.poster_path"
             v-lazy="`https://image.tmdb.org/t/p/w342${movie.poster_path}`"
@@ -426,7 +426,13 @@ export default {
         text-decoration: none;
         width: 100%;
 
-        span {
+        // Was a bare `span`, which matched EVERY span inside ANY link in the
+        // card - not just the corner band. WhereToWatch renders its own <a>
+        // wrapping <span class="service">, so the streaming logos were being
+        // absolutely positioned and rotated -45deg into a black diagonal
+        // sliver (bug report -P1gchJKgU6aoUrymFOb). Keyed to the band itself
+        // now, so nothing new inside a card can inherit it.
+        .draw-band {
           background: black;
           border: 3px solid white;
           box-shadow: 0px 0px 4px 0px #424242;
