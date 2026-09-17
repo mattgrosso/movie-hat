@@ -214,7 +214,7 @@ export default {
          installed web app, regardless of the 'black' status-bar style. The
          pills used to sit at 6px from pixel 0, i.e. inside that band, which
          washed them out. Clear the inset before adding our own 6px. */
-      padding: calc(6px + var(--safe-top, 0px)) 6px 0;
+      padding: var(--band-top, 6px) 6px 0;
       .rounded-pill {
         cursor: pointer;
       }

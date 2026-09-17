@@ -230,6 +230,16 @@ export default {
      can adjust them in one place. Requires viewport-fit=cover in index.html —
      without it iOS reports 0 here. */
   --safe-top: env(safe-area-inset-top, 0px);
+
+  /* iOS 26+ paints a Liquid Glass band over the top edge, and the safe-area
+     inset does NOT grow to cover it. Measured off a screenshot on Matt's
+     iPhone 16 Pro (402x874 CSS, 2.946 image px per pt): the band's influence
+     ends 95.7pt down, while env(safe-area-inset-top) reports 59pt - so
+     padding by the inset alone still left the header 37pt inside the band,
+     which is exactly what he saw. Inset + feather + a few points so it reads
+     as a deliberate gap rather than a near miss. Re-measure if Apple retunes
+     it; that is one screenshot and tools-style column scan, not a guess. */
+  --band-top: calc(var(--safe-top) + 30px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
