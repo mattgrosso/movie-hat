@@ -31,12 +31,26 @@ const daysBetween = (from, to) => Math.max(0, Math.round((to - from) / DAY_MS));
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
+// TMDB gives runtime in whole minutes. "1h 26m" the way a listings page says
+// it; under an hour stays "47m" rather than "0h 47m".
+export const formatRuntime = (value) => {
+  const minutes = Number(value);
+  if (!Number.isFinite(minutes) || minutes <= 0) return null;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (!hours) return `${rest}m`;
+  return rest ? `${hours}h ${rest}m` : `${hours}h`;
+};
+
 /**
  * @param {object} movie   a history record
- * @param {{ rank?: string }} options  the draw's ordinal ("3rd"), if known
+ * @param {{ rank?: string, runtime?: number }} options  the draw's ordinal
+ *   ("3rd") if known, and the film's runtime in MINUTES. Runtime is not on
+ *   the stored record -- every one was saved from TMDB's SEARCH response,
+ *   which omits it -- so the panel looks it up and passes it in.
  * @returns {Array<{ label: string, value: string }>}  one fact per row, most interesting first
  */
-export const historyDetailRows = (movie, { rank } = {}) => {
+export const historyDetailRows = (movie, { rank, runtime } = {}) => {
   const rows = [];
   if (!movie) return rows;
 
@@ -68,6 +82,9 @@ export const historyDetailRows = (movie, { rank } = {}) => {
         : String(movie.release_date)
     });
   }
+
+  const runtimeText = formatRuntime(runtime ?? movie.runtime);
+  if (runtimeText) rows.push({ label: 'Runtime', value: runtimeText });
 
   if (Number.isFinite(Number(movie.vote_average)) && Number(movie.vote_average) > 0) {
     rows.push({ label: 'TMDB', value: `${Number(movie.vote_average).toFixed(1)} / 10` });

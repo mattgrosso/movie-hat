@@ -118,6 +118,10 @@ export default {
       // dbKey of the one poster whose details are unfolded; one at a time,
       // so the list doesn't turn into a wall of captions.
       detailsOpenFor: null,
+      // tmdbId → runtime in minutes. Not on the stored record (every one was
+      // saved from TMDB's search response, which omits runtime), so the panel
+      // fetches it the first time it opens and keeps it for the session.
+      runtimes: {},
       // tmdbId → request row, read ONCE for the whole list (requesters
       // only — the rules let nobody else list the node). Null until it's
       // in, so no button renders before it has its row.
@@ -167,9 +171,28 @@ export default {
   methods: {
     toggleDetails (movie) {
       this.detailsOpenFor = this.detailsOpenFor === movie.dbKey ? null : movie.dbKey;
+      if (this.detailsOpenFor) this.fetchRuntime(movie);
+    },
+    // One lookup per movie per session. A failure is silent: the Runtime row
+    // simply doesn't render, the same way an absent provider strip doesn't
+    // claim "nowhere".
+    async fetchRuntime (movie) {
+      const id = movie?.id;
+      if (!id || this.runtimes[id] !== undefined) return;
+      this.runtimes[id] = null;
+      try {
+        const response = await fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${process.env.VUE_APP_TMDB_API_KEY}`);
+        const data = await response.json();
+        if (Number.isFinite(Number(data?.runtime))) this.runtimes[id] = Number(data.runtime);
+      } catch (error) {
+        console.warn('Could not load runtime', error);
+      }
     },
     detailRows (movie) {
-      return historyDetailRows(movie, { rank: this.drawRank(movie) });
+      return historyDetailRows(movie, {
+        rank: this.drawRank(movie),
+        runtime: this.runtimes[movie?.id] ?? null
+      });
     },
     toggleSortOrder () {
       if (this.sortOrder === "ascending") {
@@ -343,11 +366,14 @@ export default {
 
       // Same white card and black frame as the poster, so it reads as the
       // back of the card rather than a popup.
+      // The back of the card, NOT a second frame: the poster above it is the
+      // framed object. A hairline and the card's own white keep the panel
+      // reading as part of the same object without competing with it.
       .poster-details {
         background: white;
-        border: 12px solid black;
+        border: 1px solid #d5d5d5;
         border-top: none;
-        box-shadow: inset 0px 0px 9px 0px #424242;
+        border-radius: 0 0 3px 3px;
         color: black;
         padding: 12px 16px 14px;
         text-align: left;
@@ -403,6 +429,11 @@ export default {
 
           .where-to-watch-link {
             justify-content: flex-start !important;
+            // Explicitly plain: it is a link inside a card, not a poster.
+            background: none;
+            border: none;
+            box-shadow: none;
+            padding: 0;
           }
 
           .where-to-watch-empty {
@@ -412,7 +443,12 @@ export default {
         }
       }
 
-      a {
+      // The child combinator is load-bearing: as a plain descendant rule this
+      // framed every anchor in the card, so WhereToWatch's provider link came
+      // out as a second black box inside the details panel (Matt, 2026-09-17:
+      // "I don't like how all of these new dibs have the black frame... only
+      // the poster should be framed"). Same root cause as the rotated band.
+      .poster-frame > a {
         background: white;
         border: 12px solid black;
         box-shadow: inset 0px 0px 9px 0px #424242;

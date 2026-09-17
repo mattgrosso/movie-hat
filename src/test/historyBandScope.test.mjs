@@ -37,3 +37,27 @@ describe('the draw-count band stays keyed to itself', () => {
     expect(band.slice(0, band.indexOf('}'))).toContain('rotate(-45deg)');
   });
 });
+
+// Matt, 2026-09-17: "I don't like how all of these new dibs have the black
+// frame. Only the poster should be framed."
+//
+// Same defect as the rotated band, different properties: the frame rule was
+// a plain descendant (`li a`), so WhereToWatch's provider link -- an anchor
+// inside the same card -- got `border: 12px solid black` and rendered as a
+// second box inside the details panel. The child combinator is what keeps
+// the frame on the poster and nothing else.
+describe('only the poster carries the frame', () => {
+  const styleBlock = source.slice(source.indexOf('<style'));
+
+  it('frames the poster link by child combinator, not any descendant anchor', () => {
+    expect(styleBlock).toContain('.poster-frame > a {');
+    // A bare `a {` rule at card level would reach the streaming link again.
+    expect(styleBlock).not.toMatch(/^\s{6}a\s*\{/m);
+  });
+
+  it('does not give the details panel a frame of its own', () => {
+    const panel = styleBlock.slice(styleBlock.indexOf('.poster-details {'));
+    const body = panel.slice(0, panel.indexOf('.poster-details-title'));
+    expect(body).not.toContain('12px solid black');
+  });
+});
