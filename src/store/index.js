@@ -2,6 +2,8 @@ import { createStore } from 'vuex'
 import { dbGet, dbPatch, dbPut, hatPath, resolveHatKey } from './db.js'
 import { buildMirrorFeed } from '../assets/javascript/mirrorFeed.js'
 import { initializeApp } from "firebase/app";
+import { siteUserState, mayRequestMovies, mayApprove, buildSiteUser, siteUserPath } from "../utils/siteAccess.js";
+import { isOwner } from "../assets/javascript/owner.mjs";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithCustomToken, onAuthStateChanged } from "firebase/auth";
 
 // Firebase
@@ -80,12 +82,36 @@ export default createStore({
     // Secret path segment for the current hat's Magic Mirror feed, or null if
     // the feed has never been turned on for it. Per-hat: getHat sets it from
     // whichever hat it just loaded.
-    mirrorFeedKey: null
+    mirrorFeedKey: null,
+
+    // This account's `siteUsers/<uid>` row, or null — the movie-request
+    // permission shared with the standalone Movie Requests app
+    // (request.movie-hat.com). See utils/siteAccess.js.
+    //
+    // Null means one of two very different things, which is why
+    // `siteUserResolved` exists beside it: nobody has read it yet, or it was
+    // read and there is no row. Almost everybody who opens Movie Hat is in
+    // the second case and always will be — a family member in a hat has no
+    // reason to have one — so the request and access screens stay invisible
+    // rather than flickering into view while this resolves.
+    siteUser: null,
+    siteUserResolved: false
   },
   getters: {
     isDevHat: (state) => {
       return state.movieHatTitle === 'Dev Hat';
-    }
+    },
+    // "May this account ask the Mac mini for a download?" — the single place
+    // the app asks, so the Request button, the request screen and the header
+    // pill can never disagree. Two ways to qualify: the hard-coded three in
+    // owner.mjs, or an approved `siteUsers` row. The database rules enforce
+    // exactly the same pair; this only decides what to render.
+    mayRequestMovies: (state) => mayRequestMovies(
+      siteUserState({ email: state.email, row: state.siteUser })
+    ),
+    // "May this account see who is waiting and decide?" Matt, or anyone he
+    // has made an admin. Everyone else never learns the screen exists.
+    mayApproveAccess: (state) => mayApprove({ row: state.siteUser, email: state.email })
   },
   mutations: {
     setAuthUser (state, user) {
@@ -110,6 +136,10 @@ export default createStore({
     },
     setMovieHat (state, value) {
       state.movieHat = value;
+    },
+    setSiteUser (state, row) {
+      state.siteUser = row || null;
+      state.siteUserResolved = true;
     },
     /**
      * The current hat, as the {title, hatKey} PAIR. The key is the identity
@@ -174,8 +204,60 @@ export default createStore({
         if (user?.email) {
           context.commit('setEmail', user.email);
           if (user.displayName) context.commit('setName', user.displayName);
+          context.dispatch('loadSiteUser', user);
+        } else {
+          context.commit('setSiteUser', null);
         }
       });
+    },
+    /**
+     * Read this account's `siteUsers/<uid>` row — the movie-request
+     * permission, shared with the standalone Movie Requests app.
+     *
+     * READ, not read-or-create, and that asymmetry is the point. In Movie
+     * Requests signing in IS asking to be let in, so it writes a pending row
+     * for anyone who lacks one. Here, signing in is just using Movie Hat:
+     * most people who do are family members in a hat who have never heard of
+     * any of this, and writing them a pending row would fill Matt's waiting
+     * list with people who never asked for anything.
+     *
+     * The one exception is Matt's own bootstrap row. He needs to be an admin
+     * to see the waiting list at all, and the rules allow exactly that one
+     * write for his Google-verified address — so doing it here means he
+     * never has to open the other app to become one.
+     *
+     * Failure is not an error anybody should see: no row is the normal case,
+     * and a refused read just means the screens stay hidden.
+     */
+    async loadSiteUser (context, user) {
+      if (!user?.uid) {
+        context.commit('setSiteUser', null);
+        return null;
+      }
+
+      let row = null;
+      try {
+        row = await dbGet(siteUserPath(user.uid));
+      } catch (error) {
+        console.warn('Could not read the site user row', error);
+      }
+
+      if (!row && isOwner(user.email)) {
+        try {
+          const bootstrap = buildSiteUser({
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL
+          });
+          await dbPut(siteUserPath(user.uid), bootstrap);
+          row = { ...bootstrap, requestedAt: Date.now() };
+        } catch (error) {
+          console.warn('Could not write the owner bootstrap row', error);
+        }
+      }
+
+      context.commit('setSiteUser', row);
+      return row;
     },
     async login (context) {
       const auth = getAuth();

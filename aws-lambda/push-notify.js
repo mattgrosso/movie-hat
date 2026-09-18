@@ -21,6 +21,9 @@
 //   - Somebody waiting to be let into Movie Requests
 //     (request.movie-hat.com, 2026-09-18) tells every admin. Same shape:
 //     `siteUsers/<uid>` rows with `status: 'pending'` and no `notifiedAt`.
+//     That one goes to MOVIE HAT's subscriptions by preference — the waiting
+//     list is a screen in this app now (/#/access), so an admin needs only
+//     the one app installed.
 //
 // TWO APPS, TWO SETS OF SUBSCRIPTIONS. A push subscription belongs to one
 // service worker on one origin, so Movie Hat's live at
@@ -373,18 +376,41 @@ const sweepAccessRequests = async (now = Date.now()) => {
     }
 
     try {
-      let delivered = 0;
       const who = row.displayName || row.email;
-      const payload = buildPayload({
+
+      // MOVIE HAT FIRST (Matt, 2026-09-18: "it can all live in that single
+      // app instead of having a second icon on my home screen"). The waiting
+      // list is a screen in Movie Hat now, so an admin with Movie Hat
+      // installed is told there and taps straight into /#/access.
+      //
+      // The standalone app's subscriptions are the fallback, for an admin
+      // who only ever installed that one. Fallback rather than both: two
+      // notifications about the same person, opening two different apps, is
+      // worse than either on its own.
+      const inMovieHat = buildPayload({
+        title: `${who} wants movie requests`,
+        body: 'Tap to let them in, or not.',
+        navigate: '/#/access',
+        tag: `access-${uid}`,
+        appUrl: APP_URL
+      });
+      const inRequestsApp = buildPayload({
         title: `${who} wants movie requests`,
         body: 'Tap to let them in, or not.',
         navigate: '/#/admin',
         tag: `access-${uid}`,
         appUrl: REQUESTS_APP_URL
       });
+
+      let delivered = 0;
       for (const memberKey of admins) {
-        delivered += await sendToMember(memberKey, payload, REQUESTS_APP_SUBSCRIPTIONS);
+        const toMovieHat = await sendToMember(memberKey, inMovieHat, MOVIE_HAT_SUBSCRIPTIONS);
+        delivered += toMovieHat;
+        if (toMovieHat === 0) {
+          delivered += await sendToMember(memberKey, inRequestsApp, REQUESTS_APP_SUBSCRIPTIONS);
+        }
       }
+
       await dbSet(`siteUsers/${uid}/notifiedAt`, now);
       if (delivered > 0) result.announced += 1;
       else result.unreachable += 1;

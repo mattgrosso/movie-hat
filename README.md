@@ -67,6 +67,38 @@ lets in are named in the database rather than in `owner.mjs` — see
 "Who else may request" below. Nothing about Movie Hat's own button changed;
 `REQUESTER_EMAILS` still works exactly as it did, with no row needed.
 
+### Both of that app's screens live here too
+
+Matt's ask, the same day: "it can all live in that single app instead of
+having a second icon on my home screen." So Movie Hat carries them:
+
+| screen | route | who sees it |
+| --- | --- | --- |
+| **Request a movie** (`RequestAMovie.vue`) | `/request` | `mayRequestMovies` |
+| **Who gets in** (`AccessRequests.vue`) | `/access` | `mayApproveAccess` |
+
+Both are header pills, both lazy-loaded like `/peek`, and both are bounced by
+a `router.beforeEach` guard in `main.js` if the URL is typed by somebody who
+may not open them. The guard waits on `siteUserResolved` first — the
+permission arrives asynchronously after sign-in, so without that wait a
+refresh on `/request` bounces you home.
+
+`/request` is **not** the drawn-movie Request button. That one sits beside a
+movie already in a hat; this one searches all of TMDb, so a film nobody has
+ever put in a hat can be asked for.
+
+`store.getters.mayRequestMovies` and `mayApproveAccess` are the single source
+for "who may do this" — the button, the pills, the screens and the guard all
+ask them, so they cannot disagree.
+
+**Movie Hat reads the `siteUsers` row; it does not create one.** In Movie
+Requests, signing in IS asking to be let in. Here, signing in is just using
+Movie Hat, and most people who do are family members in a hat who have never
+heard of movie requests — writing each of them a pending row would fill the
+waiting list with people who never asked for anything. The only exception is
+Matt's own bootstrap row (`loadSiteUser`), which is how he becomes an admin
+without opening the other app. `src/test/siteUserLoad.test.mjs` pins that.
+
 The client side is `src/utils/requestMovie.js` (shared with Cinema Roll —
 keep the two copies identical) and `src/components/RequestMovieButton.vue`.
 The button polls the row over REST: every 2.5s for the first three minutes,
@@ -169,7 +201,11 @@ a notification, so a redeploy or an outage never announces a backlog.
 
 The notification goes to the subscriptions of the app the row's `source`
 names — `push/<memberKey>/subscriptions` for Movie Hat, and
-`push/<memberKey>/requestsAppSubscriptions` for Movie Requests. Sending to
+`push/<memberKey>/requestsAppSubscriptions` for Movie Requests. The
+"somebody wants in" notification is the other way round: it tries **Movie
+Hat first** and only falls back to the standalone app's subscriptions,
+because the waiting list is a screen here now and an admin should need only
+the one app installed. Sending to
 the wrong set is not a delivery failure; it delivers, to the wrong app, and
 on iOS a notification whose URL is outside the installed app's scope opens in
 an in-app browser rather than the app.

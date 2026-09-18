@@ -31,14 +31,14 @@
 // Cinema Roll); this file is Movie Hat's binding of it to dbGet/dbPut and
 // the store's email.
 //
-// Rendered only for the people in REQUESTER_EMAILS (Matt, and Seth since
-// 2026-09-11) — a request fills the disk on Matt's Mac mini. The database
-// rules enforce the same list, so hiding the button is a courtesy to
-// everyone else, not the boundary.
+// Rendered only for whoever may request: the people in REQUESTER_EMAILS
+// (Matt, Seth, Brian) or anyone with an approved `siteUsers` row — a request
+// fills the disk on Matt's Mac mini. The database rules enforce the same
+// pair, so hiding the button is a courtesy to everyone else, not the
+// boundary. Both answers come from the `mayRequestMovies` store getter.
 import { computed, watch, onBeforeUnmount } from 'vue';
 import { useStore } from 'vuex';
 import { dbGet, dbPut } from '../store/db.js';
-import { mayRequest } from '../assets/javascript/owner.mjs';
 import { useRequestMovie, isValidTmdbId } from '../utils/requestMovie.js';
 
 export default {
@@ -59,7 +59,10 @@ export default {
   },
   setup (props) {
     const store = useStore();
-    const signedIn = computed(() => mayRequest(store.state.email));
+    // The store getter, not owner.mjs directly: since 2026-09-18 there are
+    // TWO ways to qualify — the hard-coded three, or an approved `siteUsers`
+    // row — and the getter is the one place that knows both.
+    const signedIn = computed(() => store.getters.mayRequestMovies);
 
     const { row, requesting, error, label, note, settled, canRequest, load, request, stop } = useRequestMovie({
       read: dbGet,

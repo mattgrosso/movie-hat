@@ -30,6 +30,38 @@
             <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2M8 1.918l-.797.161A4 4 0 0 0 4 6c0 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134 8.197 12 6.628 12 6a4 4 0 0 0-3.203-3.92zM14.22 12c.223.447.481.801.78 1H1c.299-.199.557-.553.78-1C2.68 10.2 3 6.88 3 6c0-2.42 1.72-4.44 4.005-4.901a1 1 0 1 1 1.99 0A5 5 0 0 1 13 6c0 .88.32 4.2 1.22 6"/>
           </svg>
         </div>
+        <!-- The waiting list for the standalone Movie Requests app
+             (2026-09-18). Admins only — everybody else never learns the
+             screen exists, and the database refuses the read regardless. The
+             count is people waiting on a decision; no badge when nobody is. -->
+        <div
+          v-if="canApproveAccess"
+          class="access-link badge rounded-pill text-bg-dark"
+          :title="pendingAccessCount ? `${pendingAccessCount} waiting to be let in` : 'Who gets movie requests'"
+          :aria-label="pendingAccessCount ? `${pendingAccessCount} people waiting to be let in` : 'Who gets movie requests'"
+          @click="$router.push('/access')"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-person-check-fill" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M15.854 5.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 0 1 .708-.708L12.5 7.793l2.646-2.647a.5.5 0 0 1 .708 0"/>
+            <path d="M1 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/>
+          </svg>
+          <span v-if="pendingAccessCount" class="access-link__count">{{ pendingAccessCount }}</span>
+        </div>
+        <!-- "Request a movie": search all of TMDb and ask for a download,
+             without going near a hat. Shown to whoever may request — the
+             hard-coded three, or anyone Matt has approved. -->
+        <div
+          v-if="canRequestMovies"
+          class="request-link badge rounded-pill text-bg-dark"
+          title="Request a movie"
+          aria-label="Request a movie"
+          @click="$router.push('/request')"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-download" viewBox="0 0 16 16">
+            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
+            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
+          </svg>
+        </div>
         <!-- The way into /peek. Rendered only for the owner, so nobody else is
              offered a button that spoils their own hat. Same caveat as the
              screen it opens: this is a client-side check in a public bundle,
@@ -95,15 +127,27 @@ import { getAuth, signOut } from 'firebase/auth';
 import { buildStamp } from '../utils/buildStamp.js';
 import { isOwner } from '../assets/javascript/peek.js';
 import { pushApiConfigured, deviceSubscribed, subscribeThisDevice, unsubscribeThisDevice } from '../utils/push.js';
+import { pendingList } from '../utils/siteAccess.js';
+import { dbGet } from '../store/db.js';
 
 export default {
   data () {
     return {
       pushOn: false,
+      pendingAccessCount: 0,
     };
   },
   async mounted () {
     this.pushOn = await deviceSubscribed();
+    this.countPendingAccess();
+  },
+  watch: {
+    // The row arrives asynchronously after sign-in, so the count has to wait
+    // for it rather than being read once on mount.
+    canApproveAccess (may) {
+      if (may) this.countPendingAccess();
+      else this.pendingAccessCount = 0;
+    }
   },
   computed: {
     showPushBell () {
@@ -111,6 +155,12 @@ export default {
     },
     canPeek () {
       return isOwner(this.$store.state.email);
+    },
+    canRequestMovies () {
+      return this.$store.getters.mayRequestMovies;
+    },
+    canApproveAccess () {
+      return this.$store.getters.mayApproveAccess;
     },
     // The house build stamp — "v1.7.1 · built Aug 22, 1:32 AM". Was the bare
     // version number; the version alone can't tell you whether the tab in
@@ -120,6 +170,23 @@ export default {
     },
   },
   methods: {
+    /**
+     * How many people are waiting to be let into Movie Requests. Silent on
+     * failure: a refused read means the pill simply carries no badge, which
+     * is exactly what "nobody is waiting" looks like — and the only people
+     * who can read it are the ones the badge is for.
+     */
+    async countPendingAccess () {
+      if (!this.canApproveAccess) {
+        this.pendingAccessCount = 0;
+        return;
+      }
+      try {
+        this.pendingAccessCount = pendingList(await dbGet('siteUsers')).length;
+      } catch {
+        this.pendingAccessCount = 0;
+      }
+    },
     async togglePush () {
       try {
         if (this.pushOn) {
@@ -223,11 +290,22 @@ export default {
         gap: 4px;
       }
 
-      /* Icon-only, so it needs its own centring — the sibling pills get
+      /* Icon-only, so they need their own centring — the sibling pills get
          theirs from the <p> they wrap. */
-      .peek-link {
+      .peek-link,
+      .request-link,
+      .access-link {
         align-items: center;
         display: flex;
+        gap: 3px;
+      }
+
+      /* The waiting count, when there is one. Tabular so it doesn't jog the
+         pill's width as it changes. */
+      .access-link__count {
+        font-size: 0.65rem;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
       }
     }
 

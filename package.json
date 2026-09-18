@@ -21,7 +21,7 @@
     "test:run": "vitest run",
     "test:watch": "vitest watch",
     "predeploy": "node scripts/backup-hats.mjs --quiet --skip-if-fresh=6 || echo backup-skipped",
-    "deploy": "node scripts/bump-and-build.mjs && aws s3 sync dist/ s3://movie-hat --delete --profile personal-deploy && aws cloudfront create-invalidation --distribution-id EBSAAKUEVN304 --paths '/*' --profile personal-deploy > invalidation_output.txt",
+    "deploy": "node scripts/bump-and-build.mjs && ~/aws-cli/aws s3 sync dist/ s3://movie-hat --delete --profile personal-deploy && ~/aws-cli/aws cloudfront create-invalidation --distribution-id EBSAAKUEVN304 --paths '/*' --profile personal-deploy > invalidation_output.txt",
     "preview": "vite preview",
     "test:emulated": "PATH=\"/opt/homebrew/opt/openjdk/bin:$PATH\" firebase emulators:exec --only database --project movie-hat-9c418 \"yarn vitest run --config vitest.integration.config.js\""
   },

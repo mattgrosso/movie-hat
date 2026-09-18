@@ -13,7 +13,7 @@
 //
 // Run with: yarn test:emulated   (NOT yarn test:run — it needs the emulator)
 import {
-  describe, it, expect, beforeAll, afterAll, beforeEach,
+  describe, it, beforeAll, afterAll, beforeEach,
 } from 'vitest';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import { readFileSync } from 'fs';

@@ -104,7 +104,6 @@ import RequestMovieButton from './RequestMovieButton.vue';
 import WhereToWatch from './WhereToWatch.vue';
 import { historyDetailRows } from '../assets/javascript/historyDetails.js';
 import { dbGet } from '../store/db.js';
-import { mayRequest } from '../assets/javascript/owner.mjs';
 
 export default {
   components: {
@@ -129,10 +128,13 @@ export default {
     }
   },
   watch: {
-    '$store.state.email': {
+    // Watches the GETTER, not the email: the approved-user half of the
+    // answer arrives asynchronously with the `siteUsers` row, after the
+    // email is already set.
+    requestsAllowed: {
       immediate: true,
-      async handler (email) {
-        if (!mayRequest(email)) {
+      async handler (allowed) {
+        if (!allowed) {
           this.requests = null;
           return;
         }
@@ -147,6 +149,12 @@ export default {
     }
   },
   computed: {
+    // Whether this account may read the `requests` node at all. Two ways to
+    // qualify (the hard-coded three, or an approved `siteUsers` row) and the
+    // store getter is the one place that knows both.
+    requestsAllowed () {
+      return this.$store.getters.mayRequestMovies;
+    },
     history () {
       return this.$store.state.history;
     },
