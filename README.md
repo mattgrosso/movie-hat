@@ -129,7 +129,8 @@ requests/<tmdbId>: {
   error:       string   why it failed, shown to the user in the button's tooltip
 
   // Written by the push Lambda only:
-  notifiedAt:  number   ms, when the requester was told the download finished
+  notifiedAt:      number   ms, when the requester was told the download finished
+  ownerNotifiedAt: number   ms, when the admins were told the request exists
 }
 ```
 
@@ -187,6 +188,27 @@ check. Clients cannot delete rows.
 5. `requestedBy` is always one of `REQUESTER_EMAILS`; the rules see to it.
 6. When the file is imported, set `importedAt`. That is what the
    finished-download notification keys on.
+
+### "Somebody asked for a movie" notifications
+
+2026-09-18, Matt: "I just want to be notified that somebody made a request
+and that the system is acting on it." The same sweep announces each new
+`requests` row to every admin once, then stamps `ownerNotifiedAt`.
+
+Purely informational — there is nothing to approve, so the notification
+carries no action and simply opens `/#/request`, which is why that screen
+shows an admin **everyone's** requests rather than only their own.
+
+Two things keep it from being noise. An admin is never told about their own
+request (Matt pressing the button and then being notified that Matt pressed
+the button is how people learn to turn notifications off). And a row created
+more than `REQUEST_NEWS_WINDOW_MS` ago is stamped without announcing, which
+is what stopped the first run telling him about every request ever made — it
+announced one, stamped eleven, skipped one.
+
+The body is written from the row's status at sweep time, not at creation, so
+it says what the Mac mini has actually done: waiting for Plex to be free,
+Radarr picking it up, downloading, already in the library, or the error.
 
 ### "Your movie is ready" notifications
 

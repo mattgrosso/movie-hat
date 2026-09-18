@@ -59,11 +59,20 @@
       Nothing came back for &ldquo;{{ lastQuery }}&rdquo;. Try the original title, or add the year.
     </p>
 
-    <section v-else-if="mine.length" class="request-a-movie__mine">
-      <h3 class="request-a-movie__mine-title">What you&rsquo;ve asked for</h3>
+    <section v-else-if="queue.length" class="request-a-movie__mine">
+      <h3 class="request-a-movie__mine-title">
+        {{ isAdmin ? 'Recent requests' : 'What you\u2019ve asked for' }}
+      </h3>
       <ul class="request-a-movie__mine-list">
-        <li v-for="row in mine" :key="row.tmdbId" class="request-a-movie__mine-row">
-          <span class="request-a-movie__mine-name">{{ row.title }}</span>
+        <li v-for="row in queue" :key="row.tmdbId" class="request-a-movie__mine-row">
+          <span class="request-a-movie__mine-name">
+            {{ row.title }}
+            <!-- Only on somebody else's row, and only for an admin — on your
+                 own list every line would say "you". -->
+            <span v-if="row.requestedBy !== email" class="request-a-movie__mine-who">
+              {{ askerName(row) }}
+            </span>
+          </span>
           <span class="request-a-movie__mine-state" :class="`is-${row.status}`">{{ shortLabel(row) }}</span>
         </li>
       </ul>
@@ -113,6 +122,27 @@ export default {
     };
   },
   computed: {
+    email () {
+      return this.$store.state.email;
+    },
+    isAdmin () {
+      return this.$store.getters.mayApproveAccess;
+    },
+    /**
+     * What the list under the search box shows. An admin sees EVERYBODY's
+     * requests, which is what makes the "Andy requested Tony" notification
+     * worth tapping — it opens this screen, and the request had better be on
+     * it. Everyone else sees only their own; the rules let them read the
+     * whole node, but another person's viewing habits are not their business.
+     */
+    queue () {
+      const rows = this.isAdmin ? Object.values(this.rows || {}) : this.mine;
+      return [...rows].sort((a, b) => {
+        // Unfinished first — that is what anyone opening this wants to see.
+        const done = (row) => (isSettled(row) ? 1 : 0);
+        return done(a) - done(b) || (b.createdAt || 0) - (a.createdAt || 0);
+      });
+    },
     // Their own requests that have not landed yet — the ones a notification
     // would be about.
     awaiting () {
@@ -135,6 +165,10 @@ export default {
     },
     shortLabel (row) {
       return requestLabel(row, { short: true });
+    },
+    /** The local part of the address — the closest thing the data has to a name. */
+    askerName (row) {
+      return String(row.requestedBy || '').split('@')[0];
     },
     async loadRows () {
       try {
@@ -247,6 +281,12 @@ export default {
   &__mine-name {
     color: white;
     font-size: 0.9rem;
+  }
+
+  &__mine-who {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.75rem;
+    margin-left: 0.4rem;
   }
 
   &__mine-state {

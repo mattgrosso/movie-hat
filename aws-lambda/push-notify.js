@@ -10,7 +10,7 @@
 //   POST /push/test  - a test notification to the caller's own devices.
 //
 // Plus a sweep, on an EventBridge schedule (`movie-hat-push-sweep`, every
-// two minutes, 2026-09-11), which now does two things:
+// two minutes, 2026-09-11), which now does three things:
 //
 //   - A movie request whose download has finished tells the person who asked
 //     for it. The Mac mini service that talks to Radarr stamps
@@ -24,6 +24,11 @@
 //     That one goes to MOVIE HAT's subscriptions by preference — the waiting
 //     list is a screen in this app now (/#/access), so an admin needs only
 //     the one app installed.
+//   - Somebody asking for a movie tells every admin (2026-09-18, Matt: "I
+//     just want to be notified that somebody made a request and that the
+//     system is acting on it"). Purely informational, nothing to approve,
+//     and never about an admin's own request. Movie Hat only, for the same
+//     reason.
 //
 // TWO APPS, TWO SETS OF SUBSCRIPTIONS. A push subscription belongs to one
 // service worker on one origin, so Movie Hat's live at
@@ -438,6 +443,113 @@ const sweepAccessRequests = async (now = Date.now()) => {
   return result;
 };
 
+// --- "Somebody asked for a movie" sweep -------------------------------------
+
+// Older than this and it is not news: stamped, not announced. Without it the
+// first run of this sweep would tell Matt about every request ever made.
+const REQUEST_NEWS_WINDOW_MS = 24 * 3600 * 1000;
+
+/**
+ * What the Mac mini has done about a request so far, in one line. Matt's ask
+ * (2026-09-18) was to hear "that somebody made a request and that the system
+ * is acting on it" — so the body is written from the row's status at the
+ * moment the sweep reads it, not from a guess at creation time. Two minutes
+ * is usually long enough for Radarr to have answered.
+ */
+const requestProgress = (row) => {
+  switch (row.status) {
+    case 'pending': return 'Waiting for Plex to be free, then it\u2019ll download.';
+    case 'processing': return 'Radarr is picking it up now.';
+    case 'added': return typeof row.importedAt === 'number'
+      ? 'It has already finished downloading.'
+      : 'Radarr took it \u2014 downloading now.';
+    case 'exists': return 'It was already in the library.';
+    case 'error': return `It couldn\u2019t be added${row.error ? `: ${row.error}` : '.'}`;
+    default: return 'The Mac mini has it.';
+  }
+};
+
+/** displayName by email, for everyone who has a siteUsers row. */
+const siteUserNames = async () => {
+  const rows = (await dbGet('siteUsers')) || {};
+  const byEmail = {};
+  for (const row of Object.values(rows)) {
+    if (row?.email && row.displayName) byEmail[row.email.toLowerCase()] = row.displayName;
+  }
+  return byEmail;
+};
+
+/**
+ * Tell the admins that somebody asked for a movie, once per request. Purely
+ * informational — nothing to approve, which is why the notification carries
+ * no action and simply opens the request screen.
+ *
+ * An admin is never told about their OWN request. Matt pressing the button
+ * and then being notified that Matt pressed the button is the kind of thing
+ * that makes people turn notifications off.
+ */
+const sweepNewRequests = async (now = Date.now()) => {
+  const rows = (await dbGet('requests')) || {};
+  const result = { rows: 0, announced: 0, stale: 0, mine: 0, unreachable: 0 };
+
+  const fresh = Object.entries(rows).filter(([, row]) => row && !row.ownerNotifiedAt);
+  if (!fresh.length) return result;
+
+  const [rosterRows, names] = await Promise.all([dbGet('siteUsers'), siteUserNames()]);
+  const admins = Object.values(rosterRows || {})
+    .filter((row) => row && row.isAdmin === true && row.email)
+    .map((row) => ({ email: row.email.toLowerCase(), memberKey: emailToMemberKey(row.email) }))
+    .filter((admin) => admin.memberKey);
+
+  for (const [tmdbId, row] of fresh) {
+    result.rows += 1;
+
+    if (typeof row.createdAt === 'number' && now - row.createdAt > REQUEST_NEWS_WINDOW_MS) {
+      await dbSet(`requests/${tmdbId}/ownerNotifiedAt`, now);
+      result.stale += 1;
+      continue;
+    }
+
+    try {
+      const asker = String(row.requestedBy || '').toLowerCase();
+      // A name if we have one, otherwise the local part — the same shape the
+      // draw announcement uses ("mattgrosso drew Heat").
+      const who = names[asker] || asker.split('@')[0] || 'Somebody';
+      const movieTitle = row.radarrTitle || row.title || 'a movie';
+
+      let delivered = 0;
+      let skipped = 0;
+      for (const admin of admins) {
+        if (admin.email === asker) { skipped += 1; continue; }
+
+        const badgePath = `push/${admin.memberKey}/badge`;
+        const unseen = (Number(await dbGet(badgePath)) || 0) + 1;
+        const payload = buildPayload({
+          title: `${who} requested ${movieTitle}`,
+          body: requestProgress(row),
+          navigate: '/#/request',
+          tag: `requested-${tmdbId}`,
+          appBadge: unseen,
+          appUrl: APP_URL
+        });
+        // Movie Hat, because that is where Matt wanted this to land
+        // ("through my own movie hat") and where the request queue lives.
+        const sent = await sendToMember(admin.memberKey, payload, MOVIE_HAT_SUBSCRIPTIONS);
+        if (sent > 0) await dbSet(badgePath, unseen);
+        delivered += sent;
+      }
+
+      await dbSet(`requests/${tmdbId}/ownerNotifiedAt`, now);
+      if (delivered > 0) result.announced += 1;
+      else if (skipped === admins.length) result.mine += 1;
+      else result.unreachable += 1;
+    } catch (error) {
+      console.error(`New-request push for ${tmdbId} failed:`, error.message);
+    }
+  }
+  return result;
+};
+
 // --- Handler ----------------------------------------------------------------
 
 exports.handler = async (event) => {
@@ -445,17 +557,25 @@ exports.handler = async (event) => {
   if (event?.source === 'aws.events') {
     // Independent of each other: a failure in one must not silence the
     // other, so they are settled rather than awaited in sequence.
-    const [imported, access] = await Promise.allSettled([
-      sweepFinishedRequests(),
-      sweepAccessRequests()
-    ]);
-    const result = {
-      imported: imported.status === 'fulfilled' ? imported.value : { error: imported.reason?.message },
-      access: access.status === 'fulfilled' ? access.value : { error: access.reason?.message }
+    const jobs = {
+      imported: sweepFinishedRequests,
+      access: sweepAccessRequests,
+      requested: sweepNewRequests
     };
-    if (imported.status === 'rejected') console.error('Finished-download sweep failed:', imported.reason);
-    if (access.status === 'rejected') console.error('Access-request sweep failed:', access.reason);
-    if (result.imported?.rows || result.access?.rows) console.log('Sweep:', JSON.stringify(result));
+    const names = Object.keys(jobs);
+    const settled = await Promise.allSettled(names.map((name) => jobs[name]()));
+
+    const result = {};
+    names.forEach((name, index) => {
+      const outcome = settled[index];
+      if (outcome.status === 'fulfilled') {
+        result[name] = outcome.value;
+      } else {
+        result[name] = { error: outcome.reason?.message };
+        console.error(`${name} sweep failed:`, outcome.reason);
+      }
+    });
+    if (names.some((name) => result[name]?.rows)) console.log('Sweep:', JSON.stringify(result));
     return result;
   }
 
