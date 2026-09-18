@@ -60,6 +60,13 @@ one row to this project's Realtime Database and a Node service on the Mac
 mini (not in this repo) does the rest. Cinema Roll will write to the same node through
 its Movie Hat sign-in, so the service only watches one place.
 
+**Since 2026-09-18 that list is no longer the only way in.** The standalone
+**Movie Requests** app (`~/code/movie-requests`, request.movie-hat.com) signs
+into this project and writes to this same `requests` node, and the people it
+lets in are named in the database rather than in `owner.mjs` — see
+"Who else may request" below. Nothing about Movie Hat's own button changed;
+`REQUESTER_EMAILS` still works exactly as it did, with no row needed.
+
 The client side is `src/utils/requestMovie.js` (shared with Cinema Roll —
 keep the two copies identical) and `src/components/RequestMovieButton.vue`.
 The button polls the row over REST: every 2.5s for the first three minutes,
@@ -97,6 +104,38 @@ requests/<tmdbId>: {
 Only requesters' accounts can read or create rows. A row can only be created
 with `status: 'pending'`, and only when no row exists for that id or the
 existing one is `'error'` (that is the retry).
+
+### Who else may request (`siteUsers`)
+
+`requests` accepts a write from one of `REQUESTER_EMAILS` **or** from anyone
+whose `siteUsers/<uid>` row says `status: 'approved'`. That node is the gate
+behind the standalone Movie Requests app:
+
+```
+siteUsers/<uid>: {
+  email:       string   the signed-in address (rules check it matches the token)
+  displayName: string   optional, whatever Google reported
+  photoURL:    string   optional
+  status:      'pending' | 'approved' | 'denied'
+  isAdmin:     boolean  may list the roster and decide
+  requestedAt: number   server timestamp, ms
+  decidedAt:   number   ms, when an admin answered
+  notifiedAt:  number   ms, when the admins were told (push Lambda only)
+}
+```
+
+A stranger may create their OWN row, once, as `pending` and not admin, and
+may afterwards only edit fields that are not `status` or `isAdmin`. An admin
+may write anything. Matt's first sign-in may write himself in approved and
+admin — bootstrapping the first admin needs some door, and his
+Google-verified address is the only thing available before any row exists.
+
+The node name, fields and `isAdmin` flag are the Around Table Round games'
+`siteUsers` (`camel-up/src/store/siteAccess.js`), reused deliberately; that
+hub is a different Firebase project so the node itself is not shared.
+
+`src/test/emulated/siteUsersRules.test.js` is where this is actually pinned —
+twenty cases against a real emulator. Run them with `yarn test:emulated`.
 The rules refuse everything else, which is what makes the key a duplicate
 check. Clients cannot delete rows.
 
@@ -120,11 +159,20 @@ check. Clients cannot delete rows.
 ### "Your movie is ready" notifications
 
 `aws-lambda/push-notify.js` also runs on an EventBridge schedule
-(`movie-hat-push-sweep`, every two minutes). Each sweep reads `requests`,
+(`movie-hat-push-sweep`, every two minutes). Each sweep does two things; the
+second, "somebody wants into Movie Requests", is described in that repo's
+README. The first reads `requests`,
 and any row with an `importedAt` and no `notifiedAt` gets one push to
 whoever `requestedBy` names ("Little Miss Sunshine is ready to watch"), then
 a `notifiedAt` stamp. A row imported more than a day ago is stamped without
 a notification, so a redeploy or an outage never announces a backlog.
+
+The notification goes to the subscriptions of the app the row's `source`
+names — `push/<memberKey>/subscriptions` for Movie Hat, and
+`push/<memberKey>/requestsAppSubscriptions` for Movie Requests. Sending to
+the wrong set is not a delivery failure; it delivers, to the wrong app, and
+on iOS a notification whose URL is outside the installed app's scope opens in
+an in-app browser rather than the app.
 
 Deploy rules with `yarn generate-hat-rules && firebase deploy --only database`.
 
