@@ -33,6 +33,10 @@
 //     through it and no feed is findable without its secret. Only a member of
 //     the hat may publish. This is how the Magic Mirror, which cannot sign
 //     in, sees the latest pick without the hat being open to everyone.
+//   - `siteUsers/<uid>` is the Movie Requests gate: sign in anywhere and you
+//     get a 'pending' row you cannot then edit into 'approved'. An admin
+//     decides. An approved row is what lets `requests` accept a write, and
+//     it is the ONLY thing besides the three hard-coded addresses that does.
 //   - `userHats/<you>` is readable only by you, and yours to change freely.
 //     Anyone signed in may CREATE an entry in someone else's index — that is
 //     what inviting them to a hat means — but may not change or remove one
@@ -62,6 +66,26 @@ const isOwner = `auth != null && auth.token.email != null && auth.token.email.to
 // The people allowed to ask the Mac mini for a download — the same list the
 // button shows itself to.
 const isRequester = `auth != null && auth.token.email != null && (${REQUESTER_EMAILS.map((email) => `auth.token.email.toLowerCase() === '${email}'`).join(' || ')})`;
+// The OTHER way in, added 2026-09-18 for the standalone Movie Requests app
+// (request.movie-hat.com): somebody Matt has approved by hand. The hard-coded
+// list above is the three people who predate that app and stays as the
+// belt-and-braces path; this one is a row in the database, so letting a new
+// person in is a tap on Matt's phone rather than a rules deploy.
+//
+// `siteUsers` is not a name invented here. It is the Around Table Round
+// games' gate, byte-for-byte the same shape (camel-up/src/store/siteAccess.js
+// and its database.rules.json): `siteUsers/<uid>` holding email, displayName,
+// status and isAdmin, a roster only an admin may list, and a push Lambda
+// that watches for pending rows. That hub lives in a different Firebase
+// project, so the node itself cannot be shared — but the vocabulary is, and
+// anyone who has read one of these now knows the other.
+const isApproved = "auth != null && root.child('siteUsers').child(auth.uid).child('status').val() === 'approved'";
+// Who may see the waiting list and decide. A flag on the row, so Matt can
+// hand it to somebody else without a rules deploy — he bootstraps himself
+// below on first sign-in.
+const isSiteAdmin = "auth != null && root.child('siteUsers').child(auth.uid).child('isAdmin').val() === true";
+// Anyone who may ask the Mac mini for a download, by either route.
+const mayRequest = `(${isRequester} || ${isApproved})`;
 const isMember = `data.child('memberEmails').child(${memberKeyExpression}).exists()`;
 const becomesMember = `newData.child('memberEmails').child(${memberKeyExpression}).exists()`;
 // Deleting a whole hat: the creator's call — except legacy hats, which have
@@ -156,6 +180,62 @@ const rules = {
       }
     },
 
+    // Who may use the standalone Movie Requests app (2026-09-18,
+    // request.movie-hat.com). Anyone can sign in with Google there; signing
+    // in only writes a row HERE, asking to be let in. Matt approves or
+    // denies it from the app's admin screen, and `isApproved` above is what
+    // turns an approved row into the right to ask for a download.
+    //
+    // The shape is the Around Table Round hub's `siteUsers`, deliberately —
+    // see the comment on isApproved.
+    //
+    // Keyed by auth.uid rather than email: the row IS the permission, so it
+    // has to be keyed by something the token carries verbatim and nobody can
+    // choose. An email has to be mangled into a Firebase key, and two
+    // different manglings colliding would hand one person another's access.
+    //
+    // The four ways a write is allowed, in order below:
+    //   1. Matt's first sign-in writes himself in as an approved admin.
+    //      Bootstrapping the first admin needs SOME door, and a verified
+    //      Google address is the only thing available before any row exists.
+    //      It is `auth.token.email`, which Google signs — not a claim the
+    //      client makes.
+    //   2. A newcomer creates their OWN row, once, as pending and not admin.
+    //   3. That same person may keep their own row's details fresh — a
+    //      changed display name, say — provided status and isAdmin come out
+    //      exactly as they went in. That last clause is the whole gate:
+    //      without it anyone could sign in and write themselves 'approved'.
+    //   4. An admin may write anything, which is what approving is.
+    siteUsers: {
+      // Listing everyone is the admin screen. `isOwner` rides alongside so
+      // Matt can open it on a device whose row hasn't been written yet.
+      '.read': `${isSiteAdmin} || ${isOwner}`,
+      $uid: {
+        // You may always read your own row — that is how the app knows to
+        // show you "waiting on Matt" rather than the search screen.
+        '.read': `${isSiteAdmin} || ${isOwner} || (auth != null && auth.uid === $uid)`,
+        '.write': [
+          `(auth != null && auth.uid === $uid && !data.exists() && ${isOwner} && newData.child('status').val() === 'approved' && newData.child('isAdmin').val() === true)`,
+          "(auth != null && auth.uid === $uid && !data.exists() && newData.child('status').val() === 'pending' && newData.child('isAdmin').val() === false)",
+          "(auth != null && auth.uid === $uid && data.exists() && newData.exists() && newData.child('status').val() === data.child('status').val() && newData.child('isAdmin').val() === data.child('isAdmin').val())",
+          isSiteAdmin
+        ].join(' || '),
+        '.validate': [
+          "!newData.exists()",
+          `(${[
+            "newData.hasChildren(['email', 'status', 'isAdmin', 'requestedAt'])",
+            "newData.child('email').isString() && newData.child('email').val().length <= 200",
+            "(newData.child('status').val() === 'pending' || newData.child('status').val() === 'approved' || newData.child('status').val() === 'denied')",
+            "newData.child('isAdmin').isBoolean()",
+            "newData.child('requestedAt').isNumber()",
+            // A row must name the address on its owner's own token. An admin
+            // writing somebody else's row is exempt — they are not the owner.
+            `(${isSiteAdmin} || auth.uid !== $uid || newData.child('email').val() === auth.token.email)`
+          ].join(' && ')})`
+        ].join(' || ')
+      }
+    },
+
     // "Request this movie" (2026-09-08): a row per TMDb id asking the Mac
     // mini to add the movie to Radarr — see src/utils/requestMovie.js and
     // README.md, "Movie requests". Cinema Roll writes here too, through its
@@ -176,16 +256,16 @@ const rules = {
     requests: {
       // The home page reads the whole node once to label every drawn
       // movie, rather than one read per movie.
-      '.read': isRequester,
+      '.read': mayRequest,
       $tmdbId: {
-        '.write': `${isRequester} && newData.exists() && (!data.exists() || data.child('status').val() === 'error')`,
+        '.write': `${mayRequest} && newData.exists() && (!data.exists() || data.child('status').val() === 'error')`,
         '.validate': [
           "$tmdbId.matches(/^[1-9][0-9]{0,9}$/)",
           "newData.hasChildren(['tmdbId', 'title', 'status', 'source', 'requestedBy', 'createdAt'])",
           "newData.child('tmdbId').isNumber()",
           "newData.child('title').isString() && newData.child('title').val().length <= 300",
           "newData.child('status').val() === 'pending'",
-          "(newData.child('source').val() === 'movie-hat' || newData.child('source').val() === 'cinema-roll')",
+          "(newData.child('source').val() === 'movie-hat' || newData.child('source').val() === 'cinema-roll' || newData.child('source').val() === 'movie-requests')",
           "newData.child('requestedBy').val() === auth.token.email",
           "newData.child('createdAt').isNumber()"
         ].join(' && ')

@@ -20,12 +20,17 @@
 // second write is refused by the rules, and both see the one row's status.
 // Only a row that ended in 'error' may be written over — that is the retry.
 //
-// SHARED WITH CINEMA ROLL. Cinema Roll already signs into Movie Hat's
-// Firebase project (its movieHatAuth.js) to send movies to hats, so it will
-// write to this same node and the Mac mini watches one place. To keep this
-// file byte-identical in both repos it never imports a data layer: the
-// caller hands in `read(path)` / `write(path, value)` — Movie Hat's dbGet /
-// dbPut, Cinema Roll's hatRequest — and says which app it is.
+// SHARED, BYTE-IDENTICAL, WITH movie-requests (and, when it adopts this,
+// Cinema Roll). Every app that can ask for a download signs into Movie Hat's
+// Firebase project and writes to this same node, so the Mac mini watches one
+// place. To keep the copies identical this file never imports a data layer:
+// the caller hands in `read(path)` / `write(path, value)` — Movie Hat's
+// dbGet / dbPut — and says which app it is.
+//
+// The copies live at:
+//   movie-hat/src/utils/requestMovie.js
+//   movie-requests/src/utils/requestMovie.js
+// Change one, copy it to the other, run both test suites.
 //
 // Status changes reach the button by short polling over REST rather than a
 // live listener: this app talks to the database with fetch only, and the
@@ -33,7 +38,7 @@
 // changes twice.
 import { ref, computed } from 'vue';
 
-export const REQUEST_SOURCES = ['movie-hat', 'cinema-roll'];
+export const REQUEST_SOURCES = ['movie-hat', 'cinema-roll', 'movie-requests'];
 export const REQUEST_STATUSES = ['pending', 'processing', 'added', 'exists', 'error'];
 // Nothing further will happen to these; polling stops. 'added' is NOT here:
 // an added row is still downloading until it carries `importedAt`.

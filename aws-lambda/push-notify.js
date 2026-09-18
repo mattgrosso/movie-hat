@@ -9,13 +9,28 @@
 //                      that hat who has a subscribed device.
 //   POST /push/test  - a test notification to the caller's own devices.
 //
-// Plus one sweep, on an EventBridge schedule (`movie-hat-push-sweep`, every
-// two minutes, 2026-09-11): a movie request whose download has finished
-// tells the person who asked for it. The Mac mini service that talks to
-// Radarr stamps `requests/<tmdbId>/importedAt` when the file lands; this
-// sweep notifies each such row once and stamps `notifiedAt`. A poll rather
-// than a call from the service, so the service needs no credentials for
-// this Lambda and the two can be deployed without knowing about each other.
+// Plus a sweep, on an EventBridge schedule (`movie-hat-push-sweep`, every
+// two minutes, 2026-09-11), which now does two things:
+//
+//   - A movie request whose download has finished tells the person who asked
+//     for it. The Mac mini service that talks to Radarr stamps
+//     `requests/<tmdbId>/importedAt` when the file lands; the sweep notifies
+//     each such row once and stamps `notifiedAt`. A poll rather than a call
+//     from the service, so the service needs no credentials for this Lambda
+//     and the two can be deployed without knowing about each other.
+//   - Somebody waiting to be let into Movie Requests
+//     (request.movie-hat.com, 2026-09-18) tells every admin. Same shape:
+//     `siteUsers/<uid>` rows with `status: 'pending'` and no `notifiedAt`.
+//
+// TWO APPS, TWO SETS OF SUBSCRIPTIONS. A push subscription belongs to one
+// service worker on one origin, so Movie Hat's live at
+// `push/<memberKey>/subscriptions` and Movie Requests' at
+// `push/<memberKey>/requestsAppSubscriptions`. Sending to the wrong set is
+// not a delivery failure — it delivers, to the wrong app, and on iOS a
+// notification whose URL is outside the installed app's scope opens in an
+// in-app browser instead of the app (report -P1kJdlGJpzL0at-54jt). So every
+// message below names both the subscription set and the origin its
+// `navigate` URL belongs to.
 //
 // Both HTTP routes are gated on a verified Firebase ID token from THIS app's
 // project (movie-hat-9c418) - the audience/issuer checks below are what stop
@@ -48,10 +63,18 @@ const FIREBASE_CERT_URL =
 // seemed to open the like embedded Safari within the Movie Hat app".
 const APP_URL = 'https://movie-hat.com';
 
+// The standalone Movie Requests app. Its own origin, its own PWA scope, its
+// own subscription set (see the header comment).
+const REQUESTS_APP_URL = 'https://request.movie-hat.com';
+const MOVIE_HAT_SUBSCRIPTIONS = 'subscriptions';
+const REQUESTS_APP_SUBSCRIPTIONS = 'requestsAppSubscriptions';
+
 const ALLOWED_ORIGINS = [
   'https://www.movie-hat.com',
   'https://movie-hat.com',
-  'http://localhost:8080'
+  'https://request.movie-hat.com',
+  'http://localhost:8080',
+  'http://localhost:8081'
 ];
 
 // Mirrors src/store/memberKey.mjs — lowercased, Firebase-forbidden key
@@ -206,8 +229,8 @@ const dbSet = async (path, value) => {
 
 // --- Sending ----------------------------------------------------------------
 
-const buildPayload = ({ title, body, navigate = '/', tag, appBadge }) => {
-  const notification = { title, body, navigate: `${APP_URL}${navigate}` };
+const buildPayload = ({ title, body, navigate = '/', tag, appBadge, appUrl = APP_URL }) => {
+  const notification = { title, body, navigate: `${appUrl}${navigate}` };
   if (tag) notification.tag = tag;
   // Icon badge — declarative web push renders this on iOS without waking the
   // service worker; push-sw.js applies it elsewhere. Absent = unchanged.
@@ -215,9 +238,13 @@ const buildPayload = ({ title, body, navigate = '/', tag, appBadge }) => {
   return JSON.stringify({ web_push: 8030, notification });
 };
 
-/** Send to every subscription under one member; prune dead endpoints. */
-const sendToMember = async (memberKey, payload) => {
-  const subscriptions = await dbGet(`push/${memberKey}/subscriptions`);
+/**
+ * Send to every subscription under one member, in ONE app's set; prune dead
+ * endpoints. `set` must match the origin the payload's navigate URL points
+ * at — see the header comment.
+ */
+const sendToMember = async (memberKey, payload, set = MOVIE_HAT_SUBSCRIPTIONS) => {
+  const subscriptions = await dbGet(`push/${memberKey}/${set}`);
   if (!subscriptions) return 0;
   let delivered = 0;
   await Promise.all(Object.entries(subscriptions).map(async ([id, sub]) => {
@@ -231,7 +258,7 @@ const sendToMember = async (memberKey, payload) => {
       delivered += 1;
     } catch (error) {
       if (error.statusCode === 404 || error.statusCode === 410) {
-        await dbDelete(`push/${memberKey}/subscriptions/${id}`).catch(() => {});
+        await dbDelete(`push/${memberKey}/${set}/${id}`).catch(() => {});
       } else {
         console.error(`Push to ${memberKey}/${id} failed:`, error.statusCode || error.message);
       }
@@ -268,18 +295,29 @@ const sweepFinishedRequests = async (now = Date.now()) => {
     try {
       let delivered = 0;
       if (memberKey) {
-        // Same per-member badge the draw announcement uses: things that
-        // happened since this person last opened the app.
-        const unseen = (Number(await dbGet(`push/${memberKey}/badge`)) || 0) + 1;
+        // Tell them in the app they ASKED FROM. A request made in Movie
+        // Requests that announced itself through Movie Hat's subscriptions
+        // would open the wrong app, and for anyone who only has Movie
+        // Requests installed it would reach nobody at all.
+        const fromRequestsApp = row.source === 'movie-requests';
+        const set = fromRequestsApp ? REQUESTS_APP_SUBSCRIPTIONS : MOVIE_HAT_SUBSCRIPTIONS;
+        const appUrl = fromRequestsApp ? REQUESTS_APP_URL : APP_URL;
+        const badgePath = fromRequestsApp
+          ? `push/${memberKey}/requestsAppBadge`
+          : `push/${memberKey}/badge`;
+
+        // Things that have happened since this person last opened that app.
+        const unseen = (Number(await dbGet(badgePath)) || 0) + 1;
         const movieTitle = row.radarrTitle || row.title || 'Your movie';
         const payload = buildPayload({
           title: `${movieTitle} is ready to watch`,
           body: 'Your request finished downloading. Tap to see it.',
           tag: `imported-${tmdbId}`,
-          appBadge: unseen
+          appBadge: unseen,
+          appUrl
         });
-        delivered = await sendToMember(memberKey, payload);
-        if (delivered > 0) await dbSet(`push/${memberKey}/badge`, unseen);
+        delivered = await sendToMember(memberKey, payload, set);
+        if (delivered > 0) await dbSet(badgePath, unseen);
       }
       // Stamped either way: no subscribed device means there is nobody to
       // tell, not something to retry every two minutes.
@@ -293,13 +331,88 @@ const sweepFinishedRequests = async (now = Date.now()) => {
   return result;
 };
 
+// --- "Somebody wants in" sweep ----------------------------------------------
+
+// A request older than this is not news any more: it gets stamped, not
+// announced. Guards the first deploy (rows that predate this sweep) and any
+// long outage — nobody wants nine notifications about people who asked last
+// week.
+const ACCESS_NEWS_WINDOW_MS = 7 * 24 * 3600 * 1000;
+
+/** Every admin's member key, from the siteUsers roster. */
+const siteAdmins = async () => {
+  const rows = (await dbGet('siteUsers')) || {};
+  return Object.values(rows)
+    .filter((row) => row && row.isAdmin === true && row.email)
+    .map((row) => emailToMemberKey(row.email))
+    .filter(Boolean);
+};
+
+/**
+ * Tell the admins about each person waiting to be let into Movie Requests,
+ * once. The row is stamped `notifiedAt` either way — no subscribed device
+ * means there is nobody to tell, not something to retry every two minutes.
+ */
+const sweepAccessRequests = async (now = Date.now()) => {
+  const rows = (await dbGet('siteUsers')) || {};
+  const result = { rows: 0, announced: 0, stale: 0, unreachable: 0 };
+
+  const waiting = Object.entries(rows).filter(([, row]) =>
+    row && row.status === 'pending' && !row.notifiedAt);
+  if (!waiting.length) return result;
+
+  const admins = await siteAdmins();
+
+  for (const [uid, row] of waiting) {
+    result.rows += 1;
+
+    if (row.requestedAt && now - row.requestedAt > ACCESS_NEWS_WINDOW_MS) {
+      await dbSet(`siteUsers/${uid}/notifiedAt`, now);
+      result.stale += 1;
+      continue;
+    }
+
+    try {
+      let delivered = 0;
+      const who = row.displayName || row.email;
+      const payload = buildPayload({
+        title: `${who} wants movie requests`,
+        body: 'Tap to let them in, or not.',
+        navigate: '/#/admin',
+        tag: `access-${uid}`,
+        appUrl: REQUESTS_APP_URL
+      });
+      for (const memberKey of admins) {
+        delivered += await sendToMember(memberKey, payload, REQUESTS_APP_SUBSCRIPTIONS);
+      }
+      await dbSet(`siteUsers/${uid}/notifiedAt`, now);
+      if (delivered > 0) result.announced += 1;
+      else result.unreachable += 1;
+    } catch (error) {
+      console.error(`Access-request push for ${uid} failed:`, error.message);
+    }
+  }
+  return result;
+};
+
 // --- Handler ----------------------------------------------------------------
 
 exports.handler = async (event) => {
   // The EventBridge schedule, not a browser: no token, no CORS, no body.
   if (event?.source === 'aws.events') {
-    const result = await sweepFinishedRequests();
-    if (result.rows) console.log('Finished-download sweep:', JSON.stringify(result));
+    // Independent of each other: a failure in one must not silence the
+    // other, so they are settled rather than awaited in sequence.
+    const [imported, access] = await Promise.allSettled([
+      sweepFinishedRequests(),
+      sweepAccessRequests()
+    ]);
+    const result = {
+      imported: imported.status === 'fulfilled' ? imported.value : { error: imported.reason?.message },
+      access: access.status === 'fulfilled' ? access.value : { error: access.reason?.message }
+    };
+    if (imported.status === 'rejected') console.error('Finished-download sweep failed:', imported.reason);
+    if (access.status === 'rejected') console.error('Access-request sweep failed:', access.reason);
+    if (result.imported?.rows || result.access?.rows) console.log('Sweep:', JSON.stringify(result));
     return result;
   }
 
@@ -325,12 +438,22 @@ exports.handler = async (event) => {
 
   try {
     if (path.endsWith('/push/test')) {
+      // Whichever app asked is the one to answer in — the origin decides
+      // both the subscription set and the URL the notification opens.
+      const fromRequestsApp = activeOrigin === REQUESTS_APP_URL;
       const payload = buildPayload({
-        title: 'Movie Hat can reach you here',
-        body: 'This is what a draw notification will look like.',
-        tag: 'test'
+        title: fromRequestsApp ? 'Movie Requests can reach you here' : 'Movie Hat can reach you here',
+        body: fromRequestsApp
+          ? 'This is what a "your movie is ready" notification will look like.'
+          : 'This is what a draw notification will look like.',
+        tag: 'test',
+        appUrl: fromRequestsApp ? REQUESTS_APP_URL : APP_URL
       });
-      const delivered = await sendToMember(myKey, payload);
+      const delivered = await sendToMember(
+        myKey,
+        payload,
+        fromRequestsApp ? REQUESTS_APP_SUBSCRIPTIONS : MOVIE_HAT_SUBSCRIPTIONS
+      );
       return response(200, { delivered });
     }
 

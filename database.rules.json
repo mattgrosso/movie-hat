@@ -45,11 +45,19 @@
         ".write": "auth != null && auth.token.email != null && $memberKey === auth.token.email.toLowerCase().replace('.', '-').replace('$', '-').replace('#', '-').replace('[', '-').replace(']', '-').replace('/', '-')"
       }
     },
+    "siteUsers": {
+      ".read": "auth != null && root.child('siteUsers').child(auth.uid).child('isAdmin').val() === true || auth != null && auth.token.email != null && auth.token.email.toLowerCase() === 'mattgrosso@gmail.com'",
+      "$uid": {
+        ".read": "auth != null && root.child('siteUsers').child(auth.uid).child('isAdmin').val() === true || auth != null && auth.token.email != null && auth.token.email.toLowerCase() === 'mattgrosso@gmail.com' || (auth != null && auth.uid === $uid)",
+        ".write": "(auth != null && auth.uid === $uid && !data.exists() && auth != null && auth.token.email != null && auth.token.email.toLowerCase() === 'mattgrosso@gmail.com' && newData.child('status').val() === 'approved' && newData.child('isAdmin').val() === true) || (auth != null && auth.uid === $uid && !data.exists() && newData.child('status').val() === 'pending' && newData.child('isAdmin').val() === false) || (auth != null && auth.uid === $uid && data.exists() && newData.exists() && newData.child('status').val() === data.child('status').val() && newData.child('isAdmin').val() === data.child('isAdmin').val()) || auth != null && root.child('siteUsers').child(auth.uid).child('isAdmin').val() === true",
+        ".validate": "!newData.exists() || (newData.hasChildren(['email', 'status', 'isAdmin', 'requestedAt']) && newData.child('email').isString() && newData.child('email').val().length <= 200 && (newData.child('status').val() === 'pending' || newData.child('status').val() === 'approved' || newData.child('status').val() === 'denied') && newData.child('isAdmin').isBoolean() && newData.child('requestedAt').isNumber() && (auth != null && root.child('siteUsers').child(auth.uid).child('isAdmin').val() === true || auth.uid !== $uid || newData.child('email').val() === auth.token.email))"
+      }
+    },
     "requests": {
-      ".read": "auth != null && auth.token.email != null && (auth.token.email.toLowerCase() === 'mattgrosso@gmail.com' || auth.token.email.toLowerCase() === 'hopper.seth@gmail.com' || auth.token.email.toLowerCase() === 'brian.goegan@gmail.com')",
+      ".read": "(auth != null && auth.token.email != null && (auth.token.email.toLowerCase() === 'mattgrosso@gmail.com' || auth.token.email.toLowerCase() === 'hopper.seth@gmail.com' || auth.token.email.toLowerCase() === 'brian.goegan@gmail.com') || auth != null && root.child('siteUsers').child(auth.uid).child('status').val() === 'approved')",
       "$tmdbId": {
-        ".write": "auth != null && auth.token.email != null && (auth.token.email.toLowerCase() === 'mattgrosso@gmail.com' || auth.token.email.toLowerCase() === 'hopper.seth@gmail.com' || auth.token.email.toLowerCase() === 'brian.goegan@gmail.com') && newData.exists() && (!data.exists() || data.child('status').val() === 'error')",
-        ".validate": "$tmdbId.matches(/^[1-9][0-9]{0,9}$/) && newData.hasChildren(['tmdbId', 'title', 'status', 'source', 'requestedBy', 'createdAt']) && newData.child('tmdbId').isNumber() && newData.child('title').isString() && newData.child('title').val().length <= 300 && newData.child('status').val() === 'pending' && (newData.child('source').val() === 'movie-hat' || newData.child('source').val() === 'cinema-roll') && newData.child('requestedBy').val() === auth.token.email && newData.child('createdAt').isNumber()"
+        ".write": "(auth != null && auth.token.email != null && (auth.token.email.toLowerCase() === 'mattgrosso@gmail.com' || auth.token.email.toLowerCase() === 'hopper.seth@gmail.com' || auth.token.email.toLowerCase() === 'brian.goegan@gmail.com') || auth != null && root.child('siteUsers').child(auth.uid).child('status').val() === 'approved') && newData.exists() && (!data.exists() || data.child('status').val() === 'error')",
+        ".validate": "$tmdbId.matches(/^[1-9][0-9]{0,9}$/) && newData.hasChildren(['tmdbId', 'title', 'status', 'source', 'requestedBy', 'createdAt']) && newData.child('tmdbId').isNumber() && newData.child('title').isString() && newData.child('title').val().length <= 300 && newData.child('status').val() === 'pending' && (newData.child('source').val() === 'movie-hat' || newData.child('source').val() === 'cinema-roll' || newData.child('source').val() === 'movie-requests') && newData.child('requestedBy').val() === auth.token.email && newData.child('createdAt').isNumber()"
       }
     }
   }
