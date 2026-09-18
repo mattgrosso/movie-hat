@@ -26,6 +26,18 @@
       </div>
     </form>
 
+    <!-- "You won't hear about this" — shown only when something of theirs is
+         actually downloading AND this device has no push subscription. That
+         combination is the whole failure mode: the request works, the movie
+         arrives, and nobody is ever told. Points at the header bell rather
+         than adding a second control that does the same thing. -->
+    <p v-if="awaiting.length && !pushOn" class="request-a-movie__nudge">
+      <span aria-hidden="true">🔔</span>
+      {{ awaiting.length === 1 ? 'Your movie is' : `${awaiting.length} of your movies are` }}
+      still downloading, and notifications are off on this device — tap the
+      bell at the top to be told when {{ awaiting.length === 1 ? 'it lands' : 'they land' }}.
+    </p>
+
     <p v-if="error" class="request-a-movie__error">{{ error }}</p>
 
     <ul v-if="results.length" class="movie-results">
@@ -79,6 +91,7 @@
 import { searchMovies } from '../utils/tmdb.js';
 import { dbGet } from '../store/db.js';
 import { requestLabel, isSettled } from '../utils/requestMovie.js';
+import { deviceSubscribed } from '../utils/push.js';
 import RequestMovieButton from './RequestMovieButton.vue';
 
 export default {
@@ -92,10 +105,19 @@ export default {
       searching: false,
       searched: false,
       error: null,
-      rows: {}
+      rows: {},
+      // Whether THIS device would actually receive the "ready to watch"
+      // push. Asked of the browser, not the database — a subscription on his
+      // phone says nothing about the laptop he is looking at now.
+      pushOn: true
     };
   },
   computed: {
+    // Their own requests that have not landed yet — the ones a notification
+    // would be about.
+    awaiting () {
+      return this.mine.filter((row) => !isSettled(row));
+    },
     // Your own requests, unfinished first — what you came back to check on.
     mine () {
       const email = this.$store.state.email;
@@ -145,8 +167,11 @@ export default {
       }
     }
   },
-  mounted () {
+  async mounted () {
     this.loadRows();
+    // Optimistic default while this resolves, so the nudge cannot flash at
+    // somebody who has notifications on.
+    this.pushOn = await deviceSubscribed();
   }
 };
 </script>
@@ -173,6 +198,16 @@ export default {
     color: #ffe08a;
     font-size: 0.85rem;
     margin-top: 0.75rem;
+  }
+
+  &__nudge {
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: 8px;
+    color: white;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    margin: 0.85rem 0 0;
+    padding: 0.7rem 0.85rem;
   }
 
   &__empty {

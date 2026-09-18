@@ -298,29 +298,46 @@ const sweepFinishedRequests = async (now = Date.now()) => {
     try {
       let delivered = 0;
       if (memberKey) {
-        // Tell them in the app they ASKED FROM. A request made in Movie
-        // Requests that announced itself through Movie Hat's subscriptions
-        // would open the wrong app, and for anyone who only has Movie
-        // Requests installed it would reach nobody at all.
+        // Tell them in the app they ASKED FROM — first. A request made in
+        // Movie Requests that announced itself through Movie Hat's
+        // subscriptions would open the wrong app.
+        //
+        // But fall back to the other app's subscriptions if that reaches no
+        // device, because `source` records where somebody happened to press
+        // the button, not which app they have installed. Seth and Brian can
+        // request from either, and without this fallback a request made from
+        // the wrong one is announced to nobody, stamped `notifiedAt`, and
+        // never retried — the person just never hears that their movie
+        // arrived. Same shape as the access sweep below.
         const fromRequestsApp = row.source === 'movie-requests';
-        const set = fromRequestsApp ? REQUESTS_APP_SUBSCRIPTIONS : MOVIE_HAT_SUBSCRIPTIONS;
-        const appUrl = fromRequestsApp ? REQUESTS_APP_URL : APP_URL;
-        const badgePath = fromRequestsApp
-          ? `push/${memberKey}/requestsAppBadge`
-          : `push/${memberKey}/badge`;
-
-        // Things that have happened since this person last opened that app.
-        const unseen = (Number(await dbGet(badgePath)) || 0) + 1;
         const movieTitle = row.radarrTitle || row.title || 'Your movie';
-        const payload = buildPayload({
-          title: `${movieTitle} is ready to watch`,
-          body: 'Your request finished downloading. Tap to see it.',
-          tag: `imported-${tmdbId}`,
-          appBadge: unseen,
-          appUrl
-        });
-        delivered = await sendToMember(memberKey, payload, set);
-        if (delivered > 0) await dbSet(badgePath, unseen);
+
+        const routes = fromRequestsApp
+          ? [
+            { set: REQUESTS_APP_SUBSCRIPTIONS, appUrl: REQUESTS_APP_URL, badge: `push/${memberKey}/requestsAppBadge` },
+            { set: MOVIE_HAT_SUBSCRIPTIONS, appUrl: APP_URL, badge: `push/${memberKey}/badge` }
+          ]
+          : [
+            { set: MOVIE_HAT_SUBSCRIPTIONS, appUrl: APP_URL, badge: `push/${memberKey}/badge` },
+            { set: REQUESTS_APP_SUBSCRIPTIONS, appUrl: REQUESTS_APP_URL, badge: `push/${memberKey}/requestsAppBadge` }
+          ];
+
+        for (const route of routes) {
+          // Things that have happened since this person last opened that app.
+          const unseen = (Number(await dbGet(route.badge)) || 0) + 1;
+          const payload = buildPayload({
+            title: `${movieTitle} is ready to watch`,
+            body: 'Your request finished downloading. Tap to see it.',
+            tag: `imported-${tmdbId}`,
+            appBadge: unseen,
+            appUrl: route.appUrl
+          });
+          delivered = await sendToMember(memberKey, payload, route.set);
+          if (delivered > 0) {
+            await dbSet(route.badge, unseen);
+            break;
+          }
+        }
       }
       // Stamped either way: no subscribed device means there is nobody to
       // tell, not something to retry every two minutes.
