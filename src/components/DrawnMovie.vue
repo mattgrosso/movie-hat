@@ -37,6 +37,11 @@
         <p v-if="drawnMovie.note" class="drawn-note text-center col-12 m-0 text-white">
           Note: {{ drawnMovie.note }}
         </p>
+        <!-- Only ever on a non-English film: a caption on every second draw
+             is noise, and the exception is the whole point. -->
+        <p v-if="subtitleNote" class="subtitled text-center col-12 m-0">
+          <span aria-hidden="true">💬</span> {{ subtitleNote.text }}
+        </p>
         <WhereToWatch :movie="drawnMovie"/>
       </div>
       <div class="details-wrapper px-4 py-2">
@@ -71,6 +76,8 @@
 import DrawingHat from './DrawingHat.vue';
 import WhereToWatch from './WhereToWatch.vue';
 import RequestMovieButton from './RequestMovieButton.vue';
+import { subtitleNote } from '../utils/movieLanguage.js';
+import { drawShareText } from '../utils/shareDraw.js';
 
 export default {
   components: {
@@ -80,7 +87,11 @@ export default {
   },
   data () {
     return {
-      revealing: false
+      revealing: false,
+      // Looked up for hat entries added before AddMovie started storing
+      // `original_language` — which is most of them. Null means "haven't
+      // asked" or "asked and got nothing"; either way the caption stays off.
+      fetchedLanguage: null
     };
   },
   mounted () {
@@ -117,10 +128,29 @@ export default {
     if (!this.$store.state.history) {
       this.$store.dispatch('getHat');
     }
+
+    this.loadLanguage();
+  },
+  watch: {
+    // A second draw replaces the movie without remounting this screen.
+    'drawnMovie.id' () {
+      this.fetchedLanguage = null;
+      this.loadLanguage();
+    }
   },
   computed: {
     drawnMovie () {
       return this.$store.state.drawnMovie;
+    },
+    /**
+     * "Am I going to be reading this?" — see utils/movieLanguage.js. Prefers
+     * what the hat entry already carries; falls back to loadLanguage()'s
+     * lookup, which is how the films added before that field existed get a
+     * caption too.
+     */
+    subtitleNote () {
+      const stored = this.drawnMovie?.original_language;
+      return subtitleNote({ original_language: stored || this.fetchedLanguage });
     },
     history () {
       return this.$store.state.history;
@@ -149,18 +179,37 @@ export default {
     }
   },
   methods: {
+    /**
+     * The language the film was made in, for entries that predate AddMovie
+     * storing it. One call, no retry, silent on failure — this is a caption,
+     * not a feature, and the screen is complete without it.
+     */
+    async loadLanguage () {
+      if (!this.drawnMovie?.id || this.drawnMovie.original_language) return;
+      try {
+        const response = await fetch(
+          `https://api.themoviedb.org/3/movie/${this.drawnMovie.id}?api_key=${process.env.VUE_APP_TMDB_API_KEY}`
+        );
+        if (!response.ok) return;
+        const data = await response.json();
+        this.fetchedLanguage = data?.original_language || null;
+      } catch (error) {
+        console.warn('Could not look up the movie language', error);
+      }
+    },
     async shareMovie () {
       const url = `https://image.tmdb.org/t/p/w780${this.drawnMovie.poster_path}`;
+      // The title has to be in the TEXT. iOS drops navigator.share's `title`
+      // field on the way into a share extension, so a share to Slack used to
+      // arrive as "Added by: Matt" over a bare image URL, with the film named
+      // nowhere. See utils/shareDraw.js.
+      const text = drawShareText(this.drawnMovie, { hatName: this.$store.state.movieHatTitle });
       if (navigator.share) {
         try {
-          const addedBy = this.drawnMovie.addedBy ? `Added by: ${this.drawnMovie.addedBy}` : '';
-          const note = this.drawnMovie.note ? `Note: ${this.drawnMovie.note}` : '';
-          const combinedText = `${addedBy}\n${note}`;
-
           await navigator.share({
-            title: 'Movie from hat:',
-            text: combinedText,
-            url: url,
+            title: this.drawnMovie.title || 'Movie from hat',
+            text,
+            url
           });
         } catch (err) {
           console.error('There was an error sharing the movie', err);
@@ -170,7 +219,7 @@ export default {
         // `members` is an array on new hats, a push-key map on old ones, and
         // absent entirely on a cold reload — Object.values handles all three.
         const members = Object.values(this.$store.state.members || {}).join(",");
-        window.location.href = `sms:/open?addresses=${members}&body=${url}`;
+        window.location.href = `sms:/open?addresses=${members}&body=${encodeURIComponent(`${text}\n${url}`)}`;
       }
     }
   }
@@ -215,6 +264,16 @@ export default {
     .draw-count,
     .days-ago {
       font-size: 0.75rem;
+    }
+
+    // Brighter than the grey captions above it and a hair larger: this one
+    // changes whether you press play, so it is not a footnote. Amber rather
+    // than red — it's information, not a warning.
+    .subtitled {
+      color: #ffd479;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-top: 0.25rem;
     }
   }
 

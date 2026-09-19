@@ -57,6 +57,10 @@ export default {
           id: result.id,
           overview: result.overview,
           popularity: result.popularity,
+          // What the film was MADE in, for the "subtitled" caption on the
+          // draw screen (utils/movieLanguage.js). Stored rather than looked
+          // up later: it never changes, and it costs nothing here.
+          original_language: result.original_language,
           poster_path: result.poster_path,
           release_date: result.release_date,
           title: result.title,

@@ -94,12 +94,22 @@
 // hidden otherwise and App.vue's router guard bounces a typed URL. The
 // database rules are what actually enforce it.
 //
-// The whole `requests` node is read once on arrival: it spares twenty result
-// cards twenty reads each, and it is what lets a result say "Already in the
-// library" or "Requested by Seth" before anything is pressed.
+// The whole `requests` node is read in one go rather than per card: it spares
+// twenty result cards twenty reads each, and it is what lets a result say
+// "Already in the library" or "Requested by Seth" before anything is pressed.
+// It is then re-read on a timer for as long as the screen is in front of
+// somebody — see `requestsPollDelay`. It used to be read exactly once, which
+// made the list under the search box a photograph of the moment you arrived.
 import { searchMovies } from '../utils/tmdb.js';
 import { dbGet } from '../store/db.js';
-import { requestLabel, isSettled } from '../utils/requestMovie.js';
+import {
+  requestLabel,
+  isSettled,
+  requestsPollDelay,
+  listenForForeground,
+  pageIsVisible,
+  POLL_FAST_WINDOW_MS
+} from '../utils/requestMovie.js';
 import { deviceSubscribed } from '../utils/push.js';
 import RequestMovieButton from './RequestMovieButton.vue';
 
@@ -118,7 +128,12 @@ export default {
       // Whether THIS device would actually receive the "ready to watch"
       // push. Asked of the browser, not the database — a subscription on his
       // phone says nothing about the laptop he is looking at now.
-      pushOn: true
+      pushOn: true,
+      // Polling bookkeeping. Not reactive state anyone renders; kept here so
+      // the component owns its own teardown.
+      pollTimer: null,
+      fastUntil: 0,
+      stopListeningForForeground: null
     };
   },
   computed: {
@@ -178,6 +193,29 @@ export default {
         console.warn('Could not read the requests node', error);
       }
     },
+    /**
+     * Read again, later. One timer, always exactly one — re-armed after each
+     * read so the interval is recomputed against what the node now says
+     * rather than against what it said when the screen opened.
+     */
+    schedulePoll () {
+      clearTimeout(this.pollTimer);
+      const delay = requestsPollDelay(this.rows, { fastUntil: this.fastUntil });
+      this.pollTimer = setTimeout(async () => {
+        this.pollTimer = null;
+        // A hidden tab reads nothing; returning to the foreground does the
+        // read instead, so nothing is missed and a backgrounded PWA costs
+        // nothing.
+        if (pageIsVisible()) await this.loadRows();
+        this.schedulePoll();
+      }, delay);
+    },
+    /** Back in front of someone: read now, and be quick again for a bit. */
+    onForeground () {
+      this.fastUntil = Date.now() + POLL_FAST_WINDOW_MS;
+      this.loadRows();
+      this.schedulePoll();
+    },
     async runSearch () {
       const term = this.query.trim();
       if (!term || this.searching) return;
@@ -202,10 +240,19 @@ export default {
     }
   },
   async mounted () {
+    this.fastUntil = Date.now() + POLL_FAST_WINDOW_MS;
     this.loadRows();
+    this.schedulePoll();
+    this.stopListeningForForeground = listenForForeground(this.onForeground);
     // Optimistic default while this resolves, so the nudge cannot flash at
     // somebody who has notifications on.
     this.pushOn = await deviceSubscribed();
+  },
+  beforeUnmount () {
+    clearTimeout(this.pollTimer);
+    this.pollTimer = null;
+    this.stopListeningForForeground?.();
+    this.stopListeningForForeground = null;
   }
 };
 </script>

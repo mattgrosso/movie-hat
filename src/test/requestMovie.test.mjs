@@ -11,7 +11,8 @@ import {
   useRequestMovie,
   POLL_INTERVAL_MS,
   POLL_FAST_WINDOW_MS,
-  POLL_SLOW_INTERVAL_MS
+  POLL_SLOW_INTERVAL_MS,
+  requestsPollDelay
 } from '../utils/requestMovie.js';
 
 // Every write goes to requests/<tmdbId> — the key IS the duplicate check.
@@ -439,5 +440,38 @@ describe('useRequestMovie', () => {
 
     expect(h.timers).toHaveLength(0);
     expect(h.foregroundHandlers).toHaveLength(0);
+  });
+});
+
+// Report -P1qwtjFEgBEaB4ALm_o (2026-09-18): "It would be nice if the list of
+// requested movies updated live without having to reload the page." The
+// /request list now re-reads on this cadence.
+describe('requestsPollDelay', () => {
+  const fast = { now: 1000, fastUntil: 60_000 };
+  const afterWindow = { now: 120_000, fastUntil: 60_000 };
+  const moving = { 1: { status: 'pending' } };
+  const settled = { 1: { status: 'added', importedAt: 5 }, 2: { status: 'exists' }, 3: { status: 'error' } };
+
+  it('reads quickly while something is moving and the window is open', () => {
+    expect(requestsPollDelay(moving, fast)).toBe(POLL_INTERVAL_MS);
+  });
+
+  it('drops to the slow tick once the fast window closes, even mid-download', () => {
+    // A row can sit unsettled for a whole film while Plex is in use. Polling
+    // every 2.5s for an hour because a tab was left open is not "live".
+    expect(requestsPollDelay(moving, afterWindow)).toBe(POLL_SLOW_INTERVAL_MS);
+  });
+
+  it('stays slow when every row has settled', () => {
+    expect(requestsPollDelay(settled, fast)).toBe(POLL_SLOW_INTERVAL_MS);
+  });
+
+  it('stays slow on an empty or missing node', () => {
+    expect(requestsPollDelay({}, fast)).toBe(POLL_SLOW_INTERVAL_MS);
+    expect(requestsPollDelay(null, fast)).toBe(POLL_SLOW_INTERVAL_MS);
+  });
+
+  it('ignores a hole in the node rather than throwing', () => {
+    expect(requestsPollDelay({ 1: null, 2: { status: 'processing' } }, fast)).toBe(POLL_INTERVAL_MS);
   });
 });

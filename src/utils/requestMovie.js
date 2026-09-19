@@ -108,6 +108,27 @@ export function listenForForeground (handler) {
   };
 }
 
+/**
+ * How long the /request LIST should wait before reading the node again.
+ *
+ * Report -P1qwtjFEgBEaB4ALm_o (2026-09-18): "It would be nice if the list of
+ * requested movies updated live without having to reload the page." The
+ * screen read `requests` once on arrival and never again, so a request made
+ * from the button below it, a request Seth made, or a row the Mac mini moved
+ * on all needed a reload to show.
+ *
+ * Same two speeds as a single button, for the same reason, but the fast one
+ * is bounded by a window rather than by the row's state: a row can sit
+ * unsettled for a whole film while Plex is in use, and hammering the node for
+ * an hour because somebody left the tab open is not "live", it's a bill.
+ * Nothing polls at all while the page is hidden — coming back reads at once.
+ */
+export function requestsPollDelay (rows, { now = Date.now(), fastUntil = 0 } = {}) {
+  const anythingMoving = Object.values(rows || {}).some((row) => row && !isSettled(row));
+  if (!anythingMoving) return POLL_SLOW_INTERVAL_MS;
+  return now < fastUntil ? POLL_INTERVAL_MS : POLL_SLOW_INTERVAL_MS;
+}
+
 export const requestPath = (tmdbId) => `requests/${tmdbId}`;
 
 /** A TMDb id is a positive integer. Anything else is not a request. */
