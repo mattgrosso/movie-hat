@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   buildRequest,
+  canForce,
   canRequestOver,
   isValidTmdbId,
   requestLabel,
@@ -64,6 +65,50 @@ describe('buildRequest', () => {
   });
 });
 
+// Forcing is the one field the service reads and never writes: it says
+// "bring the VPN up and start now, even though somebody is watching Plex".
+// The rules only accept it from Matt, so the module refuses it here too —
+// a rejected write means the request never arrives at all.
+describe('forcing a request past the Plex hold', () => {
+  const input = { tmdbId: 12101, title: 'Soylent Green', source: 'movie-requests', email: 'mattgrosso@gmail.com' };
+
+  it('knows the one account that may force, however it was typed', () => {
+    expect(canForce('mattgrosso@gmail.com')).toBe(true);
+    expect(canForce('MattGrosso@Gmail.com')).toBe(true);
+    expect(canForce('someone@example.com')).toBe(false);
+    expect(canForce(null)).toBe(false);
+    expect(canForce(undefined)).toBe(false);
+  });
+
+  // Omitting it must behave exactly as before — the old rows have no such
+  // field and the service treats its absence as "wait for the hold".
+  it('leaves the field off entirely unless it was asked for', () => {
+    expect(buildRequest(input)).not.toHaveProperty('force');
+    expect(buildRequest({ ...input, force: false })).not.toHaveProperty('force');
+  });
+
+  it('writes force: true for Matt, and nothing else in the row changes', () => {
+    expect(buildRequest({ ...input, force: true })).toEqual({
+      ...buildRequest(input),
+      force: true
+    });
+  });
+
+  it('refuses to build a forced row for anybody else', () => {
+    expect(() => buildRequest({ ...input, email: 'someone@example.com', force: true })).toThrow(/force/i);
+    // …but they may still make an ordinary request.
+    expect(buildRequest({ ...input, email: 'someone@example.com' }).requestedBy).toBe('someone@example.com');
+  });
+
+  it('says so on the button and underneath it while the row is pending', () => {
+    expect(requestLabel({ status: 'pending', force: true })).toBe('Forced — starting now');
+    expect(requestLabel({ status: 'pending', force: true }, { short: true })).toBe('Forced');
+    expect(requestNote({ status: 'pending', force: true })).toMatch(/VPN/);
+    // Once it is actually downloading, forced or not reads the same.
+    expect(requestLabel({ status: 'added', force: true })).toMatch(/^Downloading/);
+  });
+});
+
 describe('canRequestOver', () => {
   it('allows a fresh request, or a retry after an error, and nothing else', () => {
     expect(canRequestOver(null)).toBe(true);
@@ -120,7 +165,7 @@ describe('requestLabel', () => {
 });
 
 // A fake database plus fake timers, so the polling can be stepped by hand.
-function harness ({ rows = {}, writeError = null, source = 'movie-hat' } = {}) {
+function harness ({ rows = {}, writeError = null, source = 'movie-hat', email = 'someone@example.com' } = {}) {
   const store = { ...rows };
   const timers = [];
   let clock = 1_000_000;
@@ -138,7 +183,7 @@ function harness ({ rows = {}, writeError = null, source = 'movie-hat' } = {}) {
     read,
     write,
     source,
-    email: () => 'someone@example.com',
+    email: () => email,
     now: () => clock,
     setTimer: (fn, ms) => { const id = { fn, ms }; timers.push(id); return id; },
     clearTimer: (id) => { const i = timers.indexOf(id); if (i >= 0) timers.splice(i, 1); },
@@ -174,6 +219,28 @@ function harness ({ rows = {}, writeError = null, source = 'movie-hat' } = {}) {
 }
 
 describe('useRequestMovie', () => {
+  // Only Matt is ever shown the lever, and pressing it puts the one extra
+  // field in the row the Mac mini is watching for.
+  it('offers forcing to Matt alone, and writes the field when he uses it', async () => {
+    const theirs = harness();
+    expect(theirs.forceable.value).toBe(false);
+
+    const h = harness({ email: 'mattgrosso@gmail.com' });
+    expect(h.forceable.value).toBe(true);
+
+    await h.request({ tmdbId: 12101, title: 'Soylent Green', force: true });
+    expect(h.write).toHaveBeenCalledWith('requests/12101', expect.objectContaining({ status: 'pending', force: true }));
+    expect(h.label.value).toBe('Forced — starting now');
+    expect(h.note.value).toMatch(/VPN/);
+  });
+
+  it('writes no force field when he makes an ordinary request', async () => {
+    const h = harness({ email: 'mattgrosso@gmail.com' });
+    await h.request({ tmdbId: 12101, title: 'Soylent Green' });
+    expect(h.write.mock.calls[0][1]).not.toHaveProperty('force');
+    expect(h.label.value).toMatch(/^Requested/);
+  });
+
   it('writes a pending row and polls until the service settles it', async () => {
     const h = harness();
 

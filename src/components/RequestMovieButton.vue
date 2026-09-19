@@ -16,6 +16,20 @@
       </svg>
       {{ label }}
     </button>
+    <!--
+      Forcing is Matt's alone, so the option only appears for the account the
+      database will accept it from. Not in a compact list: there it would be
+      a second control per row on a page that is mostly rows.
+    -->
+    <button
+      v-if="forceable && canRequest && !compact"
+      type="button"
+      class="request-movie__force"
+      title="Bring the VPN up and start the download now, even if somebody is watching Plex"
+      @click="request({ tmdbId: movie.id, title: movie.title, force: true })"
+    >
+      Force it through
+    </button>
     <p v-if="error" class="request-movie__error m-0">{{ error }}</p>
     <!-- The note spells out what "Downloading" means; the compact list
          button carries it in its tooltip instead. -->
@@ -64,7 +78,7 @@ export default {
     // row — and the getter is the one place that knows both.
     const signedIn = computed(() => store.getters.mayRequestMovies);
 
-    const { row, requesting, error, label, note, settled, canRequest, load, request, stop } = useRequestMovie({
+    const { row, requesting, error, label, note, settled, canRequest, forceable, load, request, stop } = useRequestMovie({
       read: dbGet,
       write: dbPut,
       source: 'movie-hat',
@@ -103,7 +117,7 @@ export default {
       return 'Ask the Mac mini to add this movie to the library';
     });
 
-    return { signedIn, row, requesting, error, label, note, settled, canRequest, request, buttonClass, tooltip };
+    return { signedIn, row, requesting, error, label, note, settled, canRequest, forceable, request, buttonClass, tooltip };
   }
 };
 </script>
@@ -133,6 +147,21 @@ export default {
     background: #59359a;
     border-color: #59359a;
     color: white;
+  }
+
+  // Deliberately quiet: it is a lever, not a call to action, and pressing it
+  // starts a download over the top of whatever somebody is watching.
+  &__force {
+    background: none;
+    border: 1px solid rgba(255, 193, 7, 0.55);
+    border-radius: 0.25rem;
+    color: #ffc107;
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+  }
+
+  &__force:active {
+    background: rgba(255, 193, 7, 0.18);
   }
 
   &__error {

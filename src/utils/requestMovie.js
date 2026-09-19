@@ -3,7 +3,8 @@
 // A button beside a movie writes ONE row to Movie Hat's database:
 //
 //   requests/<tmdbId>: {
-//     tmdbId, title, status: 'pending', source, requestedBy, createdAt
+//     tmdbId, title, status: 'pending', source, requestedBy, createdAt,
+//     force: true   // optional, Matt only - see FORCE_EMAIL below
 //   }
 //
 // A Node service on Matt's Mac mini (not in this repo — see README.md,
@@ -39,6 +40,19 @@
 import { ref, computed } from 'vue';
 
 export const REQUEST_SOURCES = ['movie-hat', 'cinema-roll', 'movie-requests'];
+
+// Forcing a request past the Plex hold. Normally the Mac mini waits until
+// nobody is watching before it starts a download; `force: true` tells it to
+// bring the VPN up and start anyway. It is Matt's alone - the database rules
+// refuse the field from anybody else, and this is only the client agreeing
+// with them so the option is not offered to someone who would be refused.
+// The service caps how long a forced download may run (FORCE_MAX_HOURS in
+// its README); nothing here needs to know that number.
+export const FORCE_EMAIL = 'mattgrosso@gmail.com';
+
+export function canForce (email) {
+  return typeof email === 'string' && email.toLowerCase() === FORCE_EMAIL;
+}
 export const REQUEST_STATUSES = ['pending', 'processing', 'added', 'exists', 'error'];
 // Nothing further will happen to these; polling stops. 'added' is NOT here:
 // an added row is still downloading until it carries `importedAt`.
@@ -109,12 +123,13 @@ export function isValidTmdbId (tmdbId) {
  * replaces with its own clock — so the rules can insist it is a number and
  * the service can trust the ordering.
  */
-export function buildRequest ({ tmdbId, title, source, email }) {
+export function buildRequest ({ tmdbId, title, source, email, force = false }) {
   if (!isValidTmdbId(tmdbId)) throw new Error(`Not a TMDb id: ${tmdbId}`);
   if (!REQUEST_SOURCES.includes(source)) throw new Error(`Unknown request source: ${source}`);
   if (typeof email !== 'string' || !email) throw new Error('A request needs a signed-in email');
+  if (force && !canForce(email)) throw new Error('Only Matt can force a request past the Plex hold');
 
-  return {
+  const row = {
     tmdbId,
     title: String(title || '').slice(0, 300),
     status: 'pending',
@@ -122,6 +137,11 @@ export function buildRequest ({ tmdbId, title, source, email }) {
     requestedBy: email,
     createdAt: { '.sv': 'timestamp' }
   };
+  // Omitted rather than written false: an ordinary request is the same row
+  // it has always been, which is what keeps the rules and the service able
+  // to treat the field as optional.
+  if (force) row.force = true;
+  return row;
 }
 
 /** May the client write a row over this one? Only nothing, or a failure. */
@@ -141,7 +161,9 @@ export function canRequestOver (existing) {
 export function requestLabel (row, { requesting = false, short = false } = {}) {
   if (requesting) return 'Requesting…';
   switch (row?.status) {
-    case 'pending': return short ? 'Requested' : 'Requested — waiting to start';
+    case 'pending':
+      if (row.force) return short ? 'Forced' : 'Forced — starting now';
+      return short ? 'Requested' : 'Requested — waiting to start';
     case 'processing': return short ? 'Starting…' : 'Starting the download…';
     case 'added': return isSettled(row)
       ? (short ? 'Ready' : 'Ready to watch')
@@ -158,7 +180,9 @@ export function requestLabel (row, { requesting = false, short = false } = {}) {
  */
 export function requestNote (row) {
   switch (row?.status) {
-    case 'pending': return 'The download starts once nobody is watching Plex. You’ll get a notification when it’s ready.';
+    case 'pending': return row.force
+      ? 'Forced past the Plex hold: the VPN comes up and the download starts now.'
+      : 'The download starts once nobody is watching Plex. You’ll get a notification when it’s ready.';
     case 'processing': return 'You’ll get a notification when it’s ready.';
     case 'added': return isSettled(row) ? null : 'Still downloading. You’ll get a notification when it’s ready.';
     default: return null;
@@ -202,6 +226,9 @@ export function useRequestMovie ({ read, write, source, email, short = false, no
   const settled = computed(() => isSettled(row.value));
   const note = computed(() => (requesting.value ? null : requestNote(row.value)));
   const canRequest = computed(() => !requesting.value && canRequestOver(row.value));
+  // Whether to offer the force option at all: only to the one account the
+  // rules will accept it from.
+  const forceable = computed(() => canForce(currentEmail()));
 
   const currentEmail = () => {
     const value = typeof email === 'function' ? email() : (email?.value ?? email);
@@ -294,13 +321,13 @@ export function useRequestMovie ({ read, write, source, email, short = false, no
     return row.value;
   }
 
-  async function request ({ tmdbId, title }) {
+  async function request ({ tmdbId, title, force = false }) {
     if (requesting.value) return;
     error.value = null;
 
     let payload;
     try {
-      payload = buildRequest({ tmdbId, title, source, email: currentEmail() });
+      payload = buildRequest({ tmdbId, title, source, email: currentEmail(), force });
     } catch (buildError) {
       error.value = buildError.message;
       return;
@@ -331,5 +358,5 @@ export function useRequestMovie ({ read, write, source, email, short = false, no
     }
   }
 
-  return { row, requesting, error, label, note, settled, canRequest, load, request, stop };
+  return { row, requesting, error, label, note, settled, canRequest, forceable, load, request, stop };
 }

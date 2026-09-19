@@ -178,3 +178,35 @@ describe('siteUsers: what an approved row unlocks', () => {
     await assertFails(set(ref(as(NEWCOMER), 'requests/1234'), { ...requestRow(NEWCOMER.email), tmdbId: 1234 }));
   });
 });
+
+// `force: true` starts the download over the top of whoever is watching, so
+// the rules — not the app — are what keep it Matt's. The client hides the
+// button from everyone else, but hiding a button is not a permission.
+describe('requests: forcing past the Plex hold', () => {
+  it('lets Matt force', async () => {
+    await assertSucceeds(set(ref(as(MATT), 'requests/27205'), { ...requestRow(MATT.email), force: true }));
+  });
+
+  it('refuses a force from one of the hard-coded requesters', async () => {
+    await assertFails(set(ref(as(SETH), 'requests/27205'), { ...requestRow(SETH.email, 'movie-hat'), force: true }));
+    // …and that same person's ordinary request still goes through.
+    await assertSucceeds(set(ref(as(SETH), 'requests/27205'), requestRow(SETH.email, 'movie-hat')));
+  });
+
+  it('refuses a force from somebody Matt approved', async () => {
+    await seed(NEWCOMER, 'approved');
+    await assertFails(set(ref(as(NEWCOMER), 'requests/27205'), { ...requestRow(NEWCOMER.email), force: true }));
+  });
+
+  // Only `true` means anything. `false` is not "don't force", it is a value
+  // the service would have to interpret, so the rules never take it.
+  it('takes only a boolean true, from anyone', async () => {
+    await assertFails(set(ref(as(MATT), 'requests/27205'), { ...requestRow(MATT.email), force: false }));
+    await assertFails(set(ref(as(MATT), 'requests/27205'), { ...requestRow(MATT.email), force: 'true' }));
+    await assertFails(set(ref(as(MATT), 'requests/27205'), { ...requestRow(MATT.email), force: 1 }));
+  });
+
+  it('still takes a row with no force field at all', async () => {
+    await assertSucceeds(set(ref(as(MATT), 'requests/27205'), requestRow(MATT.email)));
+  });
+});

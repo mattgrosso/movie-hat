@@ -253,6 +253,9 @@ const rules = {
     // these rules) moves `status` along. A row that ended in 'error' may
     // be written over — that is the retry — and nothing may be deleted
     // from the client.
+    //
+    // One optional extra field: `force: true`, which only the owner may
+    // write. See README.md, "Forcing a request past the Plex hold".
     requests: {
       // The home page reads the whole node once to label every drawn
       // movie, rather than one read per movie.
@@ -267,7 +270,14 @@ const rules = {
           "newData.child('status').val() === 'pending'",
           "(newData.child('source').val() === 'movie-hat' || newData.child('source').val() === 'cinema-roll' || newData.child('source').val() === 'movie-requests')",
           "newData.child('requestedBy').val() === auth.token.email",
-          "newData.child('createdAt').isNumber()"
+          "newData.child('createdAt').isNumber()",
+          // `force: true` (2026-09-18) tells the service to bring the VPN up
+          // and start the download even while somebody is watching Plex, so
+          // it is the owner's alone. The field is optional: a row without it
+          // behaves exactly as every row did before. `false` is not a value —
+          // leave it off instead, so the service never has to tell the two
+          // apart.
+          `(!newData.hasChild('force') || (newData.child('force').isBoolean() && newData.child('force').val() === true && ${isOwner}))`
         ].join(' && ')
       }
     }

@@ -115,9 +115,10 @@ requests/<tmdbId>: {
   tmdbId:      number   integer TMDb id, same as the key (the KEY is the id of record)
   title:       string
   status:      'pending' | 'processing' | 'added' | 'exists' | 'error'
-  source:      'movie-hat' | 'cinema-roll'
+  source:      'movie-hat' | 'cinema-roll' | 'movie-requests'
   requestedBy: string   the signed-in email (rules check it matches the token)
   createdAt:   number   server timestamp, ms
+  force:       true     optional, Matt only — see "Forcing a request past the Plex hold"
 
   // Written by the service only:
   radarrId:    number
@@ -137,6 +138,35 @@ requests/<tmdbId>: {
 Only requesters' accounts can read or create rows. A row can only be created
 with `status: 'pending'`, and only when no row exists for that id or the
 existing one is `'error'` (that is the retry).
+
+### Forcing a request past the Plex hold
+
+Normally the Mac mini service waits: it will not bring the VPN up and start a
+download while somebody is watching Plex, which is why a row can sit
+`pending` for the length of a film. `force: true` on the row tells it not to
+wait — the VPN comes up and the torrent starts now, over the top of whoever
+is watching. The service caps how long a forced download may run
+(`FORCE_MAX_HOURS` there), so it cannot hold the connection open all night.
+
+Two rules about the field, both enforced in
+`scripts/generate-hat-rules.mjs`:
+
+- **Matt's alone.** `requests/<tmdbId>` accepts `force` only from
+  `OWNER_EMAIL`. Seth, Brian and anyone approved through `siteUsers` may
+  request as before, and a forced write from them is rejected outright —
+  which means the request never arrives at all, not that it arrives unforced.
+- **`true` or absent, never `false`.** Omitting the field behaves exactly as
+  every row did before this existed, so the service never has to tell "not
+  forced" from "explicitly not forced". `buildRequest` in
+  `src/utils/requestMovie.js` leaves it off unless it was asked for.
+
+`canForce(email)` is the client-side half, and `useRequestMovie` exposes it
+as `forceable` — that is what decides whether the option is drawn at all.
+Hiding a button is not a permission, so the rules are the thing that
+actually holds; `src/test/emulated/siteUsersRules.test.js` pins both halves.
+
+Matt, 2026-09-18: "I won't use it all the time, and it's only for me, but I
+want a way to force it."
 
 ### Who else may request (`siteUsers`)
 
