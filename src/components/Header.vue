@@ -98,7 +98,7 @@
         </span>
         <div class="mat"></div>
       </h1>
-      <span class="build-stamp">{{buildStamp}}</span>
+      <span class="build-stamp" role="button" title="Tap to reload" @click="reloadApp">{{ refreshing ? 'reloading…' : buildStamp }}</span>
     </div>
 
     <!-- Modals -->
@@ -124,7 +124,7 @@
 
 <script>
 import { getAuth, signOut } from 'firebase/auth';
-import { buildStamp } from '../utils/buildStamp.js';
+import { buildStamp, forceRefresh } from '../utils/buildStamp.js';
 import { isOwner } from '../assets/javascript/peek.js';
 import { pushApiConfigured, deviceSubscribed, subscribeThisDevice, unsubscribeThisDevice } from '../utils/push.js';
 import { pendingList } from '../utils/siteAccess.js';
@@ -133,6 +133,7 @@ import { dbGet } from '../store/db.js';
 export default {
   data () {
     return {
+      refreshing: false,
       pushOn: false,
       pendingAccessCount: 0,
     };
@@ -170,6 +171,11 @@ export default {
     },
   },
   methods: {
+    // The stamp is the reload button: an installed PWA has no other one.
+    reloadApp () {
+      this.refreshing = true;
+      forceRefresh();
+    },
     /**
      * How many people are waiting to be let into Movie Requests. Silent on
      * failure: a refused read means the pill simply carries no badge, which
