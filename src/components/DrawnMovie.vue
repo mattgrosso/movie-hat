@@ -305,6 +305,20 @@ export default {
       display: contents;
     }
 
+    // `display: contents` makes the request button a grid item directly —
+    // and Matt's force lever a FOURTH one in a three-column grid, so it
+    // dropped to a row of its own at a single column's width. "Force it
+    // through" wrapped to two lines inside a ~120px box at 0.7rem, which is
+    // the "ugly... almost illegible" of the report (-P1tU_AggltCIyidYPvF,
+    // 2026-09-19). It gets the whole row, and enough size to read.
+    .request-movie__force {
+      font-size: 0.8rem;
+      grid-column: 1 / -1;
+      justify-self: center;
+      padding: 0.3rem 0.9rem;
+      white-space: nowrap;
+    }
+
     // The explanation under the request button reads across the whole row.
     .request-movie__note,
     .request-movie__error {
