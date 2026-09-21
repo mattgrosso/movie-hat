@@ -153,6 +153,23 @@ const rules = {
       }
     },
 
+    // The reply to a bug report (2026-09-21, ported from Cinema Roll):
+    // `yarn resolve-bug-report` writes a plain-language notice here under the
+    // reporter's member key, and BugResolutionNotice (Movie Hat and Movie
+    // Requests both) shows it on their next launch; each notice names its
+    // app. Only the reporter can read their own; the only client write is
+    // flipping `seen`. The text is written by the Admin SDK, never a client.
+    bugReportResolutions: {
+      $memberKey: {
+        '.read': `${signedIn} && $memberKey === ${memberKeyExpression}`,
+        $reportId: {
+          seen: {
+            '.write': `${signedIn} && $memberKey === ${memberKeyExpression} && newData.isBoolean()`
+          }
+        }
+      }
+    },
+
     // "Which hats are mine." Yours to read and change freely. Anyone signed
     // in may CREATE an entry in someone else's index — that is what inviting
     // them means — but not alter or remove one that already exists, which

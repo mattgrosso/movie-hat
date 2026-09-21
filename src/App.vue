@@ -23,6 +23,7 @@
          button was a sign-in failure, which can only be reported from the
          sign-in screen. -->
     <BugReportButton/>
+    <BugResolutionNotice/>
   </div>
 </template>
 
@@ -32,6 +33,7 @@ import Login from "./components/Login.vue";
 import AppHeader from "./components/Header.vue";
 import UpdateAvailableBanner from "./components/UpdateAvailableBanner.vue";
 import BugReportButton from "./components/BugReportButton.vue";
+import BugResolutionNotice from "./components/BugResolutionNotice.vue";
 import { reloadForUpdate, isSafeMomentForReload, shouldAutoAttempt } from "./utils/appUpdate.js";
 import { flushStashedBugReports } from "./utils/bugReports.js";
 import { refreshSubscriptionIfGranted, clearBadgeOnOpen } from "./utils/push.js";
@@ -42,7 +44,8 @@ export default {
     AppHeader,
     Login,
     UpdateAvailableBanner,
-    BugReportButton
+    BugReportButton,
+    BugResolutionNotice
   },
   data () {
     return {

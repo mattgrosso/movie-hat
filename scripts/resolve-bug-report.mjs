@@ -1,30 +1,90 @@
-// Marks one or more bug reports resolved, so fetch-bug-reports.mjs stops
-// surfacing them by default.
+// Marks a bug report resolved AND tells the reporter, in plain language,
+// what was wrong and what changed. The notice lands at
+// `bugReportResolutions/<memberKey>/<reportId>`, where BugResolutionNotice
+// (in Movie Hat, or in Movie Requests - both apps file into this one
+// `bugReports` node) shows it on the reporter's next launch. Pattern ported
+// from Cinema Roll (Matt, 2026-09-21).
 //
-//   yarn resolve-bug-report <reportId> [reportId...]
+//   yarn resolve-bug-report <reportId> --understood "..." --fixed "..."
+//   yarn resolve-bug-report <id> [id...] --silent      # no notice
 //
-// Unlike Cinema Roll's resolver this one does not (yet) notify the reporter
-// in-app — Movie Hat has no resolution-notice UI. If that gets ported, model
-// it on cinemaroll's scripts/resolve-bug-report.mjs (--understood/--fixed,
-// written for a 12-year-old, --silent for QA noise).
+// Write the two texts for a smart 12-year-old: no jargon, no file names.
+// The reporter sees exactly these words. --silent is for duplicates, QA
+// noise and self-filed reports; resolving without choosing is refused.
+//
+// A report filed signed-out has no reporterEmail and so nobody to notify;
+// it is resolved with a warning. Which app to show the notice in comes from
+// the report itself: one filed from request.movie-hat.com carries a
+// `siteUserState` field in its appState (see the check-bugs skill).
 
-import { adminGet, adminUpdate } from './hatDatabase.mjs';
+import { adminGet, adminUpdate, adminSet } from './hatDatabase.mjs';
+import { emailToMemberKey } from '../src/store/memberKey.mjs';
 
-const reportIds = process.argv.slice(2);
-if (!reportIds.length) {
-  console.error('Usage: yarn resolve-bug-report <reportId> [reportId...]');
-  console.error('(report ids are printed by `yarn fetch-bug-reports`)');
+const args = process.argv.slice(2);
+const ids = [];
+let understood = null;
+let fixed = null;
+let silent = false;
+for (let i = 0; i < args.length; i += 1) {
+  if (args[i] === '--understood') understood = args[++i] ?? null;
+  else if (args[i] === '--fixed') fixed = args[++i] ?? null;
+  else if (args[i] === '--silent') silent = true;
+  else if (args[i].startsWith('--')) { console.error(`Unknown flag ${args[i]}`); process.exit(1); }
+  else ids.push(args[i]);
+}
+const usage = () => {
+  console.error('Usage: yarn resolve-bug-report <reportId> --understood "..." --fixed "..."');
+  console.error('       yarn resolve-bug-report <reportId> [reportId...] --silent');
+  process.exit(1);
+};
+if (!ids.length) usage();
+if (!silent && (!understood?.trim() || !fixed?.trim())) {
+  console.error('Refusing to resolve without telling the reporter what happened.');
+  usage();
+}
+if (!silent && ids.length > 1) {
+  console.error('A notice describes ONE report - resolve them one at a time, or pass --silent.');
   process.exit(1);
 }
 
-for (const id of reportIds) {
+const snippetOf = (text, limit = 280) => {
+  const t = (text || '').trim();
+  return t.length <= limit ? t : `${t.slice(0, limit - 1).trimEnd()}…`;
+};
+const appOf = (report) => {
+  try {
+    return JSON.parse(report.appState || '{}').siteUserState !== undefined ? 'movie-requests' : 'movie-hat';
+  } catch {
+    return 'movie-hat';
+  }
+};
+
+for (const id of ids) {
   const report = await adminGet(`bugReports/${id}`);
   if (!report) {
     console.error(`No report found with id ${id} - skipping.`);
     continue;
   }
-  await adminUpdate({ [`bugReports/${id}/resolved`]: true, [`bugReports/${id}/resolvedAt`]: Date.now() });
+  const resolvedAt = Date.now();
+  const change = { [`bugReports/${id}/resolved`]: true, [`bugReports/${id}/resolvedAt`]: resolvedAt };
+  if (!silent) change[`bugReports/${id}/resolution`] = { understood, fixed };
+  await adminUpdate(change);
   console.log(`Marked ${id} resolved.`);
+  if (silent) continue;
+  const memberKey = emailToMemberKey(report.reporterEmail);
+  if (!memberKey) {
+    console.warn(`  ! ${id} has no reporter email - resolved, but there is nobody to notify.`);
+    continue;
+  }
+  await adminSet(`bugReportResolutions/${memberKey}/${id}`, {
+    app: appOf(report),
+    understood,
+    fixed,
+    reportSnippet: snippetOf(report.transcript),
+    reportedAt: report.createdAt || null,
+    resolvedAt,
+    seen: false
+  });
+  console.log(`  Notice queued for ${report.reporterEmail} (${appOf(report)}) - they'll see it on their next launch.`);
 }
-
 process.exit(0);
