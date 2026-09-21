@@ -219,6 +219,30 @@ check. Clients cannot delete rows.
 6. When the file is imported, set `importedAt`. That is what the
    finished-download notification keys on.
 
+### Draw notifications, and which hats send them
+
+The bell in the header subscribes THIS DEVICE: without it nothing arrives at
+all, on that device, ever. Since 2026-09-20 there is a second, narrower dial —
+a switch on every hat in the hat list (Matt's report -P20Hn9jIGLCIIRyydRL: "I
+should be able to turn on or off notifications per hat, not just for the whole
+app").
+
+It is stored as a MUTE list, `push/<memberKey>/mutedHats/<hatKey>: true`, and
+that direction matters: a hat nobody has had an opinion about still notifies,
+the way every hat did before the setting existed, and so does a hat somebody
+adds you to next week. An allow list would have gone live by silencing
+everyone's hats at once.
+
+The list sits beside the subscriptions rather than in `localStorage` because
+the preference belongs to the member, not the device — mute a hat on the phone
+and the iPad stops announcing it too. `aws-lambda/push-notify.js` checks the
+same path in its `/push/drawn` fan-out, and that check is what actually stops
+the send: the person drawing has no business knowing everyone else's settings,
+let alone being trusted to honour them. The switch is hidden on a hat with one
+member, which has nobody to be notified by.
+
+Ship a change to that Lambda with `sh scripts/deploy-push-lambda.sh`.
+
 ### "Somebody asked for a movie" notifications
 
 2026-09-18, Matt: "I just want to be notified that somebody made a request

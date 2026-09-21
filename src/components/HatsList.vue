@@ -46,6 +46,31 @@
               <button class="btn btn-secondary" type="button" id="add-member-button" @click="addNewMemberTo(hat, hatIndex)">Add</button>
             </div>
 
+            <!-- Draw notifications, per hat (2026-09-20). The bell in the
+                 header is the device switch — without it nothing arrives at
+                 all; this says which of your hats are allowed to use it. Only
+                 shown where push exists, and a hat with one member has nobody
+                 to be notified BY. -->
+            <div v-if="showHatNotifications(hat)" class="hat-notifications mt-3">
+              <div class="form-check form-switch m-0">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  role="switch"
+                  :id="`notify-${hat.subKey}`"
+                  :checked="notificationsOnFor(hat)"
+                  :disabled="savingNotificationsFor === hat.subKey"
+                  @change="toggleHatNotifications(hat, $event)"
+                >
+                <label class="form-check-label" :for="`notify-${hat.subKey}`">
+                  Notify me when someone draws from this hat
+                </label>
+              </div>
+              <p v-if="!deviceSubscribedHere" class="hat-notifications-hint text-muted mt-1 mb-0">
+                Tap the bell at the top of the screen to get notifications on this device.
+              </p>
+            </div>
+
             <!-- Publishes this hat's latest pick for a wall display that
                  cannot sign in. Folded away by default: most hats will never
                  want it. -->
@@ -155,6 +180,7 @@
 import { buildUrl, dbDelete, dbGet, dbPatch, dbPost, dbPut, hatPath } from '../store/db.js';
 import { emailToMemberKey } from '../store/memberKey.mjs';
 import { hasSeenTutorial, shouldOfferTutorial } from '../assets/javascript/tutorial.js';
+import { deviceSubscribed, mutedHatKeys, pushApiConfigured, setHatNotifications } from '../utils/push.js';
 
 export default {
   data () {
@@ -166,13 +192,21 @@ export default {
       memberHats: [],
       message: null,
       openMirrorFeedFor: null,
-      enablingMirrorFeed: false
+      enablingMirrorFeed: false,
+      // Hat keys this member has muted. Replaced wholesale on every change
+      // rather than mutated, so the switches re-render without relying on
+      // Set reactivity.
+      mutedHats: new Set(),
+      deviceSubscribedHere: false,
+      savingNotificationsFor: null
     }
   },
   async mounted () {
     this.loading = true;
     await this.getMemberHats();
     this.loading = false;
+
+    this.loadNotificationPreferences();
 
     // A stranger's first moment in the app used to be this screen's lone
     // "Add New Hat" button with nothing explaining what a hat is — which is
@@ -199,6 +233,48 @@ export default {
     }
   },
   methods: {
+    /**
+     * Which hats are muted, and is this device even subscribed. Both are
+     * best-effort: a failure leaves the switches showing the default (on),
+     * which is what the app did before per-hat settings existed.
+     */
+    async loadNotificationPreferences () {
+      if (!pushApiConfigured()) return;
+      this.mutedHats = await mutedHatKeys();
+      this.deviceSubscribedHere = await deviceSubscribed();
+    },
+    // A hat you are alone in never generates a draw notification — the Lambda
+    // only ever tells the OTHER members — so offering the switch would be
+    // offering a setting that does nothing.
+    showHatNotifications (hat) {
+      if (!pushApiConfigured() || !this.$store.state.email) return false;
+      const members = Array.isArray(hat.members) ? hat.members : Object.values(hat.members || {});
+      return members.length > 1;
+    },
+    notificationsOnFor (hat) {
+      return !this.mutedHats.has(hat.subKey);
+    },
+    async toggleHatNotifications (hat, event) {
+      const on = event.target.checked;
+      this.savingNotificationsFor = hat.subKey;
+
+      try {
+        await setHatNotifications(hat.subKey, on);
+        const next = new Set(this.mutedHats);
+        if (on) next.delete(hat.subKey);
+        else next.add(hat.subKey);
+        this.mutedHats = next;
+      } catch (error) {
+        console.error('Could not save the notification setting', error);
+        // The switch moved in the DOM before we knew it would fail, and the
+        // data behind it hasn't changed — put it back by hand, or it would
+        // sit there claiming a preference that was never saved.
+        event.target.checked = this.notificationsOnFor(hat);
+        this.showMessage("Couldn't save that notification setting. Please try again.", 6000);
+      } finally {
+        this.savingNotificationsFor = null;
+      }
+    },
     toggleMirrorFeed (hat) {
       this.openMirrorFeedFor = this.openMirrorFeedFor === hat.subKey ? null : hat.subKey;
     },
@@ -549,6 +625,19 @@ export default {
       .member {
         a {
           font-size: 0.75rem;
+        }
+      }
+
+      .hat-notifications {
+        border-top: 1px solid #e6e6e6;
+        padding-top: 0.75rem;
+
+        .form-check-label {
+          font-size: 0.8rem;
+        }
+
+        .hat-notifications-hint {
+          font-size: 0.72rem;
         }
       }
 

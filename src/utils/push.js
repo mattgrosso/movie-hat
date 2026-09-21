@@ -10,8 +10,13 @@
 //
 // Subscriptions live at `push/<memberKey>/subscriptions/<id>` (their owner's
 // alone to read/write — see generate-hat-rules.mjs; the Lambda reads them
-// with admin credentials). Opting in IS having a subscription: no separate
-// prefs flag, and unsubscribing this device removes its row.
+// with admin credentials). Opting in IS having a subscription, and
+// unsubscribing this device removes its row.
+//
+// Since 2026-09-20 there is one preference beside them: a per-hat mute list
+// at `push/<memberKey>/mutedHats`, further down this file. The subscription
+// is still what makes notifications possible; the mute list only narrows
+// which hats use it.
 //
 // iOS ground rules, learned on Cinema Roll: the Push API only exists inside
 // a Home-Screen-installed app, and permission may only be requested from a
@@ -122,6 +127,52 @@ export async function unsubscribeThisDevice () {
     await subscription.unsubscribe().catch(() => {});
     if (memberKey) await dbDelete(`push/${memberKey}/subscriptions/${id}`);
   }
+}
+
+// --- Which hats may use it (2026-09-20) -------------------------------------
+//
+// Report -P20Hn9jIGLCIIRyydRL, Matt: "I should be able to turn on or off
+// notifications per hat, not just for the whole app." The bell in the header
+// is still the device switch — it holds the browser subscription, and nothing
+// arrives at all without it. This is the second dial, one per hat: of the
+// hats you're in, which ones are allowed to interrupt you.
+//
+// Kept as a MUTE list at `push/<memberKey>/mutedHats/<hatKey>: true`, and
+// opt-out on purpose. A hat you have never had an opinion about notifies you,
+// exactly as every hat did before this existed, and so does one somebody adds
+// you to tomorrow — an opt-in list would have silenced everyone's hats the
+// moment it deployed, and the silence would have looked like a bug.
+//
+// The preference belongs to the MEMBER, not the device: it lives beside the
+// subscriptions rather than in localStorage, so muting a hat on the phone
+// mutes it on the iPad too. The Lambda reads this same path before it sends
+// (aws-lambda/push-notify.js) — that is what actually stops the notification;
+// the switch below only records the wish.
+
+/** The hat keys this member has muted, as a Set. Empty on any failure. */
+export async function mutedHatKeys () {
+  const memberKey = myMemberKey();
+  if (!memberKey) return new Set();
+  try {
+    const muted = await dbGet(`push/${memberKey}/mutedHats`);
+    return new Set(Object.keys(muted || {}).filter((hatKey) => muted[hatKey]));
+  } catch {
+    // A preference we can't read is not worth an error banner: the list of
+    // switches just renders the default, which is "on".
+    return new Set();
+  }
+}
+
+/** Turn draw notifications for one hat on or off, for every device. */
+export async function setHatNotifications (hatKey, on) {
+  const memberKey = myMemberKey();
+  if (!memberKey) throw new Error('Sign in first.');
+  if (!hatKey) throw new Error('No hat to change.');
+  const path = `push/${memberKey}/mutedHats/${hatKey}`;
+  // Muting writes a row; un-muting removes it, so the absence of a row always
+  // means the same thing as it did before any of this shipped.
+  if (on) await dbDelete(path);
+  else await dbPut(path, true);
 }
 
 /**

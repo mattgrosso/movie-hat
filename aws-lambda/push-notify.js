@@ -6,7 +6,9 @@
 //
 //   POST /push/drawn - the drawer's app announces a saved draw
 //                      (DrawMovie.vue). Fans out to every OTHER member of
-//                      that hat who has a subscribed device.
+//                      that hat who has a subscribed device and hasn't muted
+//                      that particular hat (`push/<memberKey>/mutedHats`,
+//                      2026-09-20).
 //   POST /push/test  - a test notification to the caller's own devices.
 //
 // Plus a sweep, on an EventBridge schedule (`movie-hat-push-sweep`, every
@@ -643,6 +645,19 @@ exports.handler = async (event) => {
       let notified = 0;
       await Promise.all(others.map(async (memberKey) => {
         try {
+          // Has this member muted THIS hat? (2026-09-20, report
+          // -P20Hn9jIGLCIIRyydRL: "I should be able to turn on or off
+          // notifications per hat, not just for the whole app.") A mute list
+          // rather than an allow list, so a hat nobody has an opinion about —
+          // including one created after this shipped — still announces
+          // itself. See src/utils/push.js for the other half.
+          //
+          // Checked here rather than in the drawer's client because the
+          // preference is the RECIPIENT's: the person drawing has no business
+          // knowing, and shouldn't be trusted to honour, everyone else's
+          // notification settings.
+          if (await dbGet(`push/${memberKey}/mutedHats/${encodeURIComponent(hatKey)}`)) return;
+
           // Per-member icon badge: draws this member hasn't seen yet,
           // tracked at push/<memberKey>/badge. The app resets it to 0 on
           // open (utils/push.js clearBadge), so the count is "since you

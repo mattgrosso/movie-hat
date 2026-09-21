@@ -15,12 +15,16 @@
              unsubscribe. Rendered only when signed in and the push API is
              configured; on an iOS Safari tab (not installed) the tap explains
              the Home Screen requirement instead of silently failing. The tap
-             IS the permission gesture — iOS requires that. -->
+             IS the permission gesture — iOS requires that.
+
+             This is the device switch, and it stayed that: since 2026-09-20
+             each hat has its own switch on the hat list, which narrows what
+             this delivers rather than replacing it. -->
         <div
           v-if="showPushBell"
           class="push-bell badge rounded-pill text-bg-dark"
-          :title="pushOn ? 'Draw notifications are on — tap to turn off' : 'Notify me when someone draws'"
-          :aria-label="pushOn ? 'Turn off draw notifications' : 'Turn on draw notifications'"
+          :title="pushOn ? 'Draw notifications are on for this device — tap to turn off' : 'Notify this device when someone draws'"
+          :aria-label="pushOn ? 'Turn off draw notifications on this device' : 'Turn on draw notifications on this device'"
           @click="togglePush"
         >
           <svg v-if="pushOn" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-bell-fill" viewBox="0 0 16 16">
