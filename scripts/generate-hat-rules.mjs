@@ -286,7 +286,10 @@ const rules = {
           "newData.child('title').isString() && newData.child('title').val().length <= 300",
           "newData.child('status').val() === 'pending'",
           "(newData.child('source').val() === 'movie-hat' || newData.child('source').val() === 'cinema-roll' || newData.child('source').val() === 'movie-requests')",
-          "newData.child('requestedBy').val() === auth.token.email",
+          // Your own address — except when the owner forces a request
+          // somebody else is already waiting on (below), which leaves the
+          // row, requestedBy included, exactly as it was.
+          `(newData.child('requestedBy').val() === auth.token.email || (${isOwner} && data.child('status').val() === 'pending' && data.child('requestedBy').val() === newData.child('requestedBy').val()))`,
           "newData.child('createdAt').isNumber()",
           // `force: true` (2026-09-18) tells the service to bring the VPN up
           // and start the download even while somebody is watching Plex, so
@@ -295,7 +298,17 @@ const rules = {
           // leave it off instead, so the service never has to tell the two
           // apart.
           `(!newData.hasChild('force') || (newData.child('force').isBoolean() && newData.child('force').val() === true && ${isOwner}))`
-        ].join(' && ')
+        ].join(' && '),
+        // Forcing AFTER the request (Matt, 2026-09-25: "the force through
+        // button should only show up after I've clicked the request button
+        // and should replace it"). The row is in flight, so the row-level
+        // .write above refuses it; this grants the one extra write: the
+        // owner adding `force: true` to a row that is still 'pending' —
+        // i.e. held for Plex, not yet picked up — and not already forced.
+        // Nothing else about the row can change this way.
+        force: {
+          '.write': `${isOwner} && !data.exists() && data.parent().child('status').val() === 'pending' && newData.val() === true`
+        }
       }
     }
   }

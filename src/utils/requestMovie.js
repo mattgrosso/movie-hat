@@ -227,6 +227,8 @@ export function requestNote (row) {
  *   load(tmdbId, preloaded?)   → read the row once (or take the one given);
  *                                 keep polling if it is still in flight
  *   request({ tmdbId, title }) → write 'pending', then poll for the outcome
+ *   force(tmdbId)              → owner only: add `force: true` to a row
+ *                                 that is still 'pending' (see canForceNow)
  *   stop()                     → end polling (call on unmount)
  *
  * `now`, `setTimer`, `clearTimer`, `isVisible` and `onForeground` exist so
@@ -250,6 +252,14 @@ export function useRequestMovie ({ read, write, source, email, short = false, no
   // Whether to offer the force option at all: only to the one account the
   // rules will accept it from.
   const forceable = computed(() => canForce(currentEmail()));
+  // Whether forcing is on offer RIGHT NOW: after the request, while the
+  // Mac mini is still holding it for Plex, and not already forced. Matt,
+  // 2026-09-25: "the force through button should only show up after I've
+  // clicked the request button and should replace it" — request first,
+  // then a second tap if he can't wait.
+  const canForceNow = computed(() =>
+    forceable.value && !requesting.value && row.value?.status === 'pending' && !row.value.force
+  );
 
   const currentEmail = () => {
     const value = typeof email === 'function' ? email() : (email?.value ?? email);
@@ -379,5 +389,31 @@ export function useRequestMovie ({ read, write, source, email, short = false, no
     }
   }
 
-  return { row, requesting, error, label, note, settled, canRequest, forceable, load, request, stop };
+  // Add `force: true` to a row that is already waiting. Only that one field
+  // is written: the rules refuse any other change to a row in flight, and
+  // grant this one to the owner while the row is still 'pending'.
+  async function force (tmdbId) {
+    if (!canForceNow.value) return;
+    error.value = null;
+    requesting.value = true;
+    try {
+      await write(`${requestPath(tmdbId)}/force`, true);
+      row.value = { ...row.value, force: true };
+      watch(tmdbId);
+    } catch (writeError) {
+      // Refused almost always means the Mac mini picked the row up between
+      // our read and the tap — nothing left to force. Show where it is now.
+      const refused = writeError?.status === 401 || writeError?.status === 403;
+      if (refused) {
+        await load(tmdbId);
+      } else {
+        console.error('The force didn’t save', writeError);
+        error.value = 'Couldn’t force it. Please try again.';
+      }
+    } finally {
+      requesting.value = false;
+    }
+  }
+
+  return { row, requesting, error, label, note, settled, canRequest, forceable, canForceNow, load, request, force, stop };
 }

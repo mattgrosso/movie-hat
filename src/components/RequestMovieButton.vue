@@ -1,6 +1,24 @@
 <template>
   <div v-if="movie && signedIn" class="request-movie" :class="{ 'request-movie--compact': compact }">
+    <!--
+      Forcing is a SECOND tap, in the same spot (Matt, 2026-09-25: "the force
+      through button should only show up after I've clicked the request
+      button and should replace it"). Request first; while the Mac mini is
+      holding it for Plex, the spent "Requested" button becomes "Force it
+      through". Only for the one account the rules take a force from, and
+      not in a compact list, where it would be a second control per row.
+    -->
     <button
+      v-if="canForceNow && !compact"
+      type="button"
+      class="btn btn-force"
+      title="Bring the VPN up and start the download now, even if somebody is watching Plex"
+      @click="force(movie.id)"
+    >
+      Force it through
+    </button>
+    <button
+      v-else
       type="button"
       class="btn"
       :class="buttonClass"
@@ -15,20 +33,6 @@
         <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
       </svg>
       {{ label }}
-    </button>
-    <!--
-      Forcing is Matt's alone, so the option only appears for the account the
-      database will accept it from. Not in a compact list: there it would be
-      a second control per row on a page that is mostly rows.
-    -->
-    <button
-      v-if="forceable && canRequest && !compact"
-      type="button"
-      class="request-movie__force"
-      title="Bring the VPN up and start the download now, even if somebody is watching Plex"
-      @click="request({ tmdbId: movie.id, title: movie.title, force: true })"
-    >
-      Force it through
     </button>
     <p v-if="error" class="request-movie__error m-0">{{ error }}</p>
     <!-- The note spells out what "Downloading" means; the compact list
@@ -78,7 +82,7 @@ export default {
     // row — and the getter is the one place that knows both.
     const signedIn = computed(() => store.getters.mayRequestMovies);
 
-    const { row, requesting, error, label, note, settled, canRequest, forceable, load, request, stop } = useRequestMovie({
+    const { row, requesting, error, label, note, settled, canRequest, canForceNow, load, request, force, stop } = useRequestMovie({
       read: dbGet,
       write: dbPut,
       source: 'movie-hat',
@@ -117,7 +121,7 @@ export default {
       return 'Ask the Mac mini to add this movie to the library';
     });
 
-    return { signedIn, row, requesting, error, label, note, settled, canRequest, forceable, request, buttonClass, tooltip };
+    return { signedIn, row, requesting, error, label, note, settled, canRequest, canForceNow, request, force, buttonClass, tooltip };
   }
 };
 </script>
@@ -149,19 +153,20 @@ export default {
     color: white;
   }
 
-  // Deliberately quiet: it is a lever, not a call to action, and pressing it
-  // starts a download over the top of whatever somebody is watching.
-  &__force {
-    background: none;
-    border: 1px solid rgba(255, 193, 7, 0.55);
-    border-radius: 0.25rem;
-    color: #ffc107;
-    font-size: 0.7rem;
-    padding: 0.15rem 0.5rem;
+  // Amber, not the request purple: it is the same slot's second, bigger
+  // lever — pressing it starts a download over the top of whatever somebody
+  // is watching. #212529 on #ffc107 is ~11:1.
+  .btn-force {
+    background: #ffc107;
+    border-color: #ffc107;
+    color: #212529;
+    font-weight: 600;
   }
 
-  &__force:active {
-    background: rgba(255, 193, 7, 0.18);
+  .btn-force:active {
+    background: #d39e00;
+    border-color: #d39e00;
+    color: #212529;
   }
 
   &__error {

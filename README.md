@@ -168,6 +168,16 @@ actually holds; `src/test/emulated/siteUsersRules.test.js` pins both halves.
 Matt, 2026-09-18: "I won't use it all the time, and it's only for me, but I
 want a way to force it."
 
+**Force comes AFTER the request** (2026-09-25: "the force through button
+should only show up after I've clicked the request button and should replace
+it"). The button offers only Request; once the row is `pending` (held for
+Plex), the spent "Requested" button becomes "Force it through", which writes
+just `requests/<tmdbId>/force: true` onto the waiting row. The rules grant
+that one write to the owner while the row is still `pending` and unforced —
+on anybody's request, leaving it theirs. **The Mac mini service must honour a
+force that arrives after the row was created**: re-read `force` whenever it
+re-checks a held row (or listen for `child_changed`), not only at pickup.
+
 ### Who else may request (`siteUsers`)
 
 `requests` accepts a write from one of `REQUESTER_EMAILS` **or** from anyone

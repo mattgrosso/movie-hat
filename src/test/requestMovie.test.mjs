@@ -235,6 +235,43 @@ describe('useRequestMovie', () => {
     expect(h.note.value).toMatch(/VPN/);
   });
 
+  // Report 2026-09-25: force is a SECOND tap, after the request, in the
+  // request button's place — not a lever offered up front.
+  it('offers forcing only once a request is waiting, then writes just the force field', async () => {
+    const h = harness({ email: 'mattgrosso@gmail.com' });
+    expect(h.canForceNow.value).toBe(false); // nothing requested yet
+
+    await h.request({ tmdbId: 12101, title: 'Soylent Green' });
+    expect(h.canForceNow.value).toBe(true);
+
+    await h.force(12101);
+    expect(h.write).toHaveBeenLastCalledWith('requests/12101/force', true);
+    expect(h.label.value).toBe('Forced — starting now');
+    expect(h.canForceNow.value).toBe(false); // already forced
+  });
+
+  it('never offers the late force to anyone else, or once the Mac mini has the row', async () => {
+    const theirs = harness();
+    await theirs.request({ tmdbId: 12101, title: 'Soylent Green' });
+    expect(theirs.canForceNow.value).toBe(false);
+    await theirs.force(12101);
+    expect(theirs.write).toHaveBeenCalledTimes(1); // the request, nothing more
+
+    const h = harness({ email: 'mattgrosso@gmail.com', rows: { 'requests/12101': { tmdbId: 12101, status: 'processing' } } });
+    await h.load(12101);
+    expect(h.canForceNow.value).toBe(false);
+  });
+
+  it('shows where the row went when the force is refused because it moved on', async () => {
+    const h = harness({ email: 'mattgrosso@gmail.com' });
+    await h.request({ tmdbId: 12101, title: 'Soylent Green' });
+    h.store['requests/12101'] = { tmdbId: 12101, status: 'processing' };
+    h.write.mockImplementationOnce(async () => { throw Object.assign(new Error('denied'), { status: 401 }); });
+    await h.force(12101);
+    expect(h.error.value).toBe(null);
+    expect(h.label.value).toBe('Starting the download…');
+  });
+
   it('writes no force field when he makes an ordinary request', async () => {
     const h = harness({ email: 'mattgrosso@gmail.com' });
     await h.request({ tmdbId: 12101, title: 'Soylent Green' });

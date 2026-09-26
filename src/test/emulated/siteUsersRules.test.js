@@ -206,6 +206,40 @@ describe('requests: forcing past the Plex hold', () => {
     await assertFails(set(ref(as(MATT), 'requests/27205'), { ...requestRow(MATT.email), force: 1 }));
   });
 
+  // Forcing AFTER requesting: the button that replaces "Requested" writes
+  // just `force` onto the waiting row (report, 2026-09-25).
+  describe('forcing a request that is already waiting', () => {
+    it('lets Matt force his own pending request', async () => {
+      await assertSucceeds(set(ref(as(MATT), 'requests/27205'), requestRow(MATT.email)));
+      await assertSucceeds(set(ref(as(MATT), 'requests/27205/force'), true));
+    });
+
+    it("lets Matt force somebody else's pending request, leaving it theirs", async () => {
+      await assertSucceeds(set(ref(as(SETH), 'requests/27205'), requestRow(SETH.email, 'movie-hat')));
+      await assertSucceeds(set(ref(as(MATT), 'requests/27205/force'), true));
+    });
+
+    it('refuses the late force from anyone but Matt', async () => {
+      await assertSucceeds(set(ref(as(SETH), 'requests/27205'), requestRow(SETH.email, 'movie-hat')));
+      await assertFails(set(ref(as(SETH), 'requests/27205/force'), true));
+    });
+
+    it('refuses it once the service has picked the row up, and refuses false', async () => {
+      await assertSucceeds(set(ref(as(MATT), 'requests/27205'), requestRow(MATT.email)));
+      await assertFails(set(ref(as(MATT), 'requests/27205/force'), false));
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await set(ref(ctx.database(), 'requests/27205/status'), 'processing');
+      });
+      await assertFails(set(ref(as(MATT), 'requests/27205/force'), true));
+    });
+
+    it('does not open the rest of a waiting row to Matt', async () => {
+      await assertSucceeds(set(ref(as(SETH), 'requests/27205'), requestRow(SETH.email, 'movie-hat')));
+      await assertFails(set(ref(as(MATT), 'requests/27205/title'), 'Something else'));
+      await assertFails(set(ref(as(MATT), 'requests/27205'), { ...requestRow(SETH.email, 'movie-hat'), force: true }));
+    });
+  });
+
   it('still takes a row with no force field at all', async () => {
     await assertSucceeds(set(ref(as(MATT), 'requests/27205'), requestRow(MATT.email)));
   });

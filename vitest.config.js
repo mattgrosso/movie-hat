@@ -17,6 +17,7 @@ export default defineConfig({
     // test:emulated), so it is not part of a plain `yarn test:run`.
     exclude: ['**/node_modules/**', '**/dist/**', 'src/test/emulated/**'],
     include: ['src/test/**/*.test.{js,mjs}'],
+    setupFiles: ['src/test/setup.js'],
   },
   resolve: {
     alias: {
