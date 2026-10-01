@@ -34,7 +34,7 @@ import AppHeader from "./components/Header.vue";
 import UpdateAvailableBanner from "./components/UpdateAvailableBanner.vue";
 import BugReportButton from "./components/BugReportButton.vue";
 import BugResolutionNotice from "./components/BugResolutionNotice.vue";
-import { reloadForUpdate, isSafeMomentForReload, shouldAutoAttempt } from "./utils/appUpdate.js";
+import { reloadForUpdate, isSafeMomentForReload, shouldAutoAttempt, markUpdateLanded, checkWorkerOnce, runUpdateCheck } from "./utils/appUpdate.js";
 import { flushStashedBugReports } from "./utils/bugReports.js";
 import { refreshSubscriptionIfGranted, clearBadgeOnOpen } from "./utils/push.js";
 
@@ -93,19 +93,25 @@ export default {
   },
   methods: {
     async checkForServiceWorkerUpdate () {
-      if ('serviceWorker' in navigator) {
-        try {
-          const registration = await navigator.serviceWorker.getRegistration();
-          if (registration) {
-            await registration.update();
-          }
-        } catch {
-          // Best-effort — a failed check just means we try again on the
-          // next trigger.
-        }
+      // An update already spotted but not applied (deferred on a weak
+      // connection, or the first try didn't land): coming back to the app is
+      // a fresh moment, so give it its second automatic try.
+      if (this.$store.state.updateAvailable && !this.$store.state.updateApplying && !this.autoUpdateTimer) {
+        this.armAutoUpdate();
       }
 
-      await this.checkDeployedBundle();
+      // Side by side, the worker's half capped (appUpdate.js runUpdateCheck):
+      // a slow or failed worker check must never hold up spotting a deploy.
+      await runUpdateCheck({
+        refreshWorker: async () => {
+          if (!('serviceWorker' in navigator)) return;
+          const registration = await navigator.serviceWorker.getRegistration();
+          // Shared with the refresh that may follow (checkWorkerOnce), so it
+          // joins this check instead of queueing a second one behind it.
+          if (registration) await checkWorkerOnce(registration);
+        },
+        checkBundle: () => this.checkDeployedBundle()
+      });
     },
     /**
      * Notices a new deploy by comparing bundle filenames, independent of
@@ -137,7 +143,12 @@ export default {
         const deployedBundle = (await response.text()).match(/js\/app\.[a-z0-9]+\.js/);
         if (deployedBundle && deployedBundle[0] !== runningBundle) {
           this.deployedBundleSeen = deployedBundle[0];
+          this.$store.commit('setUpdateTargetBundle', deployedBundle[0]);
           this.$store.commit('setUpdateAvailable', true);
+        } else if (deployedBundle) {
+          // Running what's deployed: any earlier reload attempt worked, so
+          // the next update starts from a clean slate (appUpdate.js).
+          markUpdateLanded();
         }
       } catch {
         // Offline, blocked, or the check simply failed — next trigger.
@@ -155,15 +166,25 @@ export default {
     noteActivity () {
       this.lastActivityAt = Date.now();
     },
+    async applyUpdate () {
+      // The banner reads this to say "Updating…" instead of offering a
+      // Refresh that would only get in the way.
+      this.$store.commit('setUpdateApplying', true);
+      const outcome = await reloadForUpdate({ target: this.deployedBundleSeen });
+      if (outcome === 'deferred') {
+        this.$store.commit('setUpdateApplying', false);
+        this.$store.commit('setUpdateDeferred', true);
+      }
+    },
     armAutoUpdate () {
       const target = this.deployedBundleSeen || 'unknown';
-      if (!shouldAutoAttempt(target)) return; // once per version; banner remains
+      if (!shouldAutoAttempt(target)) return; // twice per version; then the banner
 
       // Fresh moment (just launched or just foregrounded): nothing is in
       // flight yet — apply right away.
       const fresh = Date.now() - (this.lastBecameVisibleAt || 0) < 5000;
       if (fresh && isSafeMomentForReload({ routePath: this.$route?.path || '' })) {
-        reloadForUpdate();
+        this.applyUpdate();
         return;
       }
 
@@ -174,7 +195,7 @@ export default {
         if (quiet && isSafeMomentForReload({ routePath: this.$route?.path || '' })) {
           clearInterval(this.autoUpdateTimer);
           this.autoUpdateTimer = null;
-          reloadForUpdate();
+          this.applyUpdate();
         }
       }, 5000);
     }

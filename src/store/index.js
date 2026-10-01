@@ -78,6 +78,14 @@ export default createStore({
     // A newer deploy exists than the bundle this page is running. App.vue
     // applies it at a quiet moment; the banner is the fallback.
     updateAvailable: false,
+    // The deployed bundle that update is for, so a second Refresh for the
+    // SAME version can stop trusting the service worker (utils/appUpdate.js).
+    updateTargetBundle: null,
+    // App.vue is applying the update right now: the banner says so instead
+    // of offering a Refresh.
+    updateApplying: false,
+    // The connection couldn't carry the new version, so this one stays put.
+    updateDeferred: false,
 
     // Secret path segment for the current hat's Magic Mirror feed, or null if
     // the feed has never been turned on for it. Per-hat: getHat sets it from
@@ -185,6 +193,15 @@ export default createStore({
     },
     setUpdateAvailable (state, value) {
       state.updateAvailable = Boolean(value);
+    },
+    setUpdateTargetBundle (state, value) {
+      state.updateTargetBundle = value || null;
+    },
+    setUpdateApplying (state, value) {
+      state.updateApplying = Boolean(value);
+    },
+    setUpdateDeferred (state, value) {
+      state.updateDeferred = Boolean(value);
     }
   },
   actions: {
