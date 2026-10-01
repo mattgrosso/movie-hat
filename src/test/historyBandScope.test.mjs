@@ -61,3 +61,25 @@ describe('only the poster carries the frame', () => {
     expect(body).not.toContain('12px solid black');
   });
 });
+
+// Matt, 2026-10-01: the details used to unfold as a box below the poster;
+// they now sit over it, inside the white mat, so opening one never moves
+// the grid.
+describe('poster details are an overlay', () => {
+  const styleBlock = source.slice(source.indexOf('<style'));
+  const panel = styleBlock.slice(styleBlock.indexOf('.poster-details {'));
+  const body = panel.slice(0, panel.indexOf('.poster-details-title'));
+
+  it('is laid over the poster, inside the mat', () => {
+    expect(body).toContain('position: absolute;');
+    expect(body).toContain('inset: 36px;');
+    expect(body).toContain('overflow-y: auto;');
+  });
+
+  it('lives outside the Google link, so a tap on it goes nowhere', () => {
+    const template = source.slice(0, source.indexOf('</template>\n\n<script>'));
+    const link = template.slice(template.indexOf('<a\n'), template.indexOf('</a>'));
+    expect(link).not.toContain('poster-details');
+    expect(template).toContain('@click="closeDetailsUnlessLink"');
+  });
+});

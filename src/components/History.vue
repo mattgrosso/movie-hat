@@ -67,22 +67,29 @@
           :aria-label="`Details for ${movie.title}`"
           @click="toggleDetails(movie)"
         >i</button>
-        <!-- The back of the card: the title, the facts in two columns, and
-             where it's streaming (bug report, 2026-09-15: "add in there also
-             the places that it can be streamed since we're pulling that
-             anyway, and the style of that whole open panel should be a
-             little nicer"). -->
-        <div v-if="detailsOpenFor === movie.dbKey" class="poster-details">
-          <p class="poster-details-title">{{ movie.title }}</p>
-          <dl v-if="detailRows(movie).length" class="poster-details-rows">
-            <template v-for="row in detailRows(movie)" :key="row.label">
-              <dt>{{ row.label }}</dt>
-              <dd>{{ row.value }}</dd>
-            </template>
-          </dl>
-          <p v-else class="poster-details-empty">Nothing more is known about this one.</p>
-          <WhereToWatch :movie="movie" show-empty/>
-        </div>
+        <!-- The title, the facts in two columns, and where it's streaming
+             (bug report, 2026-09-15), laid over the poster inside its white
+             mat rather than unfolded below it, so the grid stays put (Matt,
+             2026-10-01: "move that information onto an overlay over the
+             poster"). A sibling of the link, so a tap here never opens the
+             Google search; a tap anywhere but the streaming link closes it. -->
+        <Transition name="poster-details-fade">
+          <div
+            v-if="detailsOpenFor === movie.dbKey"
+            class="poster-details"
+            @click="closeDetailsUnlessLink"
+          >
+            <p class="poster-details-title">{{ movie.title }}</p>
+            <dl v-if="detailRows(movie).length" class="poster-details-rows">
+              <template v-for="row in detailRows(movie)" :key="row.label">
+                <dt>{{ row.label }}</dt>
+                <dd>{{ row.value }}</dd>
+              </template>
+            </dl>
+            <p v-else class="poster-details-empty">Nothing more is known about this one.</p>
+            <WhereToWatch :movie="movie" show-empty/>
+          </div>
+        </Transition>
         </div>
         <!-- Matt only (the button hides itself for everyone else). Rendered
              once the requests index is in, so each button gets its row
@@ -180,6 +187,11 @@ export default {
     toggleDetails (movie) {
       this.detailsOpenFor = this.detailsOpenFor === movie.dbKey ? null : movie.dbKey;
       if (this.detailsOpenFor) this.fetchRuntime(movie);
+    },
+    // The streaming link inside the overlay keeps its own job.
+    closeDetailsUnlessLink (event) {
+      if (event.target.closest('a')) return;
+      this.detailsOpenFor = null;
     },
     // One lookup per movie per session. A failure is silent: the Runtime row
     // simply doesn't render, the same way an absent provider strip doesn't
@@ -363,6 +375,8 @@ export default {
         right: 18px;
         top: 18px;
         width: 24px;
+        // Above the overlay, so the same "i" closes it.
+        z-index: 2;
 
         // Press feedback only — a phone keeps :hover stuck after a tap.
         &:active,
@@ -372,26 +386,29 @@ export default {
         }
       }
 
-      // Same white card and black frame as the poster, so it reads as the
-      // back of the card rather than a popup.
-      // The back of the card, NOT a second frame: the poster above it is the
-      // framed object. A hairline and the card's own white keep the panel
-      // reading as part of the same object without competing with it.
+      // Over the poster, inside the mat: the frame's 12px border plus its
+      // 24px padding is where the picture starts, so the overlay starts
+      // there too and the white mat still frames it. Dark glass with white
+      // text; it scrolls when a small desktop poster can't hold it all.
       .poster-details {
-        background: white;
-        border: 1px solid #d5d5d5;
-        border-top: none;
-        border-radius: 0 0 3px 3px;
-        color: black;
-        padding: 12px 16px 14px;
+        -webkit-backdrop-filter: blur(3px);
+        backdrop-filter: blur(3px);
+        background: rgba(0, 0, 0, 0.82);
+        color: white;
+        cursor: pointer;
+        inset: 36px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 40px 16px 14px;
+        position: absolute;
         text-align: left;
-        width: 100%;
+        z-index: 1;
 
         .poster-details-title {
-          font-size: 0.75rem;
+          font-size: 0.95rem;
           font-weight: 700;
           line-height: 1.3;
-          margin: 0 0 0.4rem;
+          margin: 0 0 0.6rem;
           overflow-wrap: anywhere;
         }
 
@@ -401,20 +418,19 @@ export default {
           display: grid;
           grid-template-columns: max-content minmax(0, 1fr);
           margin: 0;
-          row-gap: 0.2rem;
+          row-gap: 0.3rem;
 
           dt {
-            // #666 on white is ~5.7:1.
-            color: #666;
-            font-size: 0.5rem;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.6rem;
             font-weight: 700;
             letter-spacing: 0.08em;
-            line-height: 1.6;
+            line-height: 1.9;
             text-transform: uppercase;
           }
 
           dd {
-            font-size: 0.6rem;
+            font-size: 0.8rem;
             line-height: 1.4;
             margin: 0;
             overflow-wrap: anywhere;
@@ -422,18 +438,18 @@ export default {
         }
 
         .poster-details-empty {
-          color: #555;
-          font-size: 0.6rem;
+          color: rgba(255, 255, 255, 0.75);
+          font-size: 0.75rem;
           font-style: italic;
           margin: 0;
         }
 
-        // The streaming strip, in the card's own ink, under a hairline.
+        // The streaming strip, under a hairline.
         .where-to-watch {
-          border-top: 1px solid #ddd;
-          color: black;
-          margin-top: 0.6rem;
-          padding-top: 0.6rem;
+          border-top: 1px solid rgba(255, 255, 255, 0.3);
+          color: white;
+          margin-top: 0.75rem;
+          padding-top: 0.75rem;
 
           .where-to-watch-link {
             justify-content: flex-start !important;
@@ -443,11 +459,23 @@ export default {
             box-shadow: none;
             padding: 0;
           }
+        }
+      }
 
-          .where-to-watch-empty {
-            color: #555;
-            opacity: 1;
-          }
+      .poster-details-fade-enter-active,
+      .poster-details-fade-leave-active {
+        transition: opacity 0.2s ease;
+      }
+
+      .poster-details-fade-enter-from,
+      .poster-details-fade-leave-to {
+        opacity: 0;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .poster-details-fade-enter-active,
+        .poster-details-fade-leave-active {
+          transition: none;
         }
       }
 
