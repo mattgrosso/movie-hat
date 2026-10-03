@@ -49,8 +49,8 @@ describe('the draw-count band stays keyed to itself', () => {
 describe('only the poster carries the frame', () => {
   const styleBlock = source.slice(source.indexOf('<style'));
 
-  it('frames the poster link by child combinator, not any descendant anchor', () => {
-    expect(styleBlock).toContain('.poster-frame > a {');
+  it('frames the poster by child combinator, not any descendant anchor', () => {
+    expect(styleBlock).toContain('.poster-frame > .poster {');
     // A bare `a {` rule at card level would reach the streaming link again.
     expect(styleBlock).not.toMatch(/^\s{6}a\s*\{/m);
   });
@@ -76,10 +76,30 @@ describe('poster details are an overlay', () => {
     expect(body).toContain('overflow-y: auto;');
   });
 
-  it('lives outside the Google link, so a tap on it goes nowhere', () => {
+  it('sits beside the poster, not inside it', () => {
     const template = source.slice(0, source.indexOf('</template>\n\n<script>'));
-    const link = template.slice(template.indexOf('<a\n'), template.indexOf('</a>'));
-    expect(link).not.toContain('poster-details');
+    const poster = template.slice(template.indexOf('class="poster"'), template.indexOf('<Transition'));
+    expect(poster).not.toContain('poster-details');
     expect(template).toContain('@click="closeDetailsUnlessLink"');
+  });
+});
+
+// Matt, 2026-10-03: a tap on the poster opens its details (no more "i"),
+// and the Google search moves inside them.
+describe('the poster itself opens the details', () => {
+  const template = source.slice(0, source.indexOf('</template>\n\n<script>'));
+  const poster = template.slice(template.indexOf('class="poster"'), template.indexOf('<Transition'));
+  const overlay = template.slice(template.indexOf('class="poster-details"'), template.indexOf('</Transition>'));
+
+  it('toggles the overlay on a tap, with no separate info button', () => {
+    expect(poster).toContain('@click="toggleDetails(movie)"');
+    expect(poster).not.toContain('google.com');
+    expect(template).not.toContain('poster-info');
+  });
+
+  it('carries the Google search inside the overlay, in a new tab', () => {
+    expect(overlay).toContain('class="poster-details-google"');
+    expect(overlay).toContain('target="_blank"');
+    expect(source).toContain('https://www.google.com/search?q=');
   });
 });

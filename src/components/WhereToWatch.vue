@@ -39,7 +39,7 @@
 // data (sourced from JustWatch — the link goes to their page, which is
 // TMDB's attribution requirement). The one moment you urgently need this
 // is right after the draw, which is exactly where this renders — and,
-// since 2026-09-16, behind the "i" on every drawn poster on the home page
+// since 2026-09-16, in the details of every drawn poster on the home page
 // ("add in there also the places that it can be streamed since we're
 // pulling that anyway").
 export default {

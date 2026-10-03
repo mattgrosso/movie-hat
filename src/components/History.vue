@@ -30,16 +30,21 @@
         v-for="movie in sortedHistory"
         :key="movie.dbKey"
       >
-        <!-- The frame wraps the link so the "i" can sit on the poster without
-             living inside the anchor (a button inside a link is a tap that
-             goes two places). Small and subtle on purpose — bug report,
-             2026-09-13: "something small and subtle for each poster on the
-             home screen that would show me the details of when it was added
-             to the hat exactly, then by whom". -->
+        <!-- A tap on the poster opens its details; a second tap (or one on
+             the overlay) closes them. It used to be a Google link with a
+             small "i" in the corner for the details (bug report,
+             2026-09-13), until Matt, 2026-10-03: "if you tap on the poster,
+             it'll reveal that modal", with the Google search moved inside. -->
         <div class="poster-frame">
-        <a
-          :href="`https://www.google.com/search?q=${movie.title} movie`"
-          target="_blank"
+        <div
+          class="poster"
+          role="button"
+          tabindex="0"
+          :aria-expanded="String(detailsOpenFor === movie.dbKey)"
+          :aria-label="`Details for ${movie.title}`"
+          @click="toggleDetails(movie)"
+          @keydown.enter.prevent="toggleDetails(movie)"
+          @keydown.space.prevent="toggleDetails(movie)"
         >
           <span class="draw-band text-white my-1 text-center">({{drawRank(movie)}} drawn)</span>
           <img
@@ -58,21 +63,12 @@
             <p v-else-if="movie.addedBy">Added by: {{movie.addedBy}}</p>
             <p v-else-if="movie.note">"{{movie.note}}"</p>
           </div>
-        </a>
-        <button
-          type="button"
-          class="poster-info"
-          :class="{ open: detailsOpenFor === movie.dbKey }"
-          :aria-expanded="String(detailsOpenFor === movie.dbKey)"
-          :aria-label="`Details for ${movie.title}`"
-          @click="toggleDetails(movie)"
-        >i</button>
-        <!-- The title, the facts in two columns, and where it's streaming
-             (bug report, 2026-09-15), laid over the poster inside its white
-             mat rather than unfolded below it, so the grid stays put (Matt,
+        </div>
+        <!-- The title, the facts in two columns, where it's streaming
+             (bug report, 2026-09-15) and the Google search, laid over the
+             poster inside its white mat so the grid stays put (Matt,
              2026-10-01: "move that information onto an overlay over the
-             poster"). A sibling of the link, so a tap here never opens the
-             Google search; a tap anywhere but the streaming link closes it. -->
+             poster"). A tap anywhere but a link closes it. -->
         <Transition name="poster-details-fade">
           <div
             v-if="detailsOpenFor === movie.dbKey"
@@ -88,6 +84,12 @@
             </dl>
             <p v-else class="poster-details-empty">Nothing more is known about this one.</p>
             <WhereToWatch :movie="movie" show-empty/>
+            <a
+              class="poster-details-google"
+              :href="googleSearchUrl(movie)"
+              target="_blank"
+              rel="noreferrer"
+            >Search Google</a>
           </div>
         </Transition>
         </div>
@@ -188,7 +190,10 @@ export default {
       this.detailsOpenFor = this.detailsOpenFor === movie.dbKey ? null : movie.dbKey;
       if (this.detailsOpenFor) this.fetchRuntime(movie);
     },
-    // The streaming link inside the overlay keeps its own job.
+    googleSearchUrl (movie) {
+      return `https://www.google.com/search?q=${encodeURIComponent(`${movie.title} movie`)}`;
+    },
+    // The streaming and Google links inside the overlay keep their own jobs.
     closeDetailsUnlessLink (event) {
       if (event.target.closest('a')) return;
       this.detailsOpenFor = null;
@@ -351,41 +356,6 @@ export default {
         width: 100%;
       }
 
-      // The "i": a small dark dot in the poster's top-right corner, quiet
-      // enough not to compete with the ribbon in the other corner. The
-      // frame's 12px border plus its 24px padding is where the poster
-      // starts; the button sits just inside that.
-      .poster-info {
-        align-items: center;
-        background: rgba(0, 0, 0, 0.55);
-        border: 1px solid rgba(255, 255, 255, 0.7);
-        border-radius: 50%;
-        color: white;
-        cursor: pointer;
-        display: flex;
-        font-family: Georgia, 'Times New Roman', serif;
-        font-size: 0.75rem;
-        font-style: italic;
-        font-weight: 700;
-        height: 24px;
-        justify-content: center;
-        line-height: 1;
-        padding: 0;
-        position: absolute;
-        right: 18px;
-        top: 18px;
-        width: 24px;
-        // Above the overlay, so the same "i" closes it.
-        z-index: 2;
-
-        // Press feedback only — a phone keeps :hover stuck after a tap.
-        &:active,
-        &.open {
-          background: white;
-          color: black;
-        }
-      }
-
       // Over the poster, inside the mat: the frame's 12px border plus its
       // 24px padding is where the picture starts, so the overlay starts
       // there too and the white mat still frames it. Dark glass with white
@@ -399,7 +369,7 @@ export default {
         inset: 36px;
         overflow-y: auto;
         overscroll-behavior: contain;
-        padding: 40px 16px 14px;
+        padding: 16px 16px 14px;
         position: absolute;
         text-align: left;
         z-index: 1;
@@ -460,6 +430,14 @@ export default {
             padding: 0;
           }
         }
+
+        .poster-details-google {
+          color: white;
+          display: inline-block;
+          font-size: 0.8rem;
+          margin-top: 0.75rem;
+          text-decoration: underline;
+        }
       }
 
       .poster-details-fade-enter-active,
@@ -484,13 +462,11 @@ export default {
       // out as a second black box inside the details panel (Matt, 2026-09-17:
       // "I don't like how all of these new dibs have the black frame... only
       // the poster should be framed"). Same root cause as the rotated band.
-      .poster-frame > a {
+      .poster-frame > .poster {
         background: white;
         border: 12px solid black;
         box-shadow: inset 0px 0px 9px 0px #424242;
-        // Block, explicitly: the link used to be a flex item of the li,
-        // which blockified it; inside .poster-frame it is a plain inline
-        // and its width, padding and border would stop laying out.
+        cursor: pointer;
         display: block;
         overflow: hidden;
         padding: 24px;
