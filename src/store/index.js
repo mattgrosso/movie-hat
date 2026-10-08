@@ -9,7 +9,12 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithCustomToken, on
 // Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyDlfyRC1BgoQ6UCPKsX-dvFC9HumeEwGjg",
-  authDomain: "movie-hat-9c418.firebaseapp.com",
+    // movie-hat.com, not movie-hat-9c418.firebaseapp.com (2026-10-08): the sign-in popup lands on
+  // /__/auth/handler, and served from another site iOS Safari's storage
+  // partitioning could strip it of its session state ("missing initial
+  // state"). CloudFront proxies /__/auth/* to the Firebase handler, so the
+  // flow is first-party; the OAuth client lists this domain's handler.
+  authDomain: "movie-hat.com",
   databaseURL: "https://movie-hat-9c418-default-rtdb.firebaseio.com",
   projectId: "movie-hat-9c418",
   storageBucket: "movie-hat-9c418.appspot.com",
