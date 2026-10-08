@@ -16,9 +16,6 @@ import { setupSentry } from './sentry';
 
 const app = createApp(App);
 
-// Crash reporting → Sentry → Bug Desk (src/sentry.js). Production builds only.
-setupSentry(app);
-
 app.use(store);
 
 // Watch the real Firebase session from start-up. Until 2026-08-16 the app
@@ -77,6 +74,10 @@ const router = createRouter({
   history: createWebHashHistory(),
   routes
 })
+
+// Crash reporting → Sentry → Bug Desk (src/sentry.js). Production builds only.
+// After the router exists, so page loads can be traced by screen name.
+setupSentry(app, { router });
 
 /**
  * Keep anyone who may not use the request screens off them, even if they

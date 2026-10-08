@@ -685,3 +685,13 @@ exports.handler = async (event) => {
     return response(500, { error: 'Internal error' });
   }
 };
+
+// Errors to Sentry (2026-10-08, house module sentryLambda.js): a thrown error
+// is reported and rethrown, console.error calls are reported once per shape,
+// and a timeout gets a warning just before it lands. Same project as the
+// app, tagged runtime=lambda, so Bug Desk files it under this repo.
+const { createReporter } = require('./sentryLambda.js');
+exports.handler = createReporter({
+  dsn: 'https://00db30b8e0214b6daa3fe1054e053d12@o4504483013525504.ingest.us.sentry.io/4504483022569472',
+  functionName: 'movie-hat-push'
+}).wrapHandler(exports.handler);

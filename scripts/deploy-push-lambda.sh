@@ -27,6 +27,7 @@ mkdir -p "$BUILD/bundle"
 (cd "$BUILD/bundle" && unzip -q -o ../current.zip)
 
 cp "$ROOT/aws-lambda/push-notify.js" "$BUILD/bundle/index.js"
+cp "$ROOT/aws-lambda/sentryLambda.js" "$BUILD/bundle/"
 (cd "$BUILD/bundle" && zip -q -r ../function.zip .)
 
 "$AWS" lambda update-function-code --function-name movie-hat-push \
