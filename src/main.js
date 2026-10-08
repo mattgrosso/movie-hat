@@ -12,8 +12,12 @@ import HatList from "./components/HatsList.vue";
 import Wrapped from "./components/Wrapped.vue";
 import Tutorial from "./components/Tutorial.vue";
 import './registerServiceWorker'
+import { setupSentry } from './sentry';
 
 const app = createApp(App);
+
+// Crash reporting → Sentry → Bug Desk (src/sentry.js). Production builds only.
+setupSentry(app);
 
 app.use(store);
 
