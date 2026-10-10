@@ -1,107 +1,118 @@
 <template>
   <div class="header-wrapper">
-    <div class="user-and-hat-pills d-flex justify-content-between">
-      <!-- The account pill. Was the email address itself, which on a phone
-           shoved every other pill off the row once the address ran long
-           (bug report, 2026-10-09). The address now lives in the log-out box
-           this opens. -->
+    <!-- The top row: the hat on the left, one menu on the right. It used to
+         be a row of separate icon pills (account, bell, access, request,
+         peek) beside the hat name, which on a phone read as lopsided once
+         the email pill shrank to an icon (bug report, 2026-10-09). Every
+         one of those now lives in this menu, each shown to exactly the
+         people who saw its pill. -->
+    <div class="user-and-hat-pills d-flex justify-content-between align-items-center">
       <div
-        v-if="$store.state.email"
-        class="user-email badge rounded-pill text-bg-dark"
-        :title="$store.state.email"
-        :aria-label="`Signed in as ${$store.state.email}`"
-        data-bs-toggle="modal"
-        data-bs-target="#logOutModal"
+        v-if="$store.state.movieHatTitle"
+        class="current-hat badge rounded-pill text-bg-dark"
+        :title="$store.state.movieHatTitle"
+        @click="$router.push('/hat-list')"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-person-fill" viewBox="0 0 16 16">
-          <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/>
-        </svg>
+        <p class="text-white m-0">
+          {{$store.state.movieHatTitle}}
+        </p>
       </div>
-      <div class="right-pills d-flex">
-        <!-- Draw notifications (2026-08-28). Tap subscribes THIS device to a
-             push whenever someone draws from a hat you're in; tap again to
-             unsubscribe. Rendered only when signed in and the push API is
-             configured; on an iOS Safari tab (not installed) the tap explains
-             the Home Screen requirement instead of silently failing. The tap
-             IS the permission gesture — iOS requires that.
-
-             This is the device switch, and it stayed that: since 2026-09-20
-             each hat has its own switch on the hat list, which narrows what
-             this delivers rather than replacing it. -->
-        <div
-          v-if="showPushBell"
-          class="push-bell badge rounded-pill text-bg-dark"
-          :title="pushOn ? 'Draw notifications are on for this device — tap to turn off' : 'Notify this device when someone draws'"
-          :aria-label="pushOn ? 'Turn off draw notifications on this device' : 'Turn on draw notifications on this device'"
-          @click="togglePush"
-        >
-          <svg v-if="pushOn" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-bell-fill" viewBox="0 0 16 16">
-            <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2m.995-14.901a1 1 0 1 0-1.99 0A5 5 0 0 0 3 6c0 1.098-.5 6-2 7h14c-1.5-1-2-5.902-2-7a5 5 0 0 0-4.005-4.901"/>
-          </svg>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16">
-            <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2M8 1.918l-.797.161A4 4 0 0 0 4 6c0 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134 8.197 12 6.628 12 6a4 4 0 0 0-3.203-3.92zM14.22 12c.223.447.481.801.78 1H1c.299-.199.557-.553.78-1C2.68 10.2 3 6.88 3 6c0-2.42 1.72-4.44 4.005-4.901a1 1 0 1 1 1.99 0A5 5 0 0 1 13 6c0 .88.32 4.2 1.22 6"/>
-          </svg>
-        </div>
-        <!-- The waiting list for the standalone Movie Requests app
-             (2026-09-18). Admins only — everybody else never learns the
-             screen exists, and the database refuses the read regardless. The
-             count is people waiting on a decision; no badge when nobody is. -->
-        <div
-          v-if="canApproveAccess"
-          class="access-link badge rounded-pill text-bg-dark"
-          :title="pendingAccessCount ? `${pendingAccessCount} waiting to be let in` : 'Who gets movie requests'"
-          :aria-label="pendingAccessCount ? `${pendingAccessCount} people waiting to be let in` : 'Who gets movie requests'"
-          @click="$router.push('/access')"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-person-check-fill" viewBox="0 0 16 16">
-            <path fill-rule="evenodd" d="M15.854 5.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 0 1 .708-.708L12.5 7.793l2.646-2.647a.5.5 0 0 1 .708 0"/>
-            <path d="M1 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/>
-          </svg>
-          <span v-if="pendingAccessCount" class="access-link__count">{{ pendingAccessCount }}</span>
-        </div>
-        <!-- "Request a movie": search all of TMDb and ask for a download,
-             without going near a hat. Shown to whoever may request — the
-             hard-coded three, or anyone Matt has approved. -->
-        <div
-          v-if="canRequestMovies"
-          class="request-link badge rounded-pill text-bg-dark"
-          title="Request a movie"
-          aria-label="Request a movie"
-          @click="$router.push('/request')"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-download" viewBox="0 0 16 16">
-            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
-            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
-          </svg>
-        </div>
-        <!-- The way into /peek. Rendered only for the owner, so nobody else is
-             offered a button that spoils their own hat. Same caveat as the
-             screen it opens: this is a client-side check in a public bundle,
-             not a security boundary — see src/assets/javascript/peek.js. -->
-        <div
-          v-if="canPeek"
-          class="peek-link badge rounded-pill text-bg-dark"
-          title="Peek in the hat"
-          aria-label="Peek in the hat"
-          @click="$router.push('/peek')"
+      <span v-else></span>
+      <div v-if="$store.state.email" class="header-menu dropdown">
+        <button
+          type="button"
+          class="header-menu__toggle badge rounded-pill text-bg-dark border-0"
+          data-bs-toggle="dropdown"
+          aria-expanded="false"
+          :aria-label="pendingAccessCount ? `Menu, ${pendingAccessCount} waiting to be let in` : 'Menu'"
         >
           <!-- Inline, because bootstrap-icons is installed but its CSS is
-               never imported — the same reason every other icon here is SVG. -->
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-eye-fill" viewBox="0 0 16 16">
-            <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/>
-            <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/>
+               never imported. -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-list" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/>
           </svg>
-        </div>
-        <div
-          v-if="$store.state.movieHatTitle"
-          class="current-hat badge rounded-pill text-bg-dark"
-          :title="$store.state.movieHatTitle"
-          @click="$router.push('/hat-list')"
-        >
-          <p class="text-white m-0">
-            {{$store.state.movieHatTitle}}
-          </p>
-        </div>
+          <!-- Somebody is waiting on Movie Requests: the alert the access
+               pill's count used to carry, now that the pill is folded away. -->
+          <span v-if="pendingAccessCount" class="header-menu__dot"></span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li>
+            <span class="dropdown-item-text small text-body-secondary text-break">Signed in as {{ $store.state.email }}</span>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <!-- Draw notifications (2026-08-28). Subscribes THIS device to a
+               push whenever someone draws from a hat you're in; tap again to
+               unsubscribe. Shown only when the push API is configured; on an
+               iOS Safari tab (not installed) the tap explains the Home Screen
+               requirement instead of silently failing. The tap IS the
+               permission gesture — iOS requires that.
+
+               This is the device switch, and it stayed that: since 2026-09-20
+               each hat has its own switch on the hat list, which narrows what
+               this delivers rather than replacing it. -->
+          <li v-if="showPushBell">
+            <button type="button" class="dropdown-item" @click="togglePush">
+              <svg v-if="pushOn" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-bell-fill" viewBox="0 0 16 16">
+                <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2m.995-14.901a1 1 0 1 0-1.99 0A5 5 0 0 0 3 6c0 1.098-.5 6-2 7h14c-1.5-1-2-5.902-2-7a5 5 0 0 0-4.005-4.901"/>
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16">
+                <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2M8 1.918l-.797.161A4 4 0 0 0 4 6c0 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134 8.197 12 6.628 12 6a4 4 0 0 0-3.203-3.92zM14.22 12c.223.447.481.801.78 1H1c.299-.199.557-.553.78-1C2.68 10.2 3 6.88 3 6c0-2.42 1.72-4.44 4.005-4.901a1 1 0 1 1 1.99 0A5 5 0 0 1 13 6c0 .88.32 4.2 1.22 6"/>
+              </svg>
+              {{ pushOn ? 'Draw notifications: on' : 'Draw notifications: off' }}
+            </button>
+          </li>
+          <!-- "Request a movie": search all of TMDb and ask for a download,
+               without going near a hat. Shown to whoever may request — the
+               hard-coded three, or anyone Matt has approved. -->
+          <li v-if="canRequestMovies">
+            <button type="button" class="dropdown-item" @click="$router.push('/request')">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-download" viewBox="0 0 16 16">
+                <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
+                <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
+              </svg>
+              Request a movie
+            </button>
+          </li>
+          <!-- The waiting list for the standalone Movie Requests app
+               (2026-09-18). Admins only — everybody else never learns the
+               screen exists, and the database refuses the read regardless. The
+               count is people waiting on a decision; no badge when nobody is. -->
+          <li v-if="canApproveAccess">
+            <button type="button" class="dropdown-item" @click="$router.push('/access')">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-person-check-fill" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M15.854 5.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 0 1 .708-.708L12.5 7.793l2.646-2.647a.5.5 0 0 1 .708 0"/>
+                <path d="M1 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/>
+              </svg>
+              Who gets movie requests
+              <span v-if="pendingAccessCount" class="badge rounded-pill text-bg-danger ms-1">{{ pendingAccessCount }}</span>
+            </button>
+          </li>
+          <!-- The way into /peek. Rendered only for the owner, so nobody else is
+               offered a button that spoils their own hat. Same caveat as the
+               screen it opens: this is a client-side check in a public bundle,
+               not a security boundary — see src/assets/javascript/peek.js. -->
+          <li v-if="canPeek">
+            <button type="button" class="dropdown-item" @click="$router.push('/peek')">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-eye-fill" viewBox="0 0 16 16">
+                <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/>
+                <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/>
+              </svg>
+              Peek in the hat
+            </button>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <!-- Straight out, no "are you sure" box: it's two taps deep in a
+               menu now, which is confirmation enough. -->
+          <li>
+            <button type="button" class="dropdown-item" @click="logOut">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-box-arrow-right" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/>
+                <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/>
+              </svg>
+              Log out
+            </button>
+          </li>
+        </ul>
       </div>
     </div>
     <div class="header d-flex justify-content-center align-items-center">
@@ -114,25 +125,6 @@
       <span class="build-stamp" role="button" title="Tap to reload" @click="reloadApp">{{ refreshing ? 'reloading…' : buildStamp }}</span>
     </div>
 
-    <!-- Modals -->
-    <div class="modal fade" id="logOutModal" tabindex="-1" aria-labelledby="logOutModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h1 class="modal-title fs-5" id="logOutModalLabel">Logout</h1>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <p class="text-body-secondary small text-break mb-2">Signed in as {{ $store.state.email }}</p>
-            Do you want to log out?
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Nevermind</button>
-            <button type="button" class="btn btn-primary" data-bs-dismiss="modal" @click="logOut">Log Out</button>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -306,16 +298,11 @@ export default {
         cursor: pointer;
       }
 
-      /* One row at any length: the icon pills keep their size, and the hat
-         name gives up whatever room is short, ending in "…". */
-      gap: 4px;
+      /* One row at any length: the menu keeps its size, and the hat name
+         gives up whatever room is short, ending in "…". */
+      gap: 8px;
 
-      .right-pills {
-        gap: 4px;
-        min-width: 0;
-      }
-
-      .rounded-pill:not(.current-hat) {
+      .header-menu {
         flex-shrink: 0;
       }
 
@@ -328,23 +315,36 @@ export default {
         }
       }
 
-      /* Icon-only, so they need their own centring — the hat pill gets its
-         from the <p> it wraps. */
-      .user-email,
-      .peek-link,
-      .request-link,
-      .access-link {
+      .header-menu__toggle {
         align-items: center;
+        cursor: pointer;
         display: flex;
-        gap: 3px;
+        position: relative;
       }
 
-      /* The waiting count, when there is one. Tabular so it doesn't jog the
-         pill's width as it changes. */
-      .access-link__count {
-        font-size: 0.65rem;
-        font-variant-numeric: tabular-nums;
-        line-height: 1;
+      /* People waiting on Movie Requests. */
+      .header-menu__dot {
+        background: #dc3545;
+        border: 1.5px solid #212529;
+        border-radius: 50%;
+        height: 9px;
+        position: absolute;
+        right: -2px;
+        top: -2px;
+        width: 9px;
+      }
+
+      /* Same shape as Cinema Roll's sort menu: as wide as its longest
+         item, never wider than a phone can show. */
+      ul.dropdown-menu {
+        max-width: 80vw;
+        width: max-content;
+      }
+
+      .dropdown-item {
+        align-items: center;
+        display: flex;
+        gap: 8px;
       }
     }
 
