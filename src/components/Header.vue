@@ -1,13 +1,21 @@
 <template>
   <div class="header-wrapper">
     <div class="user-and-hat-pills d-flex justify-content-between">
+      <!-- The account pill. Was the email address itself, which on a phone
+           shoved every other pill off the row once the address ran long
+           (bug report, 2026-10-09). The address now lives in the log-out box
+           this opens. -->
       <div
         v-if="$store.state.email"
         class="user-email badge rounded-pill text-bg-dark"
+        :title="$store.state.email"
+        :aria-label="`Signed in as ${$store.state.email}`"
+        data-bs-toggle="modal"
+        data-bs-target="#logOutModal"
       >
-        <p class="text-white m-0" data-bs-toggle="modal" data-bs-target="#logOutModal">
-          {{$store.state.email}}
-        </p>
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-person-fill" viewBox="0 0 16 16">
+          <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/>
+        </svg>
       </div>
       <div class="right-pills d-flex">
         <!-- Draw notifications (2026-08-28). Tap subscribes THIS device to a
@@ -87,6 +95,7 @@
         <div
           v-if="$store.state.movieHatTitle"
           class="current-hat badge rounded-pill text-bg-dark"
+          :title="$store.state.movieHatTitle"
           @click="$router.push('/hat-list')"
         >
           <p class="text-white m-0">
@@ -114,6 +123,7 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
+            <p class="text-body-secondary small text-break mb-2">Signed in as {{ $store.state.email }}</p>
             Do you want to log out?
           </div>
           <div class="modal-footer">
@@ -296,12 +306,31 @@ export default {
         cursor: pointer;
       }
 
+      /* One row at any length: the icon pills keep their size, and the hat
+         name gives up whatever room is short, ending in "…". */
+      gap: 4px;
+
       .right-pills {
         gap: 4px;
+        min-width: 0;
       }
 
-      /* Icon-only, so they need their own centring — the sibling pills get
-         theirs from the <p> they wrap. */
+      .rounded-pill:not(.current-hat) {
+        flex-shrink: 0;
+      }
+
+      .current-hat {
+        min-width: 0;
+
+        p {
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+
+      /* Icon-only, so they need their own centring — the hat pill gets its
+         from the <p> it wraps. */
+      .user-email,
       .peek-link,
       .request-link,
       .access-link {
