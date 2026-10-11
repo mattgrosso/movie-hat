@@ -1,23 +1,13 @@
 <template>
   <div class="header-wrapper">
-    <!-- The top row: the hat on the left, one menu on the right. It used to
+    <!-- The top row: one menu on the left, the hat on the right (swapped
+         from hat-left on request, 2026-10-11). It used to
          be a row of separate icon pills (account, bell, access, request,
          peek) beside the hat name, which on a phone read as lopsided once
          the email pill shrank to an icon (bug report, 2026-10-09). Every
          one of those now lives in this menu, each shown to exactly the
          people who saw its pill. -->
     <div class="user-and-hat-pills d-flex justify-content-between align-items-center">
-      <div
-        v-if="$store.state.movieHatTitle"
-        class="current-hat badge rounded-pill text-bg-dark"
-        :title="$store.state.movieHatTitle"
-        @click="$router.push('/hat-list')"
-      >
-        <p class="text-white m-0">
-          {{$store.state.movieHatTitle}}
-        </p>
-      </div>
-      <span v-else></span>
       <div v-if="$store.state.email" class="header-menu dropdown">
         <button
           type="button"
@@ -35,7 +25,7 @@
                pill's count used to carry, now that the pill is folded away. -->
           <span v-if="pendingAccessCount" class="header-menu__dot"></span>
         </button>
-        <ul class="dropdown-menu dropdown-menu-end">
+        <ul class="dropdown-menu">
           <li>
             <span class="dropdown-item-text small text-body-secondary text-break">Signed in as {{ $store.state.email }}</span>
           </li>
@@ -114,6 +104,17 @@
           </li>
         </ul>
       </div>
+      <div
+        v-if="$store.state.movieHatTitle"
+        class="current-hat badge rounded-pill text-bg-dark"
+        :title="$store.state.movieHatTitle"
+        @click="$router.push('/hat-list')"
+      >
+        <p class="text-white m-0">
+          {{$store.state.movieHatTitle}}
+        </p>
+      </div>
+      <span v-else></span>
     </div>
     <div class="header d-flex justify-content-center align-items-center">
       <h1 class="col-12 d-flex justify-content-center" @click="$router.push('/');">
@@ -292,8 +293,11 @@ export default {
       /* iOS 26+ paints a Liquid Glass blur band over the top edge of an
          installed web app, regardless of the 'black' status-bar style. The
          pills used to sit at 6px from pixel 0, i.e. inside that band, which
-         washed them out. Clear the inset before adding our own 6px. */
-      padding: var(--band-top, 6px) 6px 0;
+         washed them out. Clear the inset before adding our own 6px.
+         Then 10px back up (2026-10-11): --band-top's margin over the band
+         left the row looking low. Local to this row, so nothing else that
+         reads --band-top moves. */
+      padding: calc(var(--band-top, 16px) - 10px) 6px 0;
       .rounded-pill {
         cursor: pointer;
       }
@@ -306,7 +310,9 @@ export default {
         flex-shrink: 0;
       }
 
+      /* Pinned right even when there is no menu beside it. */
       .current-hat {
+        margin-left: auto;
         min-width: 0;
 
         p {
