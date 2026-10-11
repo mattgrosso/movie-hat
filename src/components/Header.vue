@@ -294,10 +294,9 @@ export default {
          installed web app, regardless of the 'black' status-bar style. The
          pills used to sit at 6px from pixel 0, i.e. inside that band, which
          washed them out. Clear the inset before adding our own 6px.
-         Then 10px back up (2026-10-11): --band-top's margin over the band
-         left the row looking low. Local to this row, so nothing else that
-         reads --band-top moves. */
-      padding: calc(var(--band-top, 16px) - 10px) 6px 0;
+         --band-top's margin over the band is deliberate: a 10px lift
+         (2026-10-11) put the row back in the blur, so leave it be. */
+      padding: var(--band-top, 6px) 6px 0;
       .rounded-pill {
         cursor: pointer;
       }
