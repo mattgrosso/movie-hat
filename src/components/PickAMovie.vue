@@ -105,7 +105,8 @@
 </template>
 
 <script>
-import { dbGet, dbPatch, dbPost, resolveHatKey } from '../store/db.js';
+import { dbPatch, dbPost, resolveHatKey } from '../store/db.js';
+import { hatWithAdded, slimHatMovie } from '../assets/javascript/hatEntry.js';
 
 export default {
   data () {
@@ -185,15 +186,15 @@ export default {
 
       const dbKey = this.$store.state.dbKeyForHatTitle;
 
-      const post = await dbPost(`hats/${this.movieHatTitle}/${dbKey}/movies`,
-        { ...movie, timeStamp: Date.now(), addedBy: this.$store.state.name }
-      );
+      const entry = { ...slimHatMovie(movie), timeStamp: Date.now(), addedBy: this.$store.state.name };
+      const post = await dbPost(`hats/${this.movieHatTitle}/${dbKey}/movies`, entry);
 
       if (post) {
         this.entryKey = post.name;
         this.loading = false;
 
-        this.$store.dispatch('getHat');
+        // We know what was saved; no need to download the whole hat again.
+        this.$store.commit('setMovieHat', hatWithAdded(this.$store.state.movieHat, entry, post.name));
 
         this.showNoteField = true;
 
@@ -213,16 +214,9 @@ export default {
       if (this.noteValue) {
         const dbKey = this.$store.state.dbKeyForHatTitle;
 
-        const entry = await dbGet(`hats/${this.movieHatTitle}/${dbKey}/movies/${this.entryKey}`
-        );
-
-        const payload = {
-          ...entry,
-          note: this.noteValue
-        };
-
+        // A PATCH merges, so the note alone is enough; no read first.
         await dbPatch(`hats/${this.movieHatTitle}/${dbKey}/movies/${this.entryKey}`,
-          payload
+          { note: this.noteValue }
         );
       }
       this.returnHome();

@@ -18,6 +18,7 @@ import { dbPatch, hatPath, resolveHatKey } from '../store/db.js';
 import { trackEvent } from '@/utils/usage.js';
 import { announceDraw } from '../utils/push.js';
 import sample from 'lodash/sample';
+import { afterDraw, slimHatMovie } from '../assets/javascript/hatEntry.js';
 
 export default {
   data () {
@@ -67,8 +68,7 @@ export default {
       this.$router.push('/drawn-movie');
     },
     async removeMovieFromHat (movie) {
-      const movieForHistory = { ...movie, dateDrawn: Date.now() };
-      delete movieForHistory.dbKey;
+      const movieForHistory = { ...slimHatMovie(movie), dateDrawn: Date.now() };
 
       if (!this.$store.state.dbKeyForHatTitle) {
         // Through the index, not by listing the title: once the rules are
@@ -89,8 +89,9 @@ export default {
       // strand it in both places (or worse). Push keys normally come from
       // the server; a PATCH needs its own, and the draw timestamp is unique
       // enough within one hat's history.
+      const historyKey = `drawn-${movieForHistory.dateDrawn}`;
       await dbPatch(hatPath(this.movieHatTitle, dbKey), {
-        [`history/drawn-${movieForHistory.dateDrawn}`]: movieForHistory,
+        [`history/${historyKey}`]: movieForHistory,
         [`movies/${movie.dbKey}`]: null
       });
 
@@ -107,11 +108,19 @@ export default {
         movieTitle: movieForHistory.title
       });
 
-      // Awaited so the mirror feed is built from a history that already has
-      // this draw in it. The draw is exactly what the mirror is waiting for,
-      // so this publish skips the six-hourly throttle.
+      // The write just told us exactly what changed, so the hat and history
+      // are updated in place rather than downloaded whole again (that read
+      // is the big one; see hatEntry.js). Done before the mirror publish so
+      // the feed is built from a history that already has this draw in it.
+      // The draw is exactly what the mirror is waiting for, so this publish
+      // skips the six-hourly throttle.
       try {
-        await this.$store.dispatch('getHat');
+        const next = afterDraw(
+          { movies: this.$store.state.movieHat, history: this.$store.state.history },
+          movie, historyKey, movieForHistory
+        );
+        this.$store.commit('setMovieHat', next.movies);
+        this.$store.commit('setHistory', next.history);
         await this.$store.dispatch('publishMirrorFeed');
       } catch (error) {
         console.warn('The draw saved, but refreshing the hat afterwards did not', error);
