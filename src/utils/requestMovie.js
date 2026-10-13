@@ -38,6 +38,7 @@
 // realtime SDK would be a hundred kilobytes of bundle for a row that
 // changes twice.
 import { ref, computed } from 'vue';
+import { trackEvent } from './usage.js';
 
 export const REQUEST_SOURCES = ['movie-hat', 'cinema-roll', 'movie-requests'];
 
@@ -353,6 +354,7 @@ export function useRequestMovie ({ read, write, source, email, short = false, no
   }
 
   async function request ({ tmdbId, title, force = false }) {
+    trackEvent('movie-requested');
     if (requesting.value) return;
     error.value = null;
 

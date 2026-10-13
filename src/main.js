@@ -13,6 +13,10 @@ import Wrapped from "./components/Wrapped.vue";
 import Tutorial from "./components/Tutorial.vue";
 import './registerServiceWorker'
 import { setupSentry } from './sentry';
+import { trackUsage } from './utils/usage.js';
+
+// One anonymous ping per open → Bug Desk's Visitors tab (house module).
+trackUsage('movie-hat');
 
 const app = createApp(App);
 

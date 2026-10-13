@@ -15,6 +15,7 @@
 
 <script>
 import { dbPatch, hatPath, resolveHatKey } from '../store/db.js';
+import { trackEvent } from '@/utils/usage.js';
 import { announceDraw } from '../utils/push.js';
 import sample from 'lodash/sample';
 
@@ -34,6 +35,8 @@ export default {
   },
   methods: {
     drawMovie () {
+      trackEvent('movie-drawn');
+      trackEvent('movie-drawn');
       const movies = this.$store.state.movieHat;
 
       if (!movies.length) {

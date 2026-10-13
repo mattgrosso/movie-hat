@@ -26,6 +26,7 @@
 </template>
 
 <script>
+import { trackEvent } from '@/utils/usage.js';
 export default {
   data () {
     return {
@@ -37,6 +38,7 @@ export default {
   },
   methods: {
     async addMovie () {
+      trackEvent('movie-added');
       this.loading = true;
 
       let results = [];
