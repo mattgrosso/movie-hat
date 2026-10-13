@@ -3,6 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildIndexes } from '../../scripts/build-membership-index.mjs';
 import { partitionHats } from '../../scripts/prune-empty-hats.mjs';
+import { planSlimming } from '../../scripts/slim-hat-entries.mjs';
 
 describe('buildIndexes', () => {
   it('writes both halves of the index for every member', () => {
@@ -98,5 +99,32 @@ describe('partitionHats', () => {
     expect(empty).toHaveLength(1);
     expect(empty[0].dbKey).toBe('stray');
     expect(kept).toHaveLength(1);
+  });
+});
+
+describe('planSlimming', () => {
+  it('nulls only the search-only fields, in movies and history, and skips slim hats', () => {
+    const hats = {
+      'Family Hat': {
+        abc: {
+          movies: {
+            m1: { title: 'Heat', id: 949, note: 'yes', popularity: 80, vote_count: 7000, streamers: { flatrate: [] } },
+            m2: { title: 'Ran', id: 11645 }
+          },
+          history: { 'drawn-1': { title: 'Alien', dateDrawn: 1, streamers: {} } }
+        }
+      },
+      'Slim Hat': { def: { movies: { m3: { title: 'Up' } } } }
+    };
+
+    const { updates, report } = planSlimming(hats);
+
+    expect(updates).toEqual({
+      'hats/Family Hat/abc/movies/m1/streamers': null,
+      'hats/Family Hat/abc/movies/m1/popularity': null,
+      'hats/Family Hat/abc/movies/m1/vote_count': null,
+      'hats/Family Hat/abc/history/drawn-1/streamers': null
+    });
+    expect(report.map((hat) => [hat.title, hat.entries])).toEqual([['Family Hat', 2]]);
   });
 });

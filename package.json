@@ -7,6 +7,7 @@
     "backup-hats": "node scripts/backup-hats.mjs",
     "restore-hats": "node scripts/restore-hats.mjs",
     "prune-empty-hats": "node scripts/prune-empty-hats.mjs",
+    "slim-hat-entries": "node scripts/slim-hat-entries.mjs",
     "build-membership-index": "node scripts/build-membership-index.mjs",
     "generate-hat-rules": "node scripts/generate-hat-rules.mjs",
     "mint-hat-token": "node scripts/mint-hat-token.mjs",

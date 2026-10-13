@@ -10,10 +10,11 @@
 // title, poster_path, id, addedBy, note and dateDrawn, so dropping these is
 // invisible to it.
 //
-// Existing entries are left as they are; a draw slims its own history copy.
+// Entries saved before this were slimmed in place by
+// scripts/slim-hat-entries.mjs (the home page read stayed large without it).
 
 // Shown on the search screen only, to choose between results.
-const SEARCH_ONLY = ['streamers', 'popularity', 'vote_count'];
+export const SEARCH_ONLY = ['streamers', 'popularity', 'vote_count'];
 
 /** A movie (a search choice or a hat entry) → what the database keeps. */
 export function slimHatMovie (movie) {
