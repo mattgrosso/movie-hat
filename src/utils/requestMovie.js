@@ -66,6 +66,50 @@ export function isSettled (row) {
   return TERMINAL_STATUSES.includes(row.status);
 }
 
+// "Watch in Plex" (2026-10-13, report from Seth: the "ready to watch"
+// notification "takes you back into Movie Hat. Really, it should take you
+// into Plex"). A notification can't open Plex itself — on iOS a tap always
+// opens the app that sent it, and a URL outside that app's scope opens in an
+// in-app browser instead. So the push opens the request screen with
+// `?ready=<tmdbId>`, and that screen puts the movie on top with one big
+// button into Plex.
+//
+// The button opens Plex's home screen, not the movie: linking to one title
+// needs the server's id and the library's own key for it, and nothing here
+// knows either. Phones get the app's URL scheme; anything else gets Plex's
+// web app, where the scheme would do nothing.
+export const READY_PARAM = 'ready';
+export const PLEX_APP_URL = 'plex://';
+export const PLEX_WEB_URL = 'https://app.plex.tv/desktop';
+
+/** Is this movie in the library now — something there is to go and watch? */
+export function isReadyToWatch (row) {
+  if (!row) return false;
+  if (row.status === 'added') return typeof row.importedAt === 'number';
+  return row.status === 'exists';
+}
+
+/**
+ * Where the "Watch in Plex" button goes on this device. An iPad calls itself
+ * a Mac; the touch screen is what gives it away.
+ */
+export function plexUrl ({
+  userAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent,
+  maxTouchPoints = typeof navigator === 'undefined' ? 0 : navigator.maxTouchPoints
+} = {}) {
+  const phoneOrTablet = /iPhone|iPad|iPod|Android/i.test(userAgent || '') ||
+    (/Macintosh/.test(userAgent || '') && maxTouchPoints > 1);
+  return phoneOrTablet ? PLEX_APP_URL : PLEX_WEB_URL;
+}
+
+/** The row a `?ready=<tmdbId>` link is about, if that movie is ready. */
+export function readyRequest (rows, readyParam) {
+  const tmdbId = Number(readyParam);
+  if (!isValidTmdbId(tmdbId)) return null;
+  const row = rows?.[tmdbId];
+  return isReadyToWatch(row) ? row : null;
+}
+
 // Two speeds. The first few minutes poll quickly, because that is when the
 // answer usually arrives and the person is watching the button. After that
 // the row is being held on purpose — the Mac mini waits for whoever is

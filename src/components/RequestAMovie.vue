@@ -6,6 +6,17 @@
       touches a hat.
     </p>
 
+    <!-- Where the "ready to watch" notification lands (?ready=<tmdbId>). It
+         can't open Plex itself, so this is the one tap between it and Plex.
+         See READY_PARAM in utils/requestMovie.js. -->
+    <section v-if="readyRow" class="request-a-movie__ready">
+      <p class="request-a-movie__ready-title">
+        {{ readyRow.radarrTitle || readyRow.title }} is ready to watch
+      </p>
+      <a :href="plexHref" class="btn btn-lg request-a-movie__plex">▶ Watch in Plex</a>
+      <p class="request-a-movie__ready-hint">Opens Plex. It's under Recently Added.</p>
+    </section>
+
     <form class="request-a-movie__form" @submit.prevent="runSearch">
       <div class="input-group">
         <input
@@ -108,7 +119,10 @@ import {
   requestsPollDelay,
   listenForForeground,
   pageIsVisible,
-  POLL_FAST_WINDOW_MS
+  POLL_FAST_WINDOW_MS,
+  READY_PARAM,
+  readyRequest,
+  plexUrl
 } from '../utils/requestMovie.js';
 import { deviceSubscribed } from '../utils/push.js';
 import RequestMovieButton from './RequestMovieButton.vue';
@@ -129,6 +143,7 @@ export default {
       // push. Asked of the browser, not the database — a subscription on his
       // phone says nothing about the laptop he is looking at now.
       pushOn: true,
+      plexHref: plexUrl(),
       // Polling bookkeeping. Not reactive state anyone renders; kept here so
       // the component owns its own teardown.
       pollTimer: null,
@@ -142,6 +157,10 @@ export default {
     },
     isAdmin () {
       return this.$store.getters.mayApproveAccess;
+    },
+    // The movie a "ready to watch" notification opened this screen for.
+    readyRow () {
+      return readyRequest(this.rows, this.$route.query[READY_PARAM]);
     },
     /**
      * What the list under the search box shows. An admin sees EVERYBODY's
@@ -239,6 +258,13 @@ export default {
       }
     }
   },
+  watch: {
+    // A tap on the notification while the app is already open steers this
+    // screen rather than remounting it, and the rows may predate the import.
+    '$route.query.ready' (ready) {
+      if (ready) this.loadRows();
+    }
+  },
   async mounted () {
     this.fastUntil = Date.now() + POLL_FAST_WINDOW_MS;
     this.loadRows();
@@ -273,6 +299,39 @@ export default {
     color: rgba(255, 255, 255, 0.8);
     font-size: 0.8rem;
     margin-bottom: 1rem;
+  }
+
+  &__ready {
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    text-align: center;
+  }
+
+  &__ready-title {
+    color: white;
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+  }
+
+  // Plex's own orange, so it reads as "this goes to Plex".
+  &__plex {
+    background: #e5a00d;
+    border: none;
+    color: #1f1f1f;
+    font-weight: 700;
+    width: 100%;
+
+    &:hover,
+    &:active { background: #cc8e0b; color: #1f1f1f; }
+  }
+
+  &__ready-hint {
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.75rem;
+    margin: 0.5rem 0 0;
   }
 
   &__error {

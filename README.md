@@ -285,6 +285,13 @@ whoever `requestedBy` names ("Little Miss Sunshine is ready to watch"), then
 a `notifiedAt` stamp. A row imported more than a day ago is stamped without
 a notification, so a redeploy or an outage never announces a backlog.
 
+Tapping it opens the request screen with `?ready=<tmdbId>` (`/#/request` in
+Movie Hat, `/#/` in Movie Requests), which puts that movie on top with a big
+"Watch in Plex" button. A notification can't open Plex itself — on iOS it
+always opens the app that sent it. The button opens Plex's home screen, not
+the movie: a link to one title needs the Plex server's id and the library's
+key for it, and nothing here knows either.
+
 The notification goes to the subscriptions of the app the row's `source`
 names — `push/<memberKey>/subscriptions` for Movie Hat, and
 `push/<memberKey>/requestsAppSubscriptions` for Movie Requests. The

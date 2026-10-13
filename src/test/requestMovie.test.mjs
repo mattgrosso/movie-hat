@@ -12,7 +12,12 @@ import {
   POLL_INTERVAL_MS,
   POLL_FAST_WINDOW_MS,
   POLL_SLOW_INTERVAL_MS,
-  requestsPollDelay
+  requestsPollDelay,
+  isReadyToWatch,
+  readyRequest,
+  plexUrl,
+  PLEX_APP_URL,
+  PLEX_WEB_URL
 } from '../utils/requestMovie.js';
 
 // Every write goes to requests/<tmdbId> — the key IS the duplicate check.
@@ -510,5 +515,43 @@ describe('requestsPollDelay', () => {
 
   it('ignores a hole in the node rather than throwing', () => {
     expect(requestsPollDelay({ 1: null, 2: { status: 'processing' } }, fast)).toBe(POLL_INTERVAL_MS);
+  });
+});
+
+// Seth, 2026-10-13: the "ready to watch" tap should end up in Plex. The push
+// opens the request screen with ?ready=<tmdbId>; these decide whether that
+// screen shows the "Watch in Plex" card and where its button goes.
+describe('watch in Plex', () => {
+  it('counts a downloaded or already-owned movie as ready, nothing else', () => {
+    expect(isReadyToWatch({ status: 'added', importedAt: 1 })).toBe(true);
+    expect(isReadyToWatch({ status: 'exists' })).toBe(true);
+    expect(isReadyToWatch({ status: 'added' })).toBe(false);
+    expect(isReadyToWatch({ status: 'pending' })).toBe(false);
+    expect(isReadyToWatch({ status: 'error' })).toBe(false);
+    expect(isReadyToWatch(null)).toBe(false);
+  });
+
+  it('finds the row a ?ready= link names, only once it is ready', () => {
+    const rows = {
+      12101: { tmdbId: 12101, status: 'added', importedAt: 5 },
+      550: { tmdbId: 550, status: 'processing' }
+    };
+    expect(readyRequest(rows, '12101')).toBe(rows[12101]);
+    expect(readyRequest(rows, '550')).toBe(null);
+    expect(readyRequest(rows, '999')).toBe(null);
+    expect(readyRequest(rows, 'nonsense')).toBe(null);
+    expect(readyRequest(rows, undefined)).toBe(null);
+    expect(readyRequest(null, '12101')).toBe(null);
+  });
+
+  it('opens the Plex app on phones and tablets, Plex on the web elsewhere', () => {
+    const iphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15';
+    const mac = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15';
+    const android = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36';
+    expect(plexUrl({ userAgent: iphone })).toBe(PLEX_APP_URL);
+    expect(plexUrl({ userAgent: android })).toBe(PLEX_APP_URL);
+    // An iPad asks for the desktop site and calls itself a Mac.
+    expect(plexUrl({ userAgent: mac, maxTouchPoints: 5 })).toBe(PLEX_APP_URL);
+    expect(plexUrl({ userAgent: mac, maxTouchPoints: 0 })).toBe(PLEX_WEB_URL);
   });
 });

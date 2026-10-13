@@ -319,22 +319,31 @@ const sweepFinishedRequests = async (now = Date.now()) => {
         const fromRequestsApp = row.source === 'movie-requests';
         const movieTitle = row.radarrTitle || row.title || 'Your movie';
 
-        const routes = fromRequestsApp
-          ? [
-            { set: REQUESTS_APP_SUBSCRIPTIONS, appUrl: REQUESTS_APP_URL, badge: `push/${memberKey}/requestsAppBadge` },
-            { set: MOVIE_HAT_SUBSCRIPTIONS, appUrl: APP_URL, badge: `push/${memberKey}/badge` }
-          ]
-          : [
-            { set: MOVIE_HAT_SUBSCRIPTIONS, appUrl: APP_URL, badge: `push/${memberKey}/badge` },
-            { set: REQUESTS_APP_SUBSCRIPTIONS, appUrl: REQUESTS_APP_URL, badge: `push/${memberKey}/requestsAppBadge` }
-          ];
+        // The tap lands on the request screen with this movie on top and a
+        // "Watch in Plex" button (Seth, 2026-10-13: it "should take you into
+        // Plex"). Not Plex itself: on iOS a notification can only open the
+        // app that sent it. `ready` is READY_PARAM in requestMovie.js.
+        const toMovieHat = {
+          set: MOVIE_HAT_SUBSCRIPTIONS,
+          appUrl: APP_URL,
+          navigate: `/#/request?ready=${tmdbId}`,
+          badge: `push/${memberKey}/badge`
+        };
+        const toRequestsApp = {
+          set: REQUESTS_APP_SUBSCRIPTIONS,
+          appUrl: REQUESTS_APP_URL,
+          navigate: `/#/?ready=${tmdbId}`,
+          badge: `push/${memberKey}/requestsAppBadge`
+        };
+        const routes = fromRequestsApp ? [toRequestsApp, toMovieHat] : [toMovieHat, toRequestsApp];
 
         for (const route of routes) {
           // Things that have happened since this person last opened that app.
           const unseen = (Number(await dbGet(route.badge)) || 0) + 1;
           const payload = buildPayload({
             title: `${movieTitle} is ready to watch`,
-            body: 'Your request finished downloading. Tap to see it.',
+            body: 'Your request finished downloading. Tap to watch it in Plex.',
+            navigate: route.navigate,
             tag: `imported-${tmdbId}`,
             appBadge: unseen,
             appUrl: route.appUrl
