@@ -254,6 +254,16 @@ export const rules = {
       }
     },
 
+    // What is on the Plex server, by TMDb id (2026-10-14) — so the streaming
+    // strip can put Plex first when a movie is already there. See
+    // src/utils/plexLibrary.js and README.md, "On Plex". Only the Mac mini
+    // service writes it (Admin SDK, which bypasses these rules), so there is
+    // no '.write' here at all; it is read by whoever may request, the same
+    // people Plex is somewhere to watch for.
+    plexLibrary: {
+      '.read': mayRequest
+    },
+
     // "Request this movie" (2026-09-08): a row per TMDb id asking the Mac
     // mini to add the movie to Radarr — see src/utils/requestMovie.js and
     // README.md, "Movie requests". Cinema Roll writes here too, through its

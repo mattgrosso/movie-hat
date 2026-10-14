@@ -83,7 +83,11 @@
               </template>
             </dl>
             <p v-else class="poster-details-empty">Nothing more is known about this one.</p>
-            <WhereToWatch :movie="movie" show-empty/>
+            <WhereToWatch
+              :movie="movie"
+              :request-row="requests ? (requests[movie.id] || null) : undefined"
+              show-empty
+            />
             <a
               class="poster-details-google"
               :href="googleSearchUrl(movie)"

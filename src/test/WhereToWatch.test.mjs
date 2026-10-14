@@ -49,3 +49,61 @@ describe('WhereToWatch', () => {
     warn.mockRestore();
   });
 });
+
+// "Already on Plex" (report of 2026-10-14): Plex goes first when the movie is
+// on the server, for the people who may request — and for nobody else.
+describe('WhereToWatch, on Plex', () => {
+  const storeFor = (mayRequestMovies) => ({ install (app) { app.config.globalProperties.$store = { getters: { mayRequestMovies } }; } });
+  const tmdbAnswer = { US: { link: 'https://x', flatrate: [{ provider_id: 8, provider_name: 'Netflix', logo_path: '/n.jpg' }] } };
+
+  // TMDB and the database both go through fetch; tell them apart by URL.
+  function stubFetch (database) {
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (String(url).includes('themoviedb')) return { json: async () => ({ results: tmdbAnswer }) };
+      const path = Object.keys(database).find((key) => String(url).includes(`/${key}.json`));
+      const body = path ? JSON.stringify(database[path]) : 'null';
+      return { ok: true, status: 200, text: async () => body };
+    }));
+  }
+
+  it('puts Plex first when the library list has the movie', async () => {
+    stubFetch({ 'plexLibrary/movies/949': true });
+    const wrapper = mount(WhereToWatch, { props: { movie: { id: 949 } }, global: { plugins: [storeFor(true)] } });
+    await flushPromises();
+    const links = wrapper.findAll('a');
+    expect(links[0].classes()).toContain('on-plex');
+    expect(links[1].classes()).toContain('where-to-watch-link');
+  });
+
+  it('counts a finished request while the list knows nothing of it', async () => {
+    stubFetch({ 'requests/949': { status: 'added', importedAt: 1 } });
+    const wrapper = mount(WhereToWatch, { props: { movie: { id: 949 } }, global: { plugins: [storeFor(true)] } });
+    await flushPromises();
+    expect(wrapper.find('a.on-plex').exists()).toBe(true);
+  });
+
+  it('uses the row it was handed rather than reading one', async () => {
+    stubFetch({ 'requests/949': { status: 'exists' } });
+    const wrapper = mount(WhereToWatch, { props: { movie: { id: 949 }, requestRow: null }, global: { plugins: [storeFor(true)] } });
+    await flushPromises();
+    expect(wrapper.find('a.on-plex').exists()).toBe(false);
+  });
+
+  it('says nothing about "nowhere" when Plex has it', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => String(url).includes('themoviedb')
+      ? { json: async () => ({ results: {} }) }
+      : { ok: true, status: 200, text: async () => (String(url).includes('plexLibrary') ? 'true' : 'null') }));
+    const wrapper = mount(WhereToWatch, { props: { movie: { id: 949 }, showEmpty: true }, global: { plugins: [storeFor(true)] } });
+    await flushPromises();
+    expect(wrapper.find('a.on-plex').exists()).toBe(true);
+    expect(wrapper.find('.where-to-watch-empty').exists()).toBe(false);
+  });
+
+  it('does not look, or show it, for someone who may not request', async () => {
+    stubFetch({ 'plexLibrary/movies/949': true });
+    const wrapper = mount(WhereToWatch, { props: { movie: { id: 949 } }, global: { plugins: [storeFor(false)] } });
+    await flushPromises();
+    expect(wrapper.find('a.on-plex').exists()).toBe(false);
+    expect(fetch.mock.calls.some(([url]) => String(url).includes('plexLibrary'))).toBe(false);
+  });
+});

@@ -289,6 +289,29 @@ The body is written from the row's status at sweep time, not at creation, so
 it says what the Mac mini has actually done: waiting for Plex to be free,
 Radarr picking it up, downloading, already in the library, or the error.
 
+### On Plex
+
+2026-10-14, Matt: "one of the possible places that it could already be is on
+my Plex server … include it as a first option if it's already there". The
+streaming strip (drawn movie, and the details behind every drawn poster) puts
+a **Watch · Plex** badge first when the movie is on the server, opening Plex
+the same way the "Watch in Plex" button does. Only for whoever may request;
+nobody else can watch it there.
+
+The browser can't see Plex, so **the Mac mini service has to publish the
+library** (with the Admin SDK — the rules give nobody a write):
+
+    plexLibrary/movies/<tmdbId>: true    one per movie Plex has
+    plexLibrary/updatedAt: number        ms, when it was written
+
+Rewrite the whole `plexLibrary` node every few minutes (one PUT, so movies
+removed from Plex drop out). The TMDb ids come from Plex's own GUIDs
+(`tmdb://…`) or from Radarr's movie list. The app reads one movie's entry at
+a time, so the list's size costs nothing per look.
+
+Until that exists, a `requests` row that is `exists`, or `added` with an
+`importedAt`, counts as on Plex — see `src/utils/plexLibrary.js`.
+
 ### "Your movie is ready" notifications
 
 `aws-lambda/push-notify.js` also runs on an EventBridge schedule

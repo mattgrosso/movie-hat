@@ -1,5 +1,18 @@
 <template>
-  <div v-if="hasProviders || (showEmpty && loaded)" class="where-to-watch">
+  <div v-if="hasProviders || onPlex || (showEmpty && loaded)" class="where-to-watch d-flex align-items-center justify-content-center flex-wrap">
+    <!-- First, because it is free and already in the house. Its own link:
+         it opens Plex, and anchors can't nest inside the JustWatch one. -->
+    <a
+      v-if="onPlex"
+      class="service on-plex d-flex align-items-center"
+      :href="plexHref"
+      target="_blank"
+      rel="noreferrer"
+      title="Already on the Plex server"
+    >
+      <span class="label">Watch</span>
+      <span class="plex-badge">Plex</span>
+    </a>
     <a
       v-if="hasProviders"
       class="where-to-watch-link d-flex align-items-center justify-content-center flex-wrap"
@@ -30,7 +43,7 @@
         />
       </span>
     </a>
-    <p v-else class="where-to-watch-empty m-0">Not streaming or renting anywhere right now</p>
+    <p v-else-if="!onPlex" class="where-to-watch-empty m-0">Not streaming or renting anywhere right now</p>
   </div>
 </template>
 
@@ -42,19 +55,34 @@
 // since 2026-09-16, in the details of every drawn poster on the home page
 // ("add in there also the places that it can be streamed since we're
 // pulling that anyway").
+//
+// Since 2026-10-14 the Plex server comes first when the movie is already on
+// it (see utils/plexLibrary.js). Only for the people who may request — the
+// same `mayRequestMovies` that shows the Request button — since Plex is no
+// place to watch for anyone else, and the rules let nobody else read the
+// list anyway.
+import { dbGet } from '../store/db.js';
+import { plexUrl } from '../utils/requestMovie.js';
+import { lookUpOnPlex } from '../utils/plexLibrary.js';
+
 export default {
   props: {
     movie: { type: Object, default: null },
     // Say so when the lookup came back with nothing. Off on the drawn-movie
     // page, where an absent strip is the quieter answer; on for the info
     // panel, where a missing row would look like the lookup never ran.
-    showEmpty: { type: Boolean, default: false }
+    showEmpty: { type: Boolean, default: false },
+    // The movie's `requests` row when the parent read the whole node already
+    // (null for "none"), so a page of posters doesn't read it once each.
+    // Leave undefined and it is read here.
+    requestRow: { type: Object, default: undefined }
   },
   data () {
     return {
       providers: null,
       link: null,
-      loaded: false
+      loaded: false,
+      onPlex: false
     }
   },
   computed: {
@@ -66,6 +94,13 @@ export default {
     },
     hasProviders () {
       return Boolean(this.streaming.length || this.rental.length);
+    },
+    // No store in some tests; no store means nobody to check for.
+    plexAllowed () {
+      return Boolean(this.$store?.getters?.mayRequestMovies);
+    },
+    plexHref () {
+      return plexUrl();
     }
   },
   watch: {
@@ -76,10 +111,21 @@ export default {
         this.link = null;
         this.loaded = false;
         if (movie?.id) this.fetchProviders(movie.id);
+        this.checkPlex();
       }
-    }
+    },
+    // Sign-in (and with it the right to look) can land after the movie.
+    plexAllowed: 'checkPlex'
   },
   methods: {
+    async checkPlex () {
+      this.onPlex = false;
+      const id = this.movie?.id;
+      if (!id || !this.plexAllowed) return;
+      const onPlex = await lookUpOnPlex(dbGet, id, this.requestRow);
+      // The movie may have changed while the lookup was out.
+      if (this.movie?.id === id) this.onPlex = onPlex;
+    },
     async fetchProviders (id) {
       try {
         const response = await fetch(`https://api.themoviedb.org/3/movie/${id}/watch/providers?api_key=${process.env.VUE_APP_TMDB_API_KEY}`);
@@ -107,7 +153,26 @@ export default {
 // page, black on the back of a poster card (History.vue sets it).
 .where-to-watch {
   color: white;
+  column-gap: 1.25rem;
   margin-top: 0.75rem;
+  row-gap: 0.5rem;
+
+  .on-plex {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  // Plex's own black and gold, as a word: no logo of theirs to borrow here
+  // the way TMDB hands over the streaming services' logos.
+  .plex-badge {
+    background: #1f1f1f;
+    border-radius: 6px;
+    color: #e5a00d;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 28px;
+    padding: 0 0.5rem;
+  }
 
   .where-to-watch-link {
     color: inherit;

@@ -63,6 +63,9 @@
         ".validate": "!newData.exists() || (newData.hasChildren(['email', 'status', 'isAdmin', 'requestedAt']) && newData.child('email').isString() && newData.child('email').val().length <= 200 && (newData.child('status').val() === 'pending' || newData.child('status').val() === 'approved' || newData.child('status').val() === 'denied') && newData.child('isAdmin').isBoolean() && newData.child('requestedAt').isNumber() && (auth != null && root.child('siteUsers').child(auth.uid).child('isAdmin').val() === true || auth.uid !== $uid || newData.child('email').val() === auth.token.email))"
       }
     },
+    "plexLibrary": {
+      ".read": "(auth != null && auth.token.email != null && (auth.token.email.toLowerCase() === 'mattgrosso@gmail.com' || auth.token.email.toLowerCase() === 'hopper.seth@gmail.com' || auth.token.email.toLowerCase() === 'brian.goegan@gmail.com') || auth != null && root.child('siteUsers').child(auth.uid).child('status').val() === 'approved')"
+    },
     "requests": {
       ".read": "(auth != null && auth.token.email != null && (auth.token.email.toLowerCase() === 'mattgrosso@gmail.com' || auth.token.email.toLowerCase() === 'hopper.seth@gmail.com' || auth.token.email.toLowerCase() === 'brian.goegan@gmail.com') || auth != null && root.child('siteUsers').child(auth.uid).child('status').val() === 'approved')",
       "$tmdbId": {
