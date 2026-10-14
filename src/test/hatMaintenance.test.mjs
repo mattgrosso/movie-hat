@@ -111,7 +111,7 @@ describe('planSlimming', () => {
             m1: { title: 'Heat', id: 949, note: 'yes', popularity: 80, vote_count: 7000, streamers: { flatrate: [] } },
             m2: { title: 'Ran', id: 11645 }
           },
-          history: { 'drawn-1': { title: 'Alien', dateDrawn: 1, streamers: {} } }
+          history: { 'drawn-1': { title: 'Alien', dateDrawn: 1, streamers: {}, overview: 'In space.', backdrop_path: '/a.jpg' } }
         }
       },
       'Slim Hat': { def: { movies: { m3: { title: 'Up' } } } }
@@ -123,7 +123,9 @@ describe('planSlimming', () => {
       'hats/Family Hat/abc/movies/m1/streamers': null,
       'hats/Family Hat/abc/movies/m1/popularity': null,
       'hats/Family Hat/abc/movies/m1/vote_count': null,
-      'hats/Family Hat/abc/history/drawn-1/streamers': null
+      'hats/Family Hat/abc/history/drawn-1/streamers': null,
+      'hats/Family Hat/abc/history/drawn-1/overview': null,
+      'hats/Family Hat/abc/history/drawn-1/backdrop_path': null
     });
     expect(report.map((hat) => [hat.title, hat.entries])).toEqual([['Family Hat', 2]]);
   });

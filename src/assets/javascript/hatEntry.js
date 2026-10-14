@@ -12,9 +12,15 @@
 //
 // Entries saved before this were slimmed in place by
 // scripts/slim-hat-entries.mjs (the home page read stayed large without it).
+//
+// 2026-10-14: Sentry reopened it — the biggest hat was still ~444 KB, over
+// its ~300 KB line. The plot summary and background-image path were most of
+// what was left, and nothing shows either from a hat: Movie Hat never renders
+// them, and Cinema Roll's preview fetches its own overview from TMDB. Cinema
+// Roll's toHatMovie stopped writing them the same day.
 
-// Shown on the search screen only, to choose between results.
-export const SEARCH_ONLY = ['streamers', 'popularity', 'vote_count'];
+// Never shown once a movie is in a hat.
+export const SEARCH_ONLY = ['streamers', 'popularity', 'vote_count', 'overview', 'backdrop_path'];
 
 /** A movie (a search choice or a hat entry) → what the database keeps. */
 export function slimHatMovie (movie) {

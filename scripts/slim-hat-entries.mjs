@@ -12,7 +12,11 @@
 // Where to Watch looks providers up live, and Cinema Roll reads only title,
 // poster_path, id, addedBy, note and dateDrawn.
 //
-// Only those three fields go (SEARCH_ONLY in hatEntry.js), from movies and
+// 2026-10-14: Sentry reopened it with the biggest hat still ~444 KB, so the
+// plot summary (overview) and backdrop_path joined the list; nothing shows
+// either from a hat, and Cinema Roll's preview fetches its own overview.
+//
+// Only those fields go (SEARCH_ONLY in hatEntry.js), from movies and
 // history alike. Everything else in every entry is left exactly as it is.
 // Safe to re-run: a slim hat produces no updates.
 

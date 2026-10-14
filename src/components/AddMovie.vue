@@ -55,9 +55,7 @@ export default {
 
       const choices = results.map((result) => {
         return {
-          backdrop_path: result.backdrop_path,
           id: result.id,
-          overview: result.overview,
           popularity: result.popularity,
           // What the film was MADE in, for the "subtitled" caption on the
           // draw screen (utils/movieLanguage.js). Stored rather than looked

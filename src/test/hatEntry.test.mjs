@@ -22,8 +22,6 @@ describe('slimHatMovie', () => {
       id: 949,
       title: 'Heat',
       poster_path: '/heat.jpg',
-      backdrop_path: '/b.jpg',
-      overview: 'A heist.',
       release_date: '1995-12-15',
       original_language: 'en',
       vote_average: 7.9,
