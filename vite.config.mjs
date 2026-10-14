@@ -107,11 +107,9 @@ export default defineConfig(({ mode }) => {
     },
     css: {
       preprocessorOptions: {
-        // Left at Vite's default (sass's legacy JS API), which is the same
-        // path sass-loader 13 took with the `sass` version this repo pins
-        // (1.58.3 - too old for `api: 'modern-compiler'`, which needs
-        // sass >= 1.70). Same compiler, same version, same API as before, so
-        // the emitted CSS is unchanged. vue.config.js had no additionalData/
+        // Vite 7 dropped sass's legacy JS API, so the 2026-10-14 Dependabot
+        // sweep moved sass from 1.58 to 1.8x+ and Vite's default modern
+        // compiler, as Cinema Roll did. vue.config.js had no additionalData/
         // prependData, so there is nothing else to carry over.
         scss: {},
       },
