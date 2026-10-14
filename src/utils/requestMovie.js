@@ -231,9 +231,13 @@ export function requestLabel (row, { requesting = false, short = false } = {}) {
       if (row.force) return short ? 'Forced' : 'Forced — starting now';
       return short ? 'Requested' : 'Requested — waiting to start';
     case 'processing': return short ? 'Starting…' : 'Starting the download…';
-    case 'added': return isSettled(row)
-      ? (short ? 'Ready' : 'Ready to watch')
-      : (short ? 'Downloading' : 'Downloading — you’ll get a notification');
+    case 'added': {
+      if (isSettled(row)) return short ? 'Ready' : 'Ready to watch';
+      // In a list there is no room for the bar, so the number rides in the label.
+      const progress = short ? downloadProgress(row) : null;
+      if (progress) return progress.heldBy ? `Paused ${progress.percent}%` : `Downloading ${progress.percent}%`;
+      return short ? 'Downloading' : 'Downloading — you’ll get a notification';
+    }
     case 'exists': return short ? 'In library' : 'Already in the library';
     case 'error': return short ? 'Try again' : 'Couldn’t add — try again';
     default: return short ? 'Request' : 'Request this movie';
@@ -250,9 +254,65 @@ export function requestNote (row) {
       ? 'Forced past the Plex hold: the VPN comes up and the download starts now.'
       : 'The download starts once nobody is watching Plex. You’ll get a notification when it’s ready.';
     case 'processing': return 'You’ll get a notification when it’s ready.';
-    case 'added': return isSettled(row) ? null : 'Still downloading. You’ll get a notification when it’s ready.';
+    case 'added': {
+      if (isSettled(row)) return null;
+      const progress = downloadProgress(row);
+      if (progress?.heldBy) return HELD_NOTES[progress.heldBy];
+      return 'Still downloading. You’ll get a notification when it’s ready.';
+    }
     default: return null;
   }
+}
+
+// Download progress (Matt, 2026-10-13: "give an actual progress bar, or at a
+// minimum an ETA"). The Mac mini service reads Radarr's queue on its
+// one-minute tick and writes three optional fields onto an 'added' row that
+// hasn't landed:
+//
+//   progress  0–100, from the furthest-along copy (it races a second release
+//             when one crawls, so a movie can have several in the queue)
+//   etaAt     ms, that same copy's estimated finish
+//   heldBy    'plex' | 'disk' | 'stuck' when it has stopped the torrent on
+//             purpose. Absent means unknown, not running.
+//
+// It writes only when the whole percent or heldBy changes, and removes all
+// three when the file lands or the request gives up. No progress field means
+// nothing is downloading yet (often "still looking for a copy"), so the
+// button keeps saying "Downloading" rather than drawing an empty bar.
+//
+// Radarr's estimates swing by days on a thin swarm, so an exact time is only
+// shown when it is close; further out it is said loosely or not at all.
+export const ETA_EXACT_UNDER_MS = 6 * 60 * 60 * 1000;
+export const ETA_DAY_MS = 24 * 60 * 60 * 1000;
+export const HELD_NOTES = {
+  plex: 'Paused while someone’s watching Plex.',
+  disk: 'Paused: the library drive is nearly full.',
+  stuck: 'Paused: reconnecting.'
+};
+
+/** "about 25 min left", "several hours left"… or null when there is nothing honest to say. */
+export function timeLeftText (etaAt, now = Date.now()) {
+  if (typeof etaAt !== 'number' || !Number.isFinite(etaAt)) return null;
+  const ms = etaAt - now;
+  if (ms <= 0) return null;
+  if (ms >= ETA_DAY_MS) return 'more than a day left';
+  if (ms >= ETA_EXACT_UNDER_MS) return 'several hours left';
+  const minutes = Math.ceil(ms / 60000);
+  if (minutes < 60) return `about ${minutes} min left`;
+  return `about ${Math.round(minutes / 60)} h left`;
+}
+
+/**
+ * What to draw for a row that is downloading: `{ percent, heldBy, timeLeft }`,
+ * or null when there is no bar to show (not downloading, already landed, or
+ * the service hasn't reported a number yet).
+ */
+export function downloadProgress (row, { now = Date.now() } = {}) {
+  if (row?.status !== 'added' || isSettled(row)) return null;
+  if (typeof row.progress !== 'number' || !Number.isFinite(row.progress)) return null;
+  const percent = Math.max(0, Math.min(100, Math.round(row.progress)));
+  const heldBy = HELD_NOTES[row.heldBy] ? row.heldBy : null;
+  return { percent, heldBy, timeLeft: heldBy ? null : timeLeftText(row.etaAt, now) };
 }
 
 /**
@@ -266,7 +326,8 @@ export function requestNote (row) {
  *
  * Returns refs: `row` (the database row, or null), `requesting` (a write is
  * in flight), `error` (a human-readable failure, or null), `label` (button
- * text), `note` (a line of explanation under it, or null), `settled`
+ * text), `note` (a line of explanation under it, or null), `progress`
+ * (see downloadProgress, or null), `settled`
  * (nothing more will happen), and:
  *
  *   load(tmdbId, preloaded?)   → read the row once (or take the one given);
@@ -293,6 +354,9 @@ export function useRequestMovie ({ read, write, source, email, short = false, no
   const label = computed(() => requestLabel(row.value, { requesting: requesting.value, short }));
   const settled = computed(() => isSettled(row.value));
   const note = computed(() => (requesting.value ? null : requestNote(row.value)));
+  // Recomputed whenever a poll replaces the row, which is often enough for
+  // a number the service only moves once a minute — no timer of its own.
+  const progress = computed(() => downloadProgress(row.value, { now: now() }));
   const canRequest = computed(() => !requesting.value && canRequestOver(row.value));
   // Whether to offer the force option at all: only to the one account the
   // rules will accept it from.
@@ -461,5 +525,5 @@ export function useRequestMovie ({ read, write, source, email, short = false, no
     }
   }
 
-  return { row, requesting, error, label, note, settled, canRequest, forceable, canForceNow, load, request, force, stop };
+  return { row, requesting, error, label, note, progress, settled, canRequest, forceable, canForceNow, load, request, force, stop };
 }

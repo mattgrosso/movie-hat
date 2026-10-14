@@ -128,6 +128,12 @@ requests/<tmdbId>: {
   processedAt: number   ms, when Radarr answered
   importedAt:  number   ms, when the downloaded file landed in the library
   error:       string   why it failed, shown to the user in the button's tooltip
+  progress:    number   0–100 while downloading, from the furthest-along queued copy
+  etaAt:       number   ms, that copy's estimated finish (Radarr's guess; swings a lot)
+  heldBy:      'plex' | 'disk' | 'stuck'   torrent stopped on purpose; absent = unknown
+                        (these three: written on the service's 60s tick only when the
+                        percent or heldBy changes, removed on import or give-up —
+                        see downloadProgress in src/utils/requestMovie.js)
 
   // Written by the push Lambda only:
   notifiedAt:      number   ms, when the requester was told the download finished

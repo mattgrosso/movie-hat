@@ -85,6 +85,9 @@
             </span>
           </span>
           <span class="request-a-movie__mine-state" :class="`is-${row.status}`">{{ shortLabel(row) }}</span>
+          <span v-if="progressFor(row)" class="request-a-movie__mine-bar" :class="{ 'is-held': progressFor(row).heldBy }" aria-hidden="true">
+            <span :style="{ width: `${progressFor(row).percent}%` }"/>
+          </span>
         </li>
       </ul>
     </section>
@@ -115,6 +118,7 @@ import { searchMovies } from '../utils/tmdb.js';
 import { dbGet } from '../store/db.js';
 import {
   requestLabel,
+  downloadProgress,
   isSettled,
   requestsPollDelay,
   listenForForeground,
@@ -199,6 +203,10 @@ export default {
     },
     shortLabel (row) {
       return requestLabel(row, { short: true });
+    },
+    // The label already carries the percent; this is just the bar under it.
+    progressFor (row) {
+      return downloadProgress(row);
     },
     /** The local part of the address — the closest thing the data has to a name. */
     askerName (row) {
@@ -379,9 +387,29 @@ export default {
     align-items: baseline;
     border-top: 1px solid rgba(255, 255, 255, 0.25);
     display: flex;
+    flex-wrap: wrap;
     gap: 0.75rem;
     justify-content: space-between;
     padding: 0.6rem 0;
+  }
+
+  // Full width under the name and state; wraps onto its own line.
+  &__mine-bar {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    display: block;
+    flex-basis: 100%;
+    height: 4px;
+    margin-top: -0.35rem;
+    overflow: hidden;
+
+    span {
+      background: #8fd19e;
+      display: block;
+      height: 100%;
+    }
+
+    &.is-held span { background: rgba(255, 255, 255, 0.5); }
   }
 
   &__mine-name {

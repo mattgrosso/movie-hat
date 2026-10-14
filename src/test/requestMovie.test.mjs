@@ -17,7 +17,9 @@ import {
   readyRequest,
   plexUrl,
   PLEX_APP_URL,
-  PLEX_WEB_URL
+  PLEX_WEB_URL,
+  downloadProgress,
+  timeLeftText
 } from '../utils/requestMovie.js';
 
 // Every write goes to requests/<tmdbId> — the key IS the duplicate check.
@@ -553,5 +555,53 @@ describe('watch in Plex', () => {
     // An iPad asks for the desktop site and calls itself a Mac.
     expect(plexUrl({ userAgent: mac, maxTouchPoints: 5 })).toBe(PLEX_APP_URL);
     expect(plexUrl({ userAgent: mac, maxTouchPoints: 0 })).toBe(PLEX_WEB_URL);
+  });
+});
+
+describe('download progress', () => {
+  const now = 1_000_000_000_000;
+  const MIN = 60 * 1000;
+  const HOUR = 60 * MIN;
+  const downloading = (extra) => ({ status: 'added', ...extra });
+
+  it('has no bar until the service reports a number', () => {
+    expect(downloadProgress(downloading(), { now })).toBeNull();
+    expect(downloadProgress(downloading({ progress: null }), { now })).toBeNull();
+    expect(downloadProgress({ status: 'pending', progress: 40 }, { now })).toBeNull();
+    expect(downloadProgress(null, { now })).toBeNull();
+    expect(requestLabel(downloading(), { short: true })).toBe('Downloading');
+  });
+
+  it('drops the bar once the file lands', () => {
+    expect(downloadProgress(downloading({ progress: 100, importedAt: 1 }), { now })).toBeNull();
+  });
+
+  it('reports the percent, clamped and whole', () => {
+    expect(downloadProgress(downloading({ progress: 42.4 }), { now }).percent).toBe(42);
+    expect(downloadProgress(downloading({ progress: 140 }), { now }).percent).toBe(100);
+    expect(downloadProgress(downloading({ progress: -3 }), { now }).percent).toBe(0);
+    expect(requestLabel(downloading({ progress: 42 }), { short: true })).toBe('Downloading 42%');
+  });
+
+  it('gives an exact time only when it is close', () => {
+    expect(timeLeftText(now + 25 * MIN, now)).toBe('about 25 min left');
+    expect(timeLeftText(now + 3 * HOUR, now)).toBe('about 3 h left');
+    expect(timeLeftText(now + 7 * HOUR, now)).toBe('several hours left');
+    expect(timeLeftText(now + 30 * HOUR, now)).toBe('more than a day left');
+    expect(timeLeftText(now - MIN, now)).toBeNull();
+    expect(timeLeftText(undefined, now)).toBeNull();
+    expect(downloadProgress(downloading({ progress: 10, etaAt: now + 25 * MIN }), { now }).timeLeft).toBe('about 25 min left');
+  });
+
+  it('says why a paused download is paused, and gives no time for it', () => {
+    const held = (heldBy) => downloadProgress(downloading({ progress: 30, etaAt: now + 10 * MIN, heldBy }), { now });
+    expect(held('plex')).toEqual({ percent: 30, heldBy: 'plex', timeLeft: null });
+    expect(requestNote(downloading({ progress: 30, heldBy: 'plex' }))).toMatch(/watching Plex/);
+    expect(requestNote(downloading({ progress: 30, heldBy: 'disk' }))).toMatch(/drive is nearly full/);
+    expect(requestNote(downloading({ progress: 30, heldBy: 'stuck' }))).toMatch(/reconnecting/);
+    expect(requestLabel(downloading({ progress: 30, heldBy: 'disk' }), { short: true })).toBe('Paused 30%');
+    // An unknown reason is not passed off as one of the known ones.
+    expect(held('gremlins').heldBy).toBeNull();
+    expect(requestNote(downloading({ progress: 30, heldBy: 'gremlins' }))).toMatch(/Still downloading/);
   });
 });

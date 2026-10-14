@@ -34,6 +34,24 @@
       </svg>
       {{ label }}
     </button>
+    <!-- How far the download has got, once the Mac mini has a number. No
+         width transition on purpose: when a raced copy drops out the
+         percent can step down, and animating backwards looks broken. -->
+    <div v-if="progress && !compact" class="request-movie__progress" :class="{ 'is-held': progress.heldBy }">
+      <div
+        class="request-movie__bar"
+        role="progressbar"
+        :aria-valuenow="progress.percent"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-label="Download progress"
+      >
+        <div class="request-movie__fill" :style="{ width: `${progress.percent}%` }"/>
+      </div>
+      <span class="request-movie__percent">
+        {{ progress.percent }}%<template v-if="progress.timeLeft"> · {{ progress.timeLeft }}</template>
+      </span>
+    </div>
     <p v-if="error" class="request-movie__error m-0">{{ error }}</p>
     <!-- The note spells out what "Downloading" means; the compact list
          button carries it in its tooltip instead. -->
@@ -82,7 +100,7 @@ export default {
     // row — and the getter is the one place that knows both.
     const signedIn = computed(() => store.getters.mayRequestMovies);
 
-    const { row, requesting, error, label, note, settled, canRequest, canForceNow, load, request, force, stop } = useRequestMovie({
+    const { row, requesting, error, label, note, progress, settled, canRequest, canForceNow, load, request, force, stop } = useRequestMovie({
       read: dbGet,
       write: dbPut,
       source: 'movie-hat',
@@ -121,7 +139,7 @@ export default {
       return 'Ask the Mac mini to add this movie to the library';
     });
 
-    return { signedIn, row, requesting, error, label, note, settled, canRequest, canForceNow, request, force, buttonClass, tooltip };
+    return { signedIn, row, requesting, error, label, note, progress, settled, canRequest, canForceNow, request, force, buttonClass, tooltip };
   }
 };
 </script>
@@ -173,6 +191,38 @@ export default {
     color: #ffc107;
     font-size: 0.75rem;
     text-align: center;
+  }
+
+  &__progress {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    width: min(100%, 320px);
+  }
+
+  &__bar {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    height: 6px;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  &__fill {
+    background: #8fd19e;
+    height: 100%;
+  }
+
+  // Stopped on purpose: the bar greys out and the note says why.
+  &__progress.is-held &__fill {
+    background: rgba(255, 255, 255, 0.5);
+  }
+
+  &__percent {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
   }
 
   &__note {
