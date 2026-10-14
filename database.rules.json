@@ -67,6 +67,7 @@
       ".read": "(auth != null && auth.token.email != null && (auth.token.email.toLowerCase() === 'mattgrosso@gmail.com' || auth.token.email.toLowerCase() === 'hopper.seth@gmail.com' || auth.token.email.toLowerCase() === 'brian.goegan@gmail.com') || auth != null && root.child('siteUsers').child(auth.uid).child('status').val() === 'approved')"
     },
     "requests": {
+      ".indexOn": "status",
       ".read": "(auth != null && auth.token.email != null && (auth.token.email.toLowerCase() === 'mattgrosso@gmail.com' || auth.token.email.toLowerCase() === 'hopper.seth@gmail.com' || auth.token.email.toLowerCase() === 'brian.goegan@gmail.com') || auth != null && root.child('siteUsers').child(auth.uid).child('status').val() === 'approved')",
       "$tmdbId": {
         ".write": "(auth != null && auth.token.email != null && (auth.token.email.toLowerCase() === 'mattgrosso@gmail.com' || auth.token.email.toLowerCase() === 'hopper.seth@gmail.com' || auth.token.email.toLowerCase() === 'brian.goegan@gmail.com') || auth != null && root.child('siteUsers').child(auth.uid).child('status').val() === 'approved') && newData.exists() && (!data.exists() || data.child('status').val() === 'error')",

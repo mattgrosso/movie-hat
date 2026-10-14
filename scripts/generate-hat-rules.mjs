@@ -285,6 +285,10 @@ export const rules = {
     // One optional extra field: `force: true`, which only the owner may
     // write. See README.md, "Forcing a request past the Plex hold".
     requests: {
+      // The Mac mini service listens with orderByChild('status') for pending
+      // rows; without this index Firebase ships the whole node to it and
+      // filters there (it went missing from a deploy on 2026-10-14).
+      '.indexOn': 'status',
       // The home page reads the whole node once to label every drawn
       // movie, rather than one read per movie.
       '.read': mayRequest,
