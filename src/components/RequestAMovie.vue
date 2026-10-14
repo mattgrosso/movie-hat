@@ -51,6 +51,11 @@
 
     <p v-if="error" class="request-a-movie__error">{{ error }}</p>
 
+    <!-- The results replace the list, so this is the way back to it. -->
+    <button v-if="searched" type="button" class="request-a-movie__back" @click="clearSearch">
+      ‹ Back to requests
+    </button>
+
     <ul v-if="results.length" class="movie-results">
       <li v-for="movie in results" :key="movie.id" class="movie-results__item">
         <img v-if="movie.poster" :src="movie.poster" alt="" class="movie-results__poster" loading="lazy">
@@ -125,6 +130,7 @@ import {
   pageIsVisible,
   POLL_FAST_WINDOW_MS,
   READY_PARAM,
+  REQUESTS_HOME_EVENT,
   readyRequest,
   plexUrl
 } from '../utils/requestMovie.js';
@@ -243,6 +249,18 @@ export default {
       this.loadRows();
       this.schedulePoll();
     },
+    /**
+     * Drop the search and show the list again, freshly read so whatever was
+     * just requested is on it.
+     */
+    clearSearch () {
+      this.query = '';
+      this.lastQuery = '';
+      this.results = [];
+      this.searched = false;
+      this.error = null;
+      this.loadRows();
+    },
     async runSearch () {
       const term = this.query.trim();
       if (!term || this.searching) return;
@@ -267,6 +285,10 @@ export default {
     }
   },
   watch: {
+    // Emptying the box (iPhone's little x included) is asking for the list.
+    query (value) {
+      if (!value.trim() && this.searched && !this.searching) this.clearSearch();
+    },
     // A tap on the notification while the app is already open steers this
     // screen rather than remounting it, and the rows may predate the import.
     '$route.query.ready' (ready) {
@@ -278,6 +300,7 @@ export default {
     this.loadRows();
     this.schedulePoll();
     this.stopListeningForForeground = listenForForeground(this.onForeground);
+    window.addEventListener(REQUESTS_HOME_EVENT, this.clearSearch);
     // Optimistic default while this resolves, so the nudge cannot flash at
     // somebody who has notifications on.
     this.pushOn = await deviceSubscribed();
@@ -287,6 +310,7 @@ export default {
     this.pollTimer = null;
     this.stopListeningForForeground?.();
     this.stopListeningForForeground = null;
+    window.removeEventListener(REQUESTS_HOME_EVENT, this.clearSearch);
   }
 };
 </script>
@@ -346,6 +370,16 @@ export default {
     color: #ffe08a;
     font-size: 0.85rem;
     margin-top: 0.75rem;
+  }
+
+  &__back {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 0.85rem;
+    margin-top: 0.75rem;
+    padding: 0.25rem 0;
+    text-decoration: underline;
   }
 
   &__nudge {

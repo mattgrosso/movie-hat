@@ -79,6 +79,13 @@ export function isSettled (row) {
 // knows either. Phones get the app's URL scheme; anything else gets Plex's
 // web app, where the scheme would do nothing.
 export const READY_PARAM = 'ready';
+
+// "Movie requests" picked from the menu while already on that screen. The
+// router ignores a push to the route you are on, so the menu says it this way
+// instead, and the screen drops any search and shows the list again (report
+// of 2026-10-14: after a search there was no way back to the list short of
+// reloading).
+export const REQUESTS_HOME_EVENT = 'movie-requests:home';
 export const PLEX_APP_URL = 'plex://';
 export const PLEX_WEB_URL = 'https://app.plex.tv/desktop';
 
