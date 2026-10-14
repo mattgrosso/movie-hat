@@ -74,7 +74,7 @@ having a second icon on my home screen." So Movie Hat carries them:
 
 | screen | route | who sees it |
 | --- | --- | --- |
-| **Request a movie** (`RequestAMovie.vue`) | `/request` | `mayRequestMovies` |
+| **Movie requests** (`RequestAMovie.vue`) | `/request` | `mayRequestMovies` |
 | **Who gets in** (`AccessRequests.vue`) | `/access` | `mayApproveAccess` |
 
 Both are header pills, both lazy-loaded like `/peek`, and both are bounced by

@@ -1,6 +1,6 @@
 <template>
   <div class="request-a-movie">
-    <h2 class="request-a-movie__title">Request a movie</h2>
+    <h2 class="request-a-movie__title">Movie requests</h2>
     <p class="request-a-movie__blurb">
       Search for anything and ask the Mac mini to add it to Plex. Nothing here
       touches a hat.
