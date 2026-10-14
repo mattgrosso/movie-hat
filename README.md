@@ -22,6 +22,15 @@ yarn build
 `scripts/bump-and-build.mjs`, which bumps first and rolls the bump back if
 the build fails.
 
+Before any of that, `scripts/preflight.mjs` runs `yarn lint` and `yarn
+test:run` and stops the deploy if either fails — there is no CI, so this is
+the only thing standing between a red tree and the phones. `SKIP_CHECKS=1
+yarn deploy` bypasses it for a hotfix when the suite itself is what's broken.
+The emulator rules tests (`yarn test:emulated`) are not part of it. One of
+the tests checks `database.rules.json` is exactly what
+`yarn generate-hat-rules` produces, so a hand edit or a forgotten re-run
+fails the deploy too.
+
 ### Previews the production build
 ```
 yarn preview

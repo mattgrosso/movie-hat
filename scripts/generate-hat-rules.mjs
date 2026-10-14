@@ -50,6 +50,7 @@
 // app.
 
 import { writeFileSync } from 'fs';
+import { fileURLToPath } from 'url';
 import { UNSAFE_KEY_CHARACTERS, KEY_REPLACEMENT_CHARACTER } from '../src/store/memberKey.mjs';
 import { OWNER_EMAIL, REQUESTER_EMAILS } from '../src/assets/javascript/owner.mjs';
 
@@ -95,7 +96,7 @@ const mayDeleteHat = `(!data.child('createdBy').exists() || data.child('createdB
 // feed sits outside the hats tree and has to reach back into it.
 const isMemberOfHatAtRoot = `root.child('hats').child($title).child($hatKey).child('memberEmails').child(${memberKeyExpression}).exists()`;
 
-const rules = {
+export const rules = {
   rules: {
     // Default deny. Everything below opens exactly one door.
     '.read': false,
@@ -314,11 +315,19 @@ const rules = {
   }
 };
 
-const path = new URL('../database.rules.json', import.meta.url).pathname;
-writeFileSync(path, `${JSON.stringify(rules, null, 2)}\n`);
+// Exactly what lands in database.rules.json. src/test/hatRules.test.mjs
+// compares the committed file against this, so a hand edit or a forgotten
+// re-run fails `yarn test:run` — and with it `yarn deploy`.
+export const rulesFileText = `${JSON.stringify(rules, null, 2)}\n`;
 
-console.log(`Wrote ${path}`);
-console.log('\nThe member-key transform the rules will apply:');
-console.log(`  ${memberKeyExpression}`);
-console.log('\nDeploy with:  firebase deploy --only database   (project movie-hat-9c418)');
-console.log('Do it supervised — a bad rules deploy shows every user an empty app.');
+// Only `yarn generate-hat-rules` writes the file; the test just imports.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const path = new URL('../database.rules.json', import.meta.url).pathname;
+  writeFileSync(path, rulesFileText);
+
+  console.log(`Wrote ${path}`);
+  console.log('\nThe member-key transform the rules will apply:');
+  console.log(`  ${memberKeyExpression}`);
+  console.log('\nDeploy with:  firebase deploy --only database   (project movie-hat-9c418)');
+  console.log('Do it supervised — a bad rules deploy shows every user an empty app.');
+}
