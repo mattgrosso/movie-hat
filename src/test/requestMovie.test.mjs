@@ -21,6 +21,7 @@ import {
   downloadProgress,
   timeLeftText
 } from '../utils/requestMovie.js';
+import { readyCardFresh, dismissReadyCard, READY_CARD_LINGER_MS } from '../utils/requestMovie.js';
 
 // Every write goes to requests/<tmdbId> — the key IS the duplicate check.
 describe('requestPath', () => {
@@ -603,5 +604,45 @@ describe('download progress', () => {
     // An unknown reason is not passed off as one of the known ones.
     expect(held('gremlins').heldBy).toBeNull();
     expect(requestNote(downloading({ progress: 30, heldBy: 'gremlins' }))).toMatch(/Still downloading/);
+  });
+});
+
+// Report of 2026-10-14: the "Watch in Plex" card never went away, because the
+// app reopens on the ?ready= address it was left on.
+describe('the ready card clears itself', () => {
+  const memoryStorage = () => {
+    const items = {};
+    return { getItem: (key) => items[key] ?? null, setItem: (key, value) => { items[key] = String(value); } };
+  };
+
+  it('shows for an hour after it first appears, then stays gone', () => {
+    const storage = memoryStorage();
+    expect(readyCardFresh('12101', { now: 1000, storage })).toBe(true);
+    expect(readyCardFresh('12101', { now: 1000 + READY_CARD_LINGER_MS - 1, storage })).toBe(true);
+    expect(readyCardFresh('12101', { now: 1000 + READY_CARD_LINGER_MS, storage })).toBe(false);
+  });
+
+  it('stays gone once dealt with, while another movie still gets its card', () => {
+    const storage = memoryStorage();
+    expect(readyCardFresh('12101', { now: 1000, storage })).toBe(true);
+    dismissReadyCard('12101', { storage });
+    expect(readyCardFresh('12101', { now: 1001, storage })).toBe(false);
+    expect(readyCardFresh('550', { now: 1002, storage })).toBe(true);
+  });
+
+  it('ignores nonsense, and copes with no storage or broken storage', () => {
+    expect(readyCardFresh('nonsense', { storage: memoryStorage() })).toBe(false);
+    expect(readyCardFresh('12101', { storage: null })).toBe(true);
+    const broken = { getItem: () => '{not json', setItem: () => { throw new Error('full'); } };
+    expect(readyCardFresh('12101', { storage: broken })).toBe(true);
+    expect(() => dismissReadyCard('12101', { storage: broken })).not.toThrow();
+  });
+
+  it('remembers only the newest twenty, never forgetting the one just seen', () => {
+    const storage = memoryStorage();
+    for (let id = 1; id <= 25; id += 1) dismissReadyCard(String(id), { storage });
+    expect(readyCardFresh('999', { now: 5, storage })).toBe(true);
+    expect(readyCardFresh('999', { now: 6, storage })).toBe(true);
+    expect(readyCardFresh('25', { now: 7, storage })).toBe(false);
   });
 });

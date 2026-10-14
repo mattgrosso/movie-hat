@@ -117,6 +117,59 @@ export function readyRequest (rows, readyParam) {
   return isReadyToWatch(row) ? row : null;
 }
 
+// The card a `?ready=` link puts on top is a one-off, not a fixture (report
+// of 2026-10-14: "how long will the Watch in Plex button appear… feels like
+// there should be some way that it clears itself"). The app reopens on the
+// address it was left on, so the link alone would keep the card up for
+// good. Each movie's card is remembered on this device: when it was first
+// shown, or 0 once it was dealt with (Watch in Plex, ✕, a search, back to
+// the list). It stops showing after that, or an hour after it first showed.
+// A notification for another movie is another id, so it still shows.
+export const READY_CARD_KEY = 'movieRequests.readyCards';
+export const READY_CARD_LINGER_MS = 60 * 60 * 1000;
+const READY_CARD_REMEMBERED = 20;
+
+function defaultStorage () {
+  try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; }
+}
+
+// Kept as [tmdbId, at] pairs, oldest first: numeric object keys would sort
+// by id, not by when they were seen.
+function readReadyCards (storage) {
+  try {
+    const pairs = JSON.parse(storage?.getItem(READY_CARD_KEY));
+    return new Map(Array.isArray(pairs) ? pairs : []);
+  } catch { return new Map(); }
+}
+
+function noteReadyCard (storage, tmdbId, at) {
+  const cards = readReadyCards(storage);
+  cards.delete(tmdbId);
+  cards.set(tmdbId, at);
+  // The newest few only; an old id never comes back through a notification.
+  const kept = [...cards].slice(-READY_CARD_REMEMBERED);
+  try { storage?.setItem(READY_CARD_KEY, JSON.stringify(kept)); } catch { /* private mode */ }
+}
+
+/** Should the card for this `?ready=` value still show? Notes its first showing. */
+export function readyCardFresh (readyParam, { now = Date.now(), storage = defaultStorage() } = {}) {
+  const tmdbId = Number(readyParam);
+  if (!isValidTmdbId(tmdbId)) return false;
+  const shownAt = readReadyCards(storage).get(tmdbId);
+  if (shownAt === undefined) {
+    noteReadyCard(storage, tmdbId, now);
+    return true;
+  }
+  return shownAt > 0 && now - shownAt < READY_CARD_LINGER_MS;
+}
+
+/** This movie's card has been dealt with; don't show it again on this device. */
+export function dismissReadyCard (readyParam, { storage = defaultStorage() } = {}) {
+  const tmdbId = Number(readyParam);
+  if (!isValidTmdbId(tmdbId)) return;
+  noteReadyCard(storage, tmdbId, 0);
+}
+
 // Two speeds. The first few minutes poll quickly, because that is when the
 // answer usually arrives and the person is watching the button. After that
 // the row is being held on purpose — the Mac mini waits for whoever is

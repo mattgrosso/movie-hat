@@ -8,12 +8,14 @@
 
     <!-- Where the "ready to watch" notification lands (?ready=<tmdbId>). It
          can't open Plex itself, so this is the one tap between it and Plex.
-         See READY_PARAM in utils/requestMovie.js. -->
+         See READY_PARAM in utils/requestMovie.js. It goes once dealt with,
+         or an hour on (readyCardFresh). -->
     <section v-if="readyRow" class="request-a-movie__ready">
+      <button type="button" class="request-a-movie__ready-close" aria-label="Close" @click="dismissReady">✕</button>
       <p class="request-a-movie__ready-title">
         {{ readyRow.radarrTitle || readyRow.title }} is ready to watch
       </p>
-      <a :href="plexHref" class="btn btn-lg request-a-movie__plex">▶ Watch in Plex</a>
+      <a :href="plexHref" class="btn btn-lg request-a-movie__plex" @click="leaveForPlex">▶ Watch in Plex</a>
       <p class="request-a-movie__ready-hint">Opens Plex. It's under Recently Added.</p>
     </section>
 
@@ -132,6 +134,8 @@ import {
   READY_PARAM,
   REQUESTS_HOME_EVENT,
   readyRequest,
+  readyCardFresh,
+  dismissReadyCard,
   plexUrl
 } from '../utils/requestMovie.js';
 import { deviceSubscribed } from '../utils/push.js';
@@ -154,6 +158,8 @@ export default {
       // phone says nothing about the laptop he is looking at now.
       pushOn: true,
       plexHref: plexUrl(),
+      // The ready card was dealt with, or has been up long enough.
+      readyHidden: false,
       // Polling bookkeeping. Not reactive state anyone renders; kept here so
       // the component owns its own teardown.
       pollTimer: null,
@@ -170,6 +176,7 @@ export default {
     },
     // The movie a "ready to watch" notification opened this screen for.
     readyRow () {
+      if (this.readyHidden) return null;
       return readyRequest(this.rows, this.$route.query[READY_PARAM]);
     },
     /**
@@ -243,8 +250,31 @@ export default {
         this.schedulePoll();
       }, delay);
     },
+    /** Hide the ready card for good if its time is up. */
+    checkReady () {
+      const ready = this.$route.query[READY_PARAM];
+      if (ready && !this.readyHidden && !readyCardFresh(ready)) this.dismissReady();
+    },
+    /**
+     * Done with the ready card: remembered on this device, and the link
+     * dropped from the address so reopening the app doesn't bring it back.
+     */
+    dismissReady () {
+      const ready = this.$route.query[READY_PARAM];
+      if (!ready) return;
+      this.readyHidden = true;
+      dismissReadyCard(ready);
+      const query = { ...this.$route.query };
+      delete query[READY_PARAM];
+      this.$router?.replace({ query });
+    },
+    // After the tap has opened Plex, so the link isn't pulled out from under it.
+    leaveForPlex () {
+      setTimeout(() => this.dismissReady(), 0);
+    },
     /** Back in front of someone: read now, and be quick again for a bit. */
     onForeground () {
+      this.checkReady();
       this.fastUntil = Date.now() + POLL_FAST_WINDOW_MS;
       this.loadRows();
       this.schedulePoll();
@@ -259,6 +289,7 @@ export default {
       this.results = [];
       this.searched = false;
       this.error = null;
+      this.dismissReady();
       this.loadRows();
     },
     async runSearch () {
@@ -267,6 +298,7 @@ export default {
       this.searching = true;
       this.error = null;
       this.lastQuery = term;
+      this.dismissReady();
       // Blur so the phone keyboard drops and the results are actually
       // visible.
       document.activeElement?.blur?.();
@@ -291,12 +323,16 @@ export default {
     },
     // A tap on the notification while the app is already open steers this
     // screen rather than remounting it, and the rows may predate the import.
+    // A new link gets its own chance at the card.
     '$route.query.ready' (ready) {
-      if (ready) this.loadRows();
+      if (!ready) return;
+      this.readyHidden = !readyCardFresh(ready);
+      this.loadRows();
     }
   },
   async mounted () {
     this.fastUntil = Date.now() + POLL_FAST_WINDOW_MS;
+    this.checkReady();
     this.loadRows();
     this.schedulePoll();
     this.stopListeningForForeground = listenForForeground(this.onForeground);
@@ -338,7 +374,20 @@ export default {
     border-radius: 10px;
     margin-bottom: 1rem;
     padding: 1rem;
+    position: relative;
     text-align: center;
+  }
+
+  &__ready-close {
+    background: none;
+    border: 0;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0.5rem;
+    position: absolute;
+    right: 0.25rem;
+    top: 0.25rem;
   }
 
   &__ready-title {
