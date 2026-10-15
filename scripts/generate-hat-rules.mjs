@@ -314,7 +314,13 @@ export const rules = {
       // movie, rather than one read per movie.
       '.read': mayRequest,
       $tmdbId: {
-        '.write': `${mayRequest} && newData.exists() && (!data.exists() || data.child('status').val() === 'error')`,
+        // ...or REPLACE: a film already in the library (status 'exists', or
+        // 'added' and imported) may be requested again with a chosen
+        // version - the Mac mini swaps it in once it arrives, and only then
+        // removes the old copy (Matt, 2026-10-15: "I don't mind you
+        // removing the first version when a second version replaces it").
+        // Never without `release`, so a plain re-request can't be made.
+        '.write': `${mayRequest} && newData.exists() && (!data.exists() || data.child('status').val() === 'error' || ((data.child('status').val() === 'exists' || (data.child('status').val() === 'added' && data.child('importedAt').exists())) && newData.child('release').exists()))`,
         '.validate': [
           "$tmdbId.matches(/^[1-9][0-9]{0,9}$/)",
           "newData.hasChildren(['tmdbId', 'title', 'status', 'source', 'requestedBy', 'createdAt'])",

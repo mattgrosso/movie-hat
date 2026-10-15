@@ -35,18 +35,29 @@
       {{ chosen && canRequest ? 'Request this version' : label }}
     </button>
     <!-- Choose a version (2026-10-15): before requesting, see what versions
-         exist and pick one instead of taking whatever Radarr chooses. -->
+         exist and pick one instead of taking whatever Radarr chooses. On a
+         film already in the library it offers a REPLACEMENT instead. -->
     <button
-      v-if="canRequest && !compact"
+      v-if="chosen && canReplace && !compact"
+      type="button"
+      class="btn btn-request"
+      :disabled="requesting"
+      @click="request({ tmdbId: movie.id, title: movie.title, release: chosen })"
+    >
+      Replace the current copy with this version
+    </button>
+    <p v-if="chosen && canReplace && !compact" class="request-movie__note m-0">It replaces your copy when it arrives. Until then, the one you have stays.</p>
+    <button
+      v-if="(canRequest || canReplace) && !compact"
       type="button"
       class="btn btn-link btn-sm request-movie__versions-link"
       :aria-expanded="showVersions"
       @click="toggleVersions"
     >
-      {{ showVersions ? 'Hide versions' : (chosen ? 'Change version' : 'Choose a version') }}
+      {{ showVersions ? 'Hide versions' : (chosen ? 'Change version' : (canReplace ? 'Get a different version' : 'Choose a version')) }}
     </button>
     <VersionPanel
-      v-if="showVersions && canRequest && !compact && email"
+      v-if="showVersions && (canRequest || canReplace) && !compact && email"
       :tmdb-id="movie.id"
       :email="email"
       :chosen="chosen && chosen.infoHash"
@@ -165,12 +176,18 @@ export default {
     const chosen = ref(null);
     const email = computed(() => store.state.email || '');
     const toggleVersions = () => { showVersions.value = !showVersions.value; };
+    // In the library already (or arrived): a chosen version REPLACES it.
+    const canReplace = computed(() => {
+      const r = row.value;
+      if (!r || requesting.value) return false;
+      return r.status === 'exists' || (r.status === 'added' && typeof r.importedAt === 'number');
+    });
     // A new movie forgets the last one's choice.
     watch(() => props.movie?.id, () => { showVersions.value = false; chosen.value = null; });
     // Once requested, the panel has done its job.
     watch(row, (r) => { if (r && r.status !== 'error') showVersions.value = false; });
 
-    return { signedIn, row, requesting, error, label, note, progress, settled, canRequest, canForceNow, request, force, buttonClass, tooltip, showVersions, chosen, email, toggleVersions };
+    return { signedIn, row, requesting, error, label, note, progress, settled, canRequest, canForceNow, request, force, buttonClass, tooltip, showVersions, chosen, email, toggleVersions, canReplace };
   }
 };
 </script>
