@@ -15,7 +15,11 @@
       </p>
       <!-- Some indexers didn't answer (Cineplex, 2026-10-15: a list from one
            of three looks exactly like the whole truth, so it says so). -->
-      <p v-if="missing.length" class="versions__status versions__status--bad m-0">
+      <p v-if="stillComing && missing.length" class="versions__status m-0">
+        <span class="spinner-border spinner-border-sm" aria-hidden="true"/>
+        More may still arrive from {{ missing.map((m) => m.name).join(' and ') }}…
+      </p>
+      <p v-else-if="missing.length" class="versions__status versions__status--bad m-0">
         Showing {{ searched.join(' and ') || 'nothing' }} only: {{ missing.map((m) => `${m.name} ${m.reason}`).join('; ') }}.
         <button type="button" class="btn btn-link btn-sm p-0" @click="ask">Try again</button>
       </p>
@@ -68,6 +72,8 @@ import { dbGet, dbPatch } from '../store/db.js';
 import { buildVersionAsk, versionQueryPath, versionsAnswered, sortVersions, formatSize } from '../utils/requestMovie.js';
 
 const POLL_MS = 2000;
+const LATE_POLL_MS = 3000;
+const LATE_MS = 120000;
 const GIVE_UP_MS = 60000; // each indexer is cut off at 25 s since 2026-10-15 (the first live search took ~100 s while one hung)
 
 export default {
@@ -82,6 +88,7 @@ export default {
     const state = ref('asking');
     const problem = ref('');
     const node = ref(null);
+    const listening = ref(false);
     let timer = null;
     let started = 0;
 
@@ -92,7 +99,14 @@ export default {
         const got = await dbGet(versionQueryPath(props.tmdbId));
         if (versionsAnswered(got, askedAt)) {
           node.value = got;
-          if (got.status === 'error') { state.value = 'error'; problem.value = got.error || ''; } else state.value = 'ready';
+          if (got.status === 'error') { state.value = 'error'; problem.value = got.error || ''; return; }
+          state.value = 'ready';
+          // TWO-PHASE (Cineplex, 2026-10-15): the fast indexers answer
+          // first; a slow one (archive.org, with the theatrical cuts) may
+          // add to the list later. Keep listening while it is incomplete,
+          // up to LATE_MS from the ask.
+          listening.value = got.indexers?.complete === false && Date.now() - started < LATE_MS;
+          if (listening.value) timer = setTimeout(() => poll(askedAt), LATE_POLL_MS);
           return;
         }
       } catch (e) {
@@ -107,6 +121,7 @@ export default {
     // `requestedAt`.
     async function ask () {
       stopPolling();
+      listening.value = false;
       state.value = 'asking';
       problem.value = '';
       started = Date.now();
@@ -127,11 +142,12 @@ export default {
 
     const versions = computed(() => sortVersions(node.value?.releases));
     const runtime = computed(() => node.value?.runtime || null);
-    const missing = computed(() => (node.value?.indexers && node.value.indexers.complete === false ? (node.value.indexers.missing || []) : []));
+    const stillComing = computed(() => listening.value);
+    const missing = computed(() => node.value?.indexers?.missing || []);
     const searched = computed(() => node.value?.indexers?.searched || []);
     const pick = (r) => emit('choose', props.chosen === r.infoHash ? null : { infoHash: r.infoHash, title: r.title });
 
-    return { state, problem, versions, runtime, missing, searched, pick, ask, formatSize };
+    return { state, problem, versions, runtime, missing, searched, stillComing, pick, ask, formatSize };
   }
 };
 </script>
