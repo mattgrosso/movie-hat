@@ -249,11 +249,12 @@ export function isValidTmdbId (tmdbId) {
  * replaces with its own clock — so the rules can insist it is a number and
  * the service can trust the ordering.
  */
-export function buildRequest ({ tmdbId, title, source, email, force = false }) {
+export function buildRequest ({ tmdbId, title, source, email, force = false, release = null }) {
   if (!isValidTmdbId(tmdbId)) throw new Error(`Not a TMDb id: ${tmdbId}`);
   if (!REQUEST_SOURCES.includes(source)) throw new Error(`Unknown request source: ${source}`);
   if (typeof email !== 'string' || !email) throw new Error('A request needs a signed-in email');
   if (force && !canForce(email)) throw new Error('Only Matt can force a request past the Plex hold');
+  if (release && !isInfoHash(release.infoHash)) throw new Error('A chosen version needs its 40-character info hash');
 
   const row = {
     tmdbId,
@@ -267,7 +268,64 @@ export function buildRequest ({ tmdbId, title, source, email, force = false }) {
   // it has always been, which is what keeps the rules and the service able
   // to treat the field as optional.
   if (force) row.force = true;
+  // A chosen version (2026-10-15, "Choose a version"): the Mac mini skips
+  // Radarr's own search and takes exactly this release. Optional, and
+  // written once with the row like everything else on it.
+  if (release) row.release = { infoHash: release.infoHash, title: String(release.title || '').slice(0, 300) };
   return row;
+}
+
+// ---------------------------------------------------------------- versions
+// CHOOSE A VERSION (Matt, 2026-10-15, after Dawn of the Dead arrived as the
+// 154-minute cut when he wanted the 127-minute theatrical). Before
+// requesting, the panel asks the Mac mini what versions exist:
+//
+//   versionQueries/<tmdbId>: { requestedBy, requestedAt }      <- client
+//   versionQueries/<tmdbId>: { status: 'searching'|'ready'|'error',
+//     updatedAt, error?, title, year, runtime,
+//     releases/<infoHash>: { title, size, seeders, quality, indexer, cut?, blocked? } }  <- Mac mini
+//
+// A search hits real indexers and takes 5-20 seconds, so it is ASKED for,
+// once per deliberate open of the panel: the service answers a new
+// `requestedAt` and refuses one it has already answered. Never write it
+// on a render.
+export const isInfoHash = (h) => typeof h === 'string' && /^[0-9a-fA-F]{40}$/.test(h);
+export const versionQueryPath = (tmdbId) => `versionQueries/${tmdbId}`;
+
+/** The two fields a client writes to ask for a fresh search. */
+export function buildVersionAsk (email) {
+  if (typeof email !== 'string' || !email) throw new Error('Asking for versions needs a signed-in email');
+  return { requestedBy: email, requestedAt: { '.sv': 'timestamp' } };
+}
+
+/** Has the service answered this ask (as opposed to an older one)? */
+export function versionsAnswered (node, askedAt) {
+  if (!node || !['ready', 'error'].includes(node.status)) return false;
+  return typeof node.updatedAt === 'number' && node.updatedAt >= (askedAt || 0);
+}
+
+/**
+ * The releases as the panel lists them: most seeders first, and anything
+ * the quality profile would refuse after the rest ("Other versions") - a
+ * deliberate choice may override the profile, so they are offered, marked.
+ * No default is marked: before a request nobody knows what Radarr would take.
+ */
+export function sortVersions (releases) {
+  const list = Object.entries(releases || {})
+    .filter(([hash]) => isInfoHash(hash))
+    .map(([infoHash, r]) => ({ infoHash, ...r }));
+  const bySeeders = (a, b) => (Number(b.seeders) || 0) - (Number(a.seeders) || 0);
+  return {
+    fits: list.filter((r) => !r.blocked).sort(bySeeders),
+    other: list.filter((r) => r.blocked).sort(bySeeders)
+  };
+}
+
+/** 20543000000 -> "20.5 GB"; 980000000 -> "0.98 GB". */
+export function formatSize (bytes) {
+  const gb = Number(bytes) / 1e9;
+  if (!Number.isFinite(gb) || gb <= 0) return '';
+  return `${gb < 10 ? gb.toFixed(2).replace(/0$/, '') : gb.toFixed(1)} GB`;
 }
 
 /** May the client write a row over this one? Only nothing, or a failure. */
@@ -521,14 +579,14 @@ export function useRequestMovie ({ read, write, source, email, short = false, no
     return row.value;
   }
 
-  async function request ({ tmdbId, title, force = false }) {
-    trackEvent('movie-requested');
+  async function request ({ tmdbId, title, force = false, release = null }) {
+    trackEvent(release ? 'movie-requested-version' : 'movie-requested');
     if (requesting.value) return;
     error.value = null;
 
     let payload;
     try {
-      payload = buildRequest({ tmdbId, title, source, email: currentEmail(), force });
+      payload = buildRequest({ tmdbId, title, source, email: currentEmail(), force, release });
     } catch (buildError) {
       error.value = buildError.message;
       return;

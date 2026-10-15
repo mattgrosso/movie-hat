@@ -24,7 +24,7 @@
       :class="buttonClass"
       :disabled="!canRequest"
       :title="tooltip"
-      @click="request({ tmdbId: movie.id, title: movie.title })"
+      @click="request({ tmdbId: movie.id, title: movie.title, release: chosen })"
     >
       <!-- Compact: a small download glyph so the word can stay short.
            bootstrap-icons' CSS isn't loaded, so the SVG rides inline. -->
@@ -32,8 +32,26 @@
         <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
         <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
       </svg>
-      {{ label }}
+      {{ chosen && canRequest ? 'Request this version' : label }}
     </button>
+    <!-- Choose a version (2026-10-15): before requesting, see what versions
+         exist and pick one instead of taking whatever Radarr chooses. -->
+    <button
+      v-if="canRequest && !compact"
+      type="button"
+      class="btn btn-link btn-sm request-movie__versions-link"
+      :aria-expanded="showVersions"
+      @click="toggleVersions"
+    >
+      {{ showVersions ? 'Hide versions' : (chosen ? 'Change version' : 'Choose a version') }}
+    </button>
+    <VersionPanel
+      v-if="showVersions && canRequest && !compact && email"
+      :tmdb-id="movie.id"
+      :email="email"
+      :chosen="chosen && chosen.infoHash"
+      @choose="chosen = $event"
+    />
     <!-- How far the download has got, once the Mac mini has a number. No
          width transition on purpose: when a raced copy drops out the
          percent can step down, and animating backwards looks broken. -->
@@ -72,13 +90,15 @@
 // fills the disk on Matt's Mac mini. The database rules enforce the same
 // pair, so hiding the button is a courtesy to everyone else, not the
 // boundary. Both answers come from the `mayRequestMovies` store getter.
-import { computed, watch, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
+import VersionPanel from './VersionPanel.vue';
 import { useStore } from 'vuex';
 import { dbGet, dbPut } from '../store/db.js';
 import { useRequestMovie, isValidTmdbId } from '../utils/requestMovie.js';
 
 export default {
   name: 'RequestMovieButton',
+  components: { VersionPanel },
   props: {
     movie: { type: Object, default: null },
     // Small and quiet, for a list of many (the home page's drawn movies):
@@ -139,7 +159,18 @@ export default {
       return 'Ask the Mac mini to add this movie to the library';
     });
 
-    return { signedIn, row, requesting, error, label, note, progress, settled, canRequest, canForceNow, request, force, buttonClass, tooltip };
+    // The version panel: opened on purpose (each open asks the Mac mini for
+    // a fresh search), and the pick rides on the request.
+    const showVersions = ref(false);
+    const chosen = ref(null);
+    const email = computed(() => store.state.email || '');
+    const toggleVersions = () => { showVersions.value = !showVersions.value; };
+    // A new movie forgets the last one's choice.
+    watch(() => props.movie?.id, () => { showVersions.value = false; chosen.value = null; });
+    // Once requested, the panel has done its job.
+    watch(row, (r) => { if (r && r.status !== 'error') showVersions.value = false; });
+
+    return { signedIn, row, requesting, error, label, note, progress, settled, canRequest, canForceNow, request, force, buttonClass, tooltip, showVersions, chosen, email, toggleVersions };
   }
 };
 </script>
@@ -185,6 +216,12 @@ export default {
     background: #d39e00;
     border-color: #d39e00;
     color: #212529;
+  }
+
+  &__versions-link {
+    color: #b9a3ff;
+    font-size: 0.8rem;
+    padding: 0;
   }
 
   &__error {

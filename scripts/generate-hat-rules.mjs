@@ -264,6 +264,27 @@ export const rules = {
       '.read': mayRequest
     },
 
+    // "Choose a version" (2026-10-15): the request panel ASKS the Mac mini
+    // which versions of a film exist (a live indexer search, 5-20 seconds),
+    // and it answers in place - see src/utils/requestMovie.js. A client
+    // may write exactly two fields, its own address and the server's clock;
+    // everything else under a query is the service's (Admin SDK). The
+    // service refuses an ask it has already answered, so a new search needs
+    // a new `requestedAt`, which only a deliberate open of the panel writes.
+    versionQueries: {
+      '.read': mayRequest,
+      $tmdbId: {
+        requestedBy: {
+          '.write': mayRequest,
+          '.validate': "$tmdbId.matches(/^[1-9][0-9]{0,9}$/) && newData.val() === auth.token.email"
+        },
+        requestedAt: {
+          '.write': mayRequest,
+          '.validate': "$tmdbId.matches(/^[1-9][0-9]{0,9}$/) && newData.isNumber() && newData.val() <= now"
+        }
+      }
+    },
+
     // "Request this movie" (2026-09-08): a row per TMDb id asking the Mac
     // mini to add the movie to Radarr — see src/utils/requestMovie.js and
     // README.md, "Movie requests". Cinema Roll writes here too, through its
@@ -312,7 +333,12 @@ export const rules = {
           // behaves exactly as every row did before. `false` is not a value —
           // leave it off instead, so the service never has to tell the two
           // apart.
-          `(!newData.hasChild('force') || (newData.child('force').isBoolean() && newData.child('force').val() === true && ${isOwner}))`
+          `(!newData.hasChild('force') || (newData.child('force').isBoolean() && newData.child('force').val() === true && ${isOwner}))`,
+          // `release` (2026-10-15, "Choose a version"): the version the
+          // requester picked, by info hash. Optional; written once with the
+          // row (the row-level .write already refuses later changes); the
+          // Mac mini takes exactly this release instead of searching.
+          "(!newData.hasChild('release') || (newData.child('release/infoHash').isString() && newData.child('release/infoHash').val().matches(/^[0-9a-fA-F]{40}$/) && newData.child('release/title').isString() && newData.child('release/title').val().length <= 300))"
         ].join(' && '),
         // Forcing AFTER the request (Matt, 2026-09-25: "the force through
         // button should only show up after I've clicked the request button

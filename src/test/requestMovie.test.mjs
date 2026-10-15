@@ -646,3 +646,38 @@ describe('the ready card clears itself', () => {
     expect(readyCardFresh('25', { now: 7, storage })).toBe(false);
   });
 });
+
+// ---- Choose a version (2026-10-15)
+import { buildRequest as buildRequestV, buildVersionAsk, versionsAnswered, sortVersions, formatSize, isInfoHash } from '../utils/requestMovie.js';
+
+describe('choosing a version', () => {
+  const hash = 'a'.repeat(40);
+  it('carries the chosen release on the request, and refuses a bad hash', () => {
+    const row = buildRequestV({ tmdbId: 923, title: 'Dawn of the Dead', source: 'movie-hat', email: 'm@x.com', release: { infoHash: hash, title: 'Theatrical Cut' } });
+    expect(row.release).toEqual({ infoHash: hash, title: 'Theatrical Cut' });
+    expect(buildRequestV({ tmdbId: 923, title: 'x', source: 'movie-hat', email: 'm@x.com' }).release).toBeUndefined();
+    expect(() => buildRequestV({ tmdbId: 923, title: 'x', source: 'movie-hat', email: 'm@x.com', release: { infoHash: 'nope' } })).toThrow();
+  });
+  it('asks with only the two client fields, the time from the server', () => {
+    expect(buildVersionAsk('m@x.com')).toEqual({ requestedBy: 'm@x.com', requestedAt: { '.sv': 'timestamp' } });
+  });
+  it('counts only an answer to THIS ask', () => {
+    expect(versionsAnswered({ status: 'searching', updatedAt: 9 }, 5)).toBe(false);
+    expect(versionsAnswered({ status: 'ready', updatedAt: 4 }, 5)).toBe(false);
+    expect(versionsAnswered({ status: 'ready', updatedAt: 6 }, 5)).toBe(true);
+    expect(versionsAnswered({ status: 'error', updatedAt: 6 }, 5)).toBe(true);
+  });
+  it('sorts by seeders and puts what the profile refuses after, with no default', () => {
+    const b = 'b'.repeat(40); const c = 'c'.repeat(40);
+    const { fits, other } = sortVersions({ [hash]: { seeders: 3 }, [b]: { seeders: 93 }, [c]: { seeders: 1, blocked: 'too big' }, bad: { seeders: 99 } });
+    expect(fits.map((r) => r.infoHash)).toEqual([b, hash]);
+    expect(other.map((r) => r.infoHash)).toEqual([c]);
+    expect(isInfoHash('bad')).toBe(false);
+  });
+  it('writes sizes the way a person reads them', () => {
+    expect(formatSize(20543000000)).toBe('20.5 GB');
+    expect(formatSize(980000000)).toBe('0.98 GB');
+    expect(formatSize(2770000000)).toBe('2.77 GB');
+    expect(formatSize(0)).toBe('');
+  });
+});
