@@ -15,9 +15,9 @@
       </p>
       <!-- Some indexers didn't answer (Cineplex, 2026-10-15: a list from one
            of three looks exactly like the whole truth, so it says so). -->
-      <p v-if="stillComing && missing.length" class="versions__status m-0">
+      <p v-if="stillComing" class="versions__status m-0">
         <span class="spinner-border spinner-border-sm" aria-hidden="true"/>
-        More may still arrive from {{ missing.map((m) => m.name).join(' and ') }}…
+        More may still arrive{{ pending.length ? ` from ${pending.join(' and ')}` : '' }}…
       </p>
       <p v-else-if="missing.length" class="versions__status versions__status--bad m-0">
         Showing {{ searched.join(' and ') || 'nothing' }} only: {{ missing.map((m) => `${m.name} ${m.reason}`).join('; ') }}.
@@ -74,7 +74,7 @@ import { buildVersionAsk, versionQueryPath, versionsAnswered, sortVersions, form
 const POLL_MS = 2000;
 const LATE_POLL_MS = 3000;
 const LATE_MS = 120000;
-const GIVE_UP_MS = 60000; // each indexer is cut off at 25 s since 2026-10-15 (the first live search took ~100 s while one hung)
+const GIVE_UP_MS = 60000; // the first publish comes by ~20 s; stragglers by 110 s (LATE_MS)
 
 export default {
   name: 'VersionPanel',
@@ -145,9 +145,10 @@ export default {
     const stillComing = computed(() => listening.value);
     const missing = computed(() => node.value?.indexers?.missing || []);
     const searched = computed(() => node.value?.indexers?.searched || []);
+    const pending = computed(() => node.value?.indexers?.pending || []);
     const pick = (r) => emit('choose', props.chosen === r.infoHash ? null : { infoHash: r.infoHash, title: r.title });
 
-    return { state, problem, versions, runtime, missing, searched, stillComing, pick, ask, formatSize };
+    return { state, problem, versions, runtime, missing, searched, pending, stillComing, pick, ask, formatSize };
   }
 };
 </script>
