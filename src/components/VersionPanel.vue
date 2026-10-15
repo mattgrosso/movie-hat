@@ -2,7 +2,7 @@
   <div class="versions">
     <p v-if="state === 'asking'" class="versions__status m-0">
       <span class="spinner-border spinner-border-sm" aria-hidden="true"/>
-      Asking the indexers which versions exist… this takes up to 20 seconds.
+      Asking the indexers which versions exist… this can take a minute or two.
     </p>
     <p v-else-if="state === 'error'" class="versions__status versions__status--bad m-0">
       {{ problem || 'The search didn’t come back.' }}
@@ -62,7 +62,7 @@ import { dbGet, dbPatch } from '../store/db.js';
 import { buildVersionAsk, versionQueryPath, versionsAnswered, sortVersions, formatSize } from '../utils/requestMovie.js';
 
 const POLL_MS = 2000;
-const GIVE_UP_MS = 60000;
+const GIVE_UP_MS = 150000; // the first live search took ~100 s (2026-10-15)
 
 export default {
   name: 'VersionPanel',
