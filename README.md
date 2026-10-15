@@ -128,6 +128,8 @@ requests/<tmdbId>: {
   requestedBy: string   the signed-in email (rules check it matches the token)
   createdAt:   number   server timestamp, ms
   force:       true     optional, Matt only — see "Forcing a request past the Plex hold"
+  release:     { infoHash, title }   optional — a version picked in the panel;
+                        see "Choosing a version"
 
   // Written by the service only:
   radarrId:    number
@@ -192,6 +194,44 @@ that one write to the owner while the row is still `pending` and unforced —
 on anybody's request, leaving it theirs. **The Mac mini service must honour a
 force that arrives after the row was created**: re-read `force` whenever it
 re-checks a held row (or listen for `child_changed`), not only at pickup.
+
+### Choosing a version
+
+2026-10-15, after Dawn of the Dead arrived as the 154-minute cut when Matt
+wanted the 127-minute theatrical one: "when I request a movie here, I could
+see various cuts, lengths, and versions, and choose the correct one if I
+wanted to." Under the Request button sits **Choose a version** (or **Get a
+different version** on a film already in the library). Opening it asks the
+Mac mini what exists, before anything is requested:
+
+```
+versionQueries/<tmdbId>: {
+  requestedBy: string   the asker's email   } written by the client, and
+  requestedAt: number   server timestamp    } nothing else may be
+  // Written by the service only:
+  status:    'searching' | 'ready' | 'error'
+  updatedAt: number   ms; an answer counts only if it is newer than the ask
+  error, title, year, runtime
+  indexers:  { complete, pending, searched, missing }   complete: false while a slow
+                                          indexer is still to answer
+  releases/<infoHash>: { title, size, seeders, quality, indexer, cut?, blocked? }
+}
+```
+
+The service answers each new `requestedAt` once (a search hits real
+indexers), publishing the fast indexers first and the stragglers after.
+`blocked` names what the quality profile would refuse; the panel still
+offers those, dimmed, under "Other versions", because a deliberate pick may
+override the profile. Run time isn't in most release names, so the panel
+shows TMDb's runtime and lets file size hint at a longer cut.
+
+The pick goes on the request row as `release`, and the service grabs exactly
+that release instead of letting Radarr search. On a film already in the
+library a request is allowed again only with `release` — that is the
+replacement, and the new file takes the old one's place when it arrives.
+Picking is optional: close the panel and Request works as it always did.
+Helpers and shapes: the versions section of `src/utils/requestMovie.js`;
+rules: `versionQueries` in `scripts/generate-hat-rules.mjs`.
 
 ### Who else may request (`siteUsers`)
 
