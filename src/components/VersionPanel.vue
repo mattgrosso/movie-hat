@@ -2,7 +2,7 @@
   <div class="versions">
     <p v-if="state === 'asking'" class="versions__status m-0">
       <span class="spinner-border spinner-border-sm" aria-hidden="true"/>
-      Asking the indexers which versions exist… this can take a minute or two.
+      Asking the indexers which versions exist… this takes up to half a minute.
     </p>
     <p v-else-if="state === 'error'" class="versions__status versions__status--bad m-0">
       {{ problem || 'The search didn’t come back.' }}
@@ -13,7 +13,13 @@
         <template v-if="runtime">TMDB says {{ runtime }} min. A file much bigger than its quality suggests may be a longer cut.</template>
         <template v-else>Pick one, or close this to let the Mac mini choose.</template>
       </p>
-      <p v-if="!versions.fits.length && !versions.other.length" class="versions__status m-0">No versions turned up.</p>
+      <!-- Some indexers didn't answer (Cineplex, 2026-10-15: a list from one
+           of three looks exactly like the whole truth, so it says so). -->
+      <p v-if="missing.length" class="versions__status versions__status--bad m-0">
+        Showing {{ searched.join(' and ') || 'nothing' }} only: {{ missing.map((m) => `${m.name} ${m.reason}`).join('; ') }}.
+        <button type="button" class="btn btn-link btn-sm p-0" @click="ask">Try again</button>
+      </p>
+      <p v-if="!versions.fits.length && !versions.other.length" class="versions__status m-0">No versions turned up{{ missing.length ? ' from the indexers that answered' : '' }}.</p>
       <ul class="versions__list">
         <li v-for="r in versions.fits" :key="r.infoHash">
           <button type="button" class="versions__item" :class="{ 'is-chosen': chosen === r.infoHash }" :aria-pressed="chosen === r.infoHash" @click="pick(r)">
@@ -62,7 +68,7 @@ import { dbGet, dbPatch } from '../store/db.js';
 import { buildVersionAsk, versionQueryPath, versionsAnswered, sortVersions, formatSize } from '../utils/requestMovie.js';
 
 const POLL_MS = 2000;
-const GIVE_UP_MS = 150000; // the first live search took ~100 s (2026-10-15)
+const GIVE_UP_MS = 60000; // each indexer is cut off at 25 s since 2026-10-15 (the first live search took ~100 s while one hung)
 
 export default {
   name: 'VersionPanel',
@@ -121,9 +127,11 @@ export default {
 
     const versions = computed(() => sortVersions(node.value?.releases));
     const runtime = computed(() => node.value?.runtime || null);
+    const missing = computed(() => (node.value?.indexers && node.value.indexers.complete === false ? (node.value.indexers.missing || []) : []));
+    const searched = computed(() => node.value?.indexers?.searched || []);
     const pick = (r) => emit('choose', props.chosen === r.infoHash ? null : { infoHash: r.infoHash, title: r.title });
 
-    return { state, problem, versions, runtime, pick, ask, formatSize };
+    return { state, problem, versions, runtime, missing, searched, pick, ask, formatSize };
   }
 };
 </script>
