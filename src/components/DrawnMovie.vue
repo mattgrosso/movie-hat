@@ -305,10 +305,40 @@ export default {
       display: contents;
     }
 
+    // Everything after the request button (the version link and panel, the
+    // Replace button, progress, the note) gets a full-width line of its own
+    // under the three. Left in the grid, the version link landed in the
+    // narrow first column and was cut off with "…" (report, 2026-10-16).
+    .request-movie.request-slot > :not(:first-child) {
+      grid-column: 1 / -1;
+      justify-self: center;
+    }
+
+    .request-movie.request-slot > .btn:not(:first-child) {
+      white-space: normal;
+    }
+
+    // A plain white underlined link: the request purple's light tint was
+    // unreadable on this page's blue.
+    .btn.request-movie__versions-link {
+      color: white;
+      font-size: 0.85rem;
+      overflow: visible;
+      padding: 0.25rem 0.5rem;
+      text-decoration: underline;
+      width: auto;
+    }
+
+    // The panel's grey captions sit straight on the blue here.
+    .versions__lead,
+    .versions__other,
+    .versions__status:not(.versions__status--bad) {
+      color: rgba(255, 255, 255, 0.85);
+    }
+
     // The explanation under the request button reads across the whole row.
     .request-movie__note,
     .request-movie__error {
-      grid-column: 1 / -1;
       margin-top: -0.25rem;
     }
   }
