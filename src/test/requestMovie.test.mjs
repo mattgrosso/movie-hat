@@ -681,3 +681,25 @@ describe('choosing a version', () => {
     expect(formatSize(0)).toBe('');
   });
 });
+
+// 2026-10-18: `stage` from Radarr's queue, so a search no longer reads as a download.
+import { describe as describeStage, it as itStage, expect as expectStage } from 'vitest';
+import { requestLabel as labelStage, requestNote as noteStage, downloadProgress as progressStage } from '../utils/requestMovie.js';
+describeStage('stage', () => {
+  itStage('a search says it is looking, with no bar', () => {
+    const row = { status: 'added', stage: 'searching' };
+    expectStage(labelStage(row)).toBe('Looking for a copy…');
+    expectStage(labelStage(row, { short: true })).toBe('Looking…');
+    expectStage(noteStage(row)).toMatch(/No copy found yet/);
+    expectStage(progressStage(row)).toBeNull();
+  });
+  itStage('importing is a full bar and says Plex', () => {
+    const row = { status: 'added', stage: 'importing', progress: 99 };
+    expectStage(labelStage(row)).toBe('Adding to Plex…');
+    expectStage(progressStage(row)).toMatchObject({ percent: 100 });
+  });
+  itStage('downloading and an absent stage read as before', () => {
+    expectStage(labelStage({ status: 'added', stage: 'downloading', progress: 42 }, { short: true })).toBe('Downloading 42%');
+    expectStage(labelStage({ status: 'added' })).toMatch(/^Downloading/);
+  });
+});

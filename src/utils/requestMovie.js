@@ -351,6 +351,11 @@ export function requestLabel (row, { requesting = false, short = false } = {}) {
     case 'processing': return short ? 'Starting…' : 'Starting the download…';
     case 'added': {
       if (isSettled(row)) return short ? 'Ready' : 'Ready to watch';
+      // `stage` comes from Radarr's own queue (2026-10-18, Matt: "it's not
+      // great that it says 'downloading' when it isn't"): nothing queued
+      // yet is a search, not a download.
+      if (row.stage === 'searching') return short ? 'Looking…' : 'Looking for a copy…';
+      if (row.stage === 'importing') return short ? 'Adding to Plex' : 'Adding to Plex…';
       // In a list there is no room for the bar, so the number rides in the label.
       const progress = short ? downloadProgress(row) : null;
       if (progress) return progress.heldBy ? `Paused ${progress.percent}%` : `Downloading ${progress.percent}%`;
@@ -374,6 +379,8 @@ export function requestNote (row) {
     case 'processing': return 'You’ll get a notification when it’s ready.';
     case 'added': {
       if (isSettled(row)) return null;
+      if (row.stage === 'searching') return 'No copy found yet; it keeps looking. You’ll get a notification when it’s ready.';
+      if (row.stage === 'importing') return 'Downloaded. Adding it to Plex now.';
       const progress = downloadProgress(row);
       if (progress?.heldBy) return HELD_NOTES[progress.heldBy];
       return 'Still downloading. You’ll get a notification when it’s ready.';
@@ -427,6 +434,9 @@ export function timeLeftText (etaAt, now = Date.now()) {
  */
 export function downloadProgress (row, { now = Date.now() } = {}) {
   if (row?.status !== 'added' || isSettled(row)) return null;
+  // Searching: no bar. Importing: the download is done, so the bar is full.
+  if (row.stage === 'searching') return null;
+  if (row.stage === 'importing') return { percent: 100, heldBy: null, timeLeft: null };
   if (typeof row.progress !== 'number' || !Number.isFinite(row.progress)) return null;
   const percent = Math.max(0, Math.min(100, Math.round(row.progress)));
   const heldBy = HELD_NOTES[row.heldBy] ? row.heldBy : null;
