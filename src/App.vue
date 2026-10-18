@@ -37,6 +37,7 @@ import BugResolutionNotice from "./components/BugResolutionNotice.vue";
 import { reloadForUpdate, isSafeMomentForReload, shouldAutoAttempt, markUpdateLanded, checkWorkerOnce, runUpdateCheck } from "./utils/appUpdate.js";
 import { flushStashedBugReports } from "./utils/bugReports.js";
 import { refreshSubscriptionIfGranted, clearBadgeOnOpen } from "./utils/push.js";
+import { repairPrecacheIfEmptied } from "./utils/precacheRepair.js";
 
 export default {
   name: 'Movie-Hat',
@@ -244,6 +245,13 @@ export default {
 
     // Bug reports typed with no signal go out on the next launch.
     flushStashedBugReports().catch(() => {});
+
+    // A hard reload empties the phone's saved copy of the app and nothing
+    // else refills it (utils/precacheRepair.js) - put it back, well after
+    // launch so it never competes with the hat loading.
+    setTimeout(() => {
+      repairPrecacheIfEmptied({ runningBundle: this.currentBundleName() });
+    }, 15000);
   },
 }
 </script>

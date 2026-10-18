@@ -14,7 +14,15 @@
          double-loaded it and broke offline use of the installed app. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Monoton&display=swap" rel="stylesheet">
+    <!-- Loaded without holding up the first paint (2026-10-17, "sitting on
+         a black screen for a really long time"): a plain stylesheet link
+         here is render-blocking, and the service worker never caches
+         Google's CSS, so every launch waited on fonts.googleapis.com before
+         drawing anything. media=print downloads it at low priority without
+         blocking; onload switches it on. Monoton is only the logo font, and
+         display=swap already shows a fallback until it arrives. -->
+    <link href="https://fonts.googleapis.com/css2?family=Monoton&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Monoton&display=swap" rel="stylesheet"></noscript>
     <!--[if IE]><link rel="icon" href="/img/icons/apple-touch-icon.png"><![endif]-->
     <link rel="apple-touch-icon" href="/img/icons/apple-touch-icon.png">
     <link rel="apple-touch-icon" sizes="60x60" href="/img/icons/apple-touch-icon-60x60.png">
