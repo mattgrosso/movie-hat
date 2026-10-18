@@ -561,6 +561,74 @@ const sweepNewRequests = async (now = Date.now()) => {
   return result;
 };
 
+// --- Alerts from the Mac mini ------------------------------------------------
+
+// An alert older than this when first seen is stamped, not announced:
+// guards the first deploy and a long outage of the sweep.
+const ALERT_NEWS_WINDOW_MS = 24 * 3600 * 1000;
+
+/**
+ * Tell the admins about anything the Mac mini couldn't sort out by itself.
+ * Each alert is announced once per failure: `alertsPushed/<id>` holds the
+ * `at` of the failure last announced, so the same film failing again (a
+ * new `at`) is news and the same failure sitting there is not.
+ */
+const sweepAlerts = async (now = Date.now()) => {
+  const [alerts, pushed] = await Promise.all([dbGet('alerts'), dbGet('alertsPushed')]);
+  const live = alerts || {};
+  const done = pushed || {};
+  const result = { rows: 0, announced: 0, stale: 0, unreachable: 0, cleared: 0 };
+
+  // An alert the mini removed (the thing stopped being true) needs no memory.
+  for (const id of Object.keys(done)) {
+    if (!live[id]) { await dbDelete(`alertsPushed/${id}`); result.cleared += 1; }
+  }
+
+  const fresh = Object.entries(live).filter(([id, a]) => a && a.message && done[id] !== (a.at ?? a.createdAt));
+  if (!fresh.length) return result;
+
+  const rosterRows = await dbGet('siteUsers');
+  const admins = Object.values(rosterRows || {})
+    .filter((row) => row && row.isAdmin === true && row.email)
+    .map((row) => emailToMemberKey(row.email))
+    .filter(Boolean);
+
+  for (const [id, alert] of fresh) {
+    result.rows += 1;
+    const mark = alert.at ?? alert.createdAt ?? now;
+    const raised = typeof alert.createdAt === 'number' ? alert.createdAt : now;
+    if (now - raised > ALERT_NEWS_WINDOW_MS) {
+      await dbSet(`alertsPushed/${id}`, mark);
+      result.stale += 1;
+      continue;
+    }
+    try {
+      const film = alert.title || 'A movie';
+      let delivered = 0;
+      for (const memberKey of admins) {
+        const badgePath = `push/${memberKey}/badge`;
+        const unseen = (Number(await dbGet(badgePath)) || 0) + 1;
+        const payload = buildPayload({
+          title: alert.kind === 'film-unrepairable' ? `${film} needs you` : `${film}: the request failed`,
+          body: alert.message,
+          navigate: '/#/request',
+          tag: `alert-${id}`,
+          appBadge: unseen,
+          appUrl: APP_URL
+        });
+        const sent = await sendToMember(memberKey, payload, MOVIE_HAT_SUBSCRIPTIONS);
+        if (sent > 0) await dbSet(badgePath, unseen);
+        delivered += sent;
+      }
+      await dbSet(`alertsPushed/${id}`, mark);
+      if (delivered > 0) result.announced += 1; else result.unreachable += 1;
+    } catch (error) {
+      console.error(`Alert push for ${id} failed:`, error.message);
+    }
+  }
+  return result;
+};
+
 // --- Handler ----------------------------------------------------------------
 
 exports.handler = async (event) => {
@@ -571,7 +639,8 @@ exports.handler = async (event) => {
     const jobs = {
       imported: sweepFinishedRequests,
       access: sweepAccessRequests,
-      requested: sweepNewRequests
+      requested: sweepNewRequests,
+      alerts: sweepAlerts
     };
     const names = Object.keys(jobs);
     const settled = await Promise.allSettled(names.map((name) => jobs[name]()));

@@ -264,6 +264,15 @@ export const rules = {
       '.read': mayRequest
     },
 
+    // Things the Mac mini couldn't sort out by itself (2026-10-17): a failed
+    // request or an unrepairable library film, `alerts/<id>`, written only by
+    // the mini (Admin SDK) and removed when no longer true. The push Lambda
+    // announces each one to the admins and remembers what it announced in
+    // `alertsPushed` (Admin only, no client access at all).
+    alerts: {
+      '.read': mayRequest
+    },
+
     // "Choose a version" (2026-10-15): the request panel ASKS the Mac mini
     // which versions of a film exist (a live indexer search, 5-20 seconds),
     // and it answers in place - see src/utils/requestMovie.js. A client

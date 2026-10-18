@@ -66,6 +66,9 @@
     "plexLibrary": {
       ".read": "(auth != null && auth.token.email != null && (auth.token.email.toLowerCase() === 'mattgrosso@gmail.com' || auth.token.email.toLowerCase() === 'hopper.seth@gmail.com' || auth.token.email.toLowerCase() === 'brian.goegan@gmail.com') || auth != null && root.child('siteUsers').child(auth.uid).child('status').val() === 'approved')"
     },
+    "alerts": {
+      ".read": "(auth != null && auth.token.email != null && (auth.token.email.toLowerCase() === 'mattgrosso@gmail.com' || auth.token.email.toLowerCase() === 'hopper.seth@gmail.com' || auth.token.email.toLowerCase() === 'brian.goegan@gmail.com') || auth != null && root.child('siteUsers').child(auth.uid).child('status').val() === 'approved')"
+    },
     "versionQueries": {
       ".read": "(auth != null && auth.token.email != null && (auth.token.email.toLowerCase() === 'mattgrosso@gmail.com' || auth.token.email.toLowerCase() === 'hopper.seth@gmail.com' || auth.token.email.toLowerCase() === 'brian.goegan@gmail.com') || auth != null && root.child('siteUsers').child(auth.uid).child('status').val() === 'approved')",
       "$tmdbId": {

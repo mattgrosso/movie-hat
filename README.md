@@ -329,6 +329,27 @@ The body is written from the row's status at sweep time, not at creation, so
 it says what the Mac mini has actually done: waiting for Plex to be free,
 Radarr picking it up, downloading, already in the library, or the error.
 
+### When the Mac mini can't fix something
+
+2026-10-17, Matt asked for a notification "when a request fails, so he knows
+to come and sort it out". The Mac mini service writes (Admin SDK only; the
+rules give readers of `plexLibrary` read access and nobody a write):
+
+    alerts/<id>        id = request-<tmdbId> | film-<radarrMovieId>
+      kind             'request-failed' | 'film-unrepairable'
+      title            the film
+      message          final copy, shown as the notification body
+      tmdbId           or null for a library film with no request
+      requestedBy      on request-failed
+      at               when the failure happened
+      createdAt        when the alert was first raised
+
+A write means the failure is new; the node is removed when it stops being
+true. The `movie-hat-push` sweep (every 2 minutes) pushes each alert to every
+admin's Movie Hat once per `at`, remembering what it sent in `alertsPushed/<id>`
+(Admin only) so the alert itself stays the mini's. Alerts first seen more than a
+day after they were raised are stamped, not sent.
+
 ### On Plex
 
 2026-10-14, Matt: "one of the possible places that it could already be is on
