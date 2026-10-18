@@ -342,7 +342,7 @@ rules give readers of `plexLibrary` read access and nobody a write):
       tmdbId           or null for a library film with no request
       requestedBy      on request-failed
       at               when the failure happened
-      createdAt        when the alert was first raised
+      createdAt        when it was last raised (the latest failure; the 24h guard reads it)
 
 A write means the failure is new; the node is removed when it stops being
 true. The `movie-hat-push` sweep (every 2 minutes) pushes each alert to every
