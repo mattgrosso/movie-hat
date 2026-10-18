@@ -609,7 +609,9 @@ const sweepAlerts = async (now = Date.now()) => {
         const badgePath = `push/${memberKey}/badge`;
         const unseen = (Number(await dbGet(badgePath)) || 0) + 1;
         const payload = buildPayload({
-          title: alert.kind === 'film-unrepairable' ? `${film} needs you` : `${film}: the request failed`,
+          // A film that simply isn't out yet is news, not a fault: said so
+          // (2026-10-18, the mini's `reason: 'not-released'`).
+          title: alert.kind === 'film-unrepairable' ? `${film} needs you` : alert.reason === 'not-released' ? `${film} isn't out yet` : `${film}: the request failed`,
           body: alert.message,
           navigate: '/#/request',
           tag: `alert-${id}`,

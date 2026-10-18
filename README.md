@@ -341,6 +341,7 @@ rules give readers of `plexLibrary` read access and nobody a write):
       message          final copy, shown as the notification body
       tmdbId           or null for a library film with no request
       requestedBy      on request-failed
+      reason           'not-released' when it failed only because no copy can exist yet
       at               when the failure happened
       createdAt        when it was last raised (the latest failure; the 24h guard reads it)
 
