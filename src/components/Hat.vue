@@ -63,7 +63,8 @@ export default {
       return;
     }
 
-    this.$store.dispatch('getHat');
+    // Tapping a hat on the hats list has just loaded it; don't read it twice.
+    this.$store.dispatch('getHat', { reuseFresh: true });
   },
   created () {
     window.addEventListener('scroll', this.handleScroll);

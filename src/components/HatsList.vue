@@ -480,7 +480,9 @@ export default {
     },
     goToHat (hat) {
       this.$store.commit("setCurrentHat", { title: hat.title, hatKey: hat.subKey });
-      this.$store.dispatch("getHat");
+      // This list read the whole hat a moment ago — hand that over rather
+      // than read it again (Sentry N+1 on /hat-list, 2026-10-18).
+      this.$store.dispatch("getHat", { snapshot: hat });
 
       window.scroll({
         top: 0,

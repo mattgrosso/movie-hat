@@ -27,6 +27,11 @@ initializeApp(firebaseConfig);
 // localStorage can hold junk (a hand-cleared value, a stringified
 // `undefined` from an old bug) — junk means "nothing remembered", not a
 // crash before the app even mounts.
+// How long a just-loaded hat stands in for a fresh read when the hat screen
+// mounts (getHat's reuseFresh). Long enough to cover tapping a hat on the
+// hats list; short enough that coming back later still reads anew.
+const HAT_REUSE_MS = 30 * 1000;
+
 function readLocal (key) {
   try {
     return JSON.parse(window.localStorage.getItem(key));
@@ -96,6 +101,12 @@ export default createStore({
     // the feed has never been turned on for it. Per-hat: getHat sets it from
     // whichever hat it just loaded.
     mirrorFeedKey: null,
+
+    // Which hat the fields above were last filled from, and when. Tapping a
+    // hat on the hats list hands over the copy that list just read, and the
+    // hat screen mounting right after would otherwise read it all again —
+    // Sentry flagged that as an N+1 on /hat-list (2026-10-18).
+    hatLoaded: null,
 
     // This account's `siteUsers/<uid>` row, or null — the movie-request
     // permission shared with the standalone Movie Requests app
@@ -171,6 +182,9 @@ export default createStore({
 
       state.movieHatTitle = hat?.title || null;
       state.dbKeyForHatTitle = hat?.hatKey || null;
+    },
+    setHatLoaded (state, value) {
+      state.hatLoaded = value;
     },
     setDbKeyForHatTitle (state, value) {
       state.dbKeyForHatTitle = value;
@@ -318,9 +332,26 @@ export default createStore({
         if (result.user.displayName) context.commit('setName', result.user.displayName);
       }
     },
-    async getHat (context) {
+    /**
+     * Load the current hat. `snapshot` is the hat as a caller already read it
+     * (the hats list) — used instead of a read when it is for this hat.
+     * `reuseFresh` skips the read when this hat was loaded moments ago, which
+     * is what the hat screen asks for on mount; everyone else (after a draw,
+     * an edit) wants the database's answer and calls it bare.
+     */
+    async getHat (context, { snapshot = null, reuseFresh = false } = {}) {
       const title = context.state.movieHatTitle;
       if (!title) {
+        return;
+      }
+
+      const loaded = context.state.hatLoaded;
+      if (
+        reuseFresh &&
+        loaded &&
+        loaded.hatKey === context.state.dbKeyForHatTitle &&
+        Date.now() - loaded.at < HAT_REUSE_MS
+      ) {
         return;
       }
 
@@ -346,7 +377,9 @@ export default createStore({
 
       let data = null;
       try {
-        data = await dbGet(hatPath(title, dbKey));
+        data = snapshot && snapshot.subKey === dbKey
+          ? snapshot
+          : await dbGet(hatPath(title, dbKey));
       } catch (error) {
         if (error.status === 401 || error.status === 403) {
           // Refused outright — signed out, or no longer a member. Forget
@@ -383,6 +416,7 @@ export default createStore({
         context.commit('setMovieHat', hatAsArray);
         context.commit('setHistory', history);
         context.commit('setMirrorFeedKey', data.mirrorFeedKey);
+        context.commit('setHatLoaded', { hatKey: dbKey, at: Date.now() });
         context.dispatch('publishMirrorFeedIfStale');
       }
     },
