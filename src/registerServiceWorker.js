@@ -2,8 +2,10 @@
 
 import { register } from 'register-service-worker'
 import store from './store'
+import { swRegistrationErrorHooks } from './utils/swRegistrationError.js'
 
 if (process.env.NODE_ENV === 'production') {
+  const errorHooks = swRegistrationErrorHooks()
   register(`${process.env.BASE_URL}service-worker.js`, {
     ready () {
       console.log(
@@ -11,8 +13,9 @@ if (process.env.NODE_ENV === 'production') {
           'For more details, visit https://goo.gl/AFskqB'
       )
     },
-    registered () {
+    registered (registration) {
       console.log('Service worker has been registered.')
+      errorHooks.registered(registration)
     },
     cached () {
       console.log('Content has been cached for offline use.')
@@ -34,7 +37,7 @@ if (process.env.NODE_ENV === 'production') {
       console.log('No internet connection found. App is running in offline mode.')
     },
     error (error) {
-      console.error('Error during service worker registration:', error)
+      errorHooks.error(error)
     }
   })
 }
