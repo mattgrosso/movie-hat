@@ -57,6 +57,13 @@ three worth knowing:
   is what `@vue/cli-plugin-pwa` used to generate, byte-for-byte, and the
   `<head>` tags that plugin injected are now hand-written in `index.html`
   (at the repo root, not `public/`).
+- **Launch splash** (2026-10-20, same as Cinema Roll's): `index.html`
+  paints the page blue inline and puts a `.launch-splash` (icon + "Movie
+  Hat") inside `#app`, which Vue's mount replaces. iOS launch images live in
+  `public/img/launch/` (not precached), drawn by
+  `scripts/generate-launch-images.mjs` — its header has the exact commands,
+  including cutting the white corners off the icon. Guarded by
+  `src/test/launchSplash.test.mjs`.
 
 ## Movie requests (Radarr on the Mac mini)
 

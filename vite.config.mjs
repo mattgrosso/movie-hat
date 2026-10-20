@@ -203,9 +203,12 @@ export default defineConfig(({ mode }) => {
           // relies on index.html being precached and side-steps it with a query
           // param) - except the plugin's own defaults: source maps,
           // img/icons/, favicon.ico. The plugin's default glob is only
-          // {js,css,html}, hence the explicit everything.
+          // {js,css,html}, hence the explicit everything. img/launch/ (the iOS
+          // launch images) is fetched by iOS itself when the app is added to
+          // the home screen; precaching ~1MB of them on every phone buys
+          // nothing.
           globPatterns: ['**/*'],
-          globIgnores: ['**/*.map', 'img/icons/**', 'favicon.ico', '**/.DS_Store'],
+          globIgnores: ['**/*.map', 'img/icons/**', 'img/launch/**', 'favicon.ico', '**/.DS_Store'],
           // Content-hashed bundles are immutable by name (revision: null, as
           // workbox-webpack-plugin did); the copied public files get a content
           // revision so a changed file at the same URL is re-fetched.
