@@ -57,6 +57,7 @@
 
 const crypto = require('crypto');
 const webpush = require('web-push');
+const { fetchWithRetry } = require('./dbRetry.js');
 
 const FIREBASE_PROJECT_ID = 'movie-hat-9c418';
 const DATABASE_URL = 'https://movie-hat-9c418-default-rtdb.firebaseio.com';
@@ -211,7 +212,7 @@ const getDbToken = async () => {
 
 const dbGet = async (path) => {
   const token = await getDbToken();
-  const res = await fetch(`${DATABASE_URL}/${path}.json`, {
+  const res = await fetchWithRetry(`${DATABASE_URL}/${path}.json`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   if (!res.ok) throw new Error(`RTDB GET ${path} failed: ${res.status}`);
@@ -220,7 +221,7 @@ const dbGet = async (path) => {
 
 const dbDelete = async (path) => {
   const token = await getDbToken();
-  const res = await fetch(`${DATABASE_URL}/${path}.json`, {
+  const res = await fetchWithRetry(`${DATABASE_URL}/${path}.json`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` }
   });
@@ -229,7 +230,7 @@ const dbDelete = async (path) => {
 
 const dbSet = async (path, value) => {
   const token = await getDbToken();
-  const res = await fetch(`${DATABASE_URL}/${path}.json`, {
+  const res = await fetchWithRetry(`${DATABASE_URL}/${path}.json`, {
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(value)
