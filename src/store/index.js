@@ -1,6 +1,7 @@
 import { createStore } from 'vuex'
 import { dbGet, dbPatch, dbPut, hatPath, resolveHatKey } from './db.js'
 import { buildMirrorFeed } from '../assets/javascript/mirrorFeed.js'
+import { readHatCache, writeHatCache, clearHatCache, hatCacheEmail } from '../assets/javascript/hatCache.js'
 import { initializeApp } from "firebase/app";
 import { siteUserState, mayRequestMovies, mayApprove, buildSiteUser, siteUserPath } from "../utils/siteAccess.js";
 import { isOwner } from "../assets/javascript/owner.mjs";
@@ -53,7 +54,42 @@ function readDefaultHat () {
   return legacyTitle ? { title: legacyTitle, hatKey: null } : null;
 }
 
+// The last copy of the remembered hat this phone read, for this account
+// (hatCache.js). Shown from the first render; getHat still reads.
+const cachedHat = readHatCache(window.localStorage, {
+  email: readLocal('movieHatEmail'),
+  hatKey: readDefaultHat()?.hatKey
+});
+
+// Keeps the phone's copy in step with the hat on screen: after a read, an
+// add, a draw. Saved a beat after the last change, and only once the store
+// says which hat the data is from (hatLoaded) and that it is still the
+// current one - while a switch to another hat is mid-read, the old hat's
+// movies are on screen under the new hat's key, and that must not be saved.
+function hatCachePlugin (store) {
+  const WATCHED = ['setMovieHat', 'setHistory', 'setMembers', 'setMirrorFeedKey', 'setHatLoaded'];
+  let timer = null;
+  store.subscribe((mutation) => {
+    if (!WATCHED.includes(mutation.type)) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const state = store.state;
+      if (!state.hatLoaded || state.hatLoaded.hatKey !== state.dbKeyForHatTitle) return;
+      writeHatCache(window.localStorage, {
+        email: state.email,
+        hatKey: state.dbKeyForHatTitle,
+        title: state.movieHatTitle,
+        movies: state.movieHat,
+        history: state.history,
+        members: state.members,
+        mirrorFeedKey: state.mirrorFeedKey
+      });
+    }, 300);
+  });
+}
+
 export default createStore({
+  plugins: [hatCachePlugin],
   state: {
     // Restored here, at creation, so every component sees the remembered
     // values from its first render — this used to be scattered across
@@ -72,9 +108,9 @@ export default createStore({
     authUser: null,
     authResolved: false,
     name: readLocal('movieHatName'),
-    movieHat: null,
-    history: null,
-    members: null,
+    movieHat: cachedHat?.movies || null,
+    history: cachedHat?.history || null,
+    members: cachedHat?.members || null,
     movieHatTitle: readDefaultHat()?.title || null,
     dbKeyForHatTitle: readDefaultHat()?.hatKey || null,
     drawnMovie: null,
@@ -100,7 +136,7 @@ export default createStore({
     // Secret path segment for the current hat's Magic Mirror feed, or null if
     // the feed has never been turned on for it. Per-hat: getHat sets it from
     // whichever hat it just loaded.
-    mirrorFeedKey: null,
+    mirrorFeedKey: cachedHat?.mirrorFeedKey || null,
 
     // Which hat the fields above were last filled from, and when. Tapping a
     // hat on the hats list hands over the copy that list just read, and the
@@ -125,6 +161,10 @@ export default createStore({
     isDevHat: (state) => {
       return state.movieHatTitle === 'Dev Hat';
     },
+    // The hat on screen is the database's answer for the current hat, not
+    // the phone's copy from last time (hatCache.js). A draw waits for this:
+    // drawing from an old copy could pick a movie someone else already drew.
+    hatIsFresh: (state) => Boolean(state.hatLoaded && state.hatLoaded.hatKey === state.dbKeyForHatTitle),
     // "May this account ask the Mac mini for a download?" — the single place
     // the app asks, so the Request button, the request screen and the header
     // pill can never disagree. Two ways to qualify: the hard-coded three in
@@ -235,6 +275,20 @@ export default createStore({
      */
     watchAuth (context) {
       onAuthStateChanged(getAuth(), (user) => {
+        // The phone's copy of the hat is one account's. Signed out, or
+        // somebody else signed in: throw it away, and take it off the screen
+        // if nothing fresher has replaced it yet.
+        const copyFor = hatCacheEmail(window.localStorage);
+        if (copyFor && copyFor !== user?.email) {
+          clearHatCache(window.localStorage);
+          if (!context.state.hatLoaded) {
+            context.commit('setMovieHat', null);
+            context.commit('setHistory', null);
+            context.commit('setMembers', null);
+            context.commit('setMirrorFeedKey', null);
+          }
+        }
+
         context.commit('setAuthUser', user || null);
 
         if (user?.email) {
@@ -386,6 +440,7 @@ export default createStore({
           // the remembered hat so this can't recur on every load.
           context.commit('setAppError', `Couldn't open "${title}" — you may need to sign in again, or you may no longer be a member.`);
           context.commit('setCurrentHat', null);
+          clearHatCache(window.localStorage);
         } else {
           context.commit('setAppError', `Couldn't load "${title}". Please try again.`);
         }

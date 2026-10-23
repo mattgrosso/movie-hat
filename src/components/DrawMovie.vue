@@ -3,7 +3,7 @@
     <button
       class="btn btn-primary btn-lg"
       @click="drawMovie"
-      :disabled="!moviesInHat"
+      :disabled="!moviesInHat || !$store.getters.hatIsFresh"
     >
       Draw Movie
     </button>

@@ -64,6 +64,13 @@ three worth knowing:
   `scripts/generate-launch-images.mjs` — its header has the exact commands,
   including cutting the white corners off the icon. Guarded by
   `src/test/launchSplash.test.mjs`.
+- **The hat opens from the phone's copy** (2026-10-22, "loading my hat has
+  been really slow"): the last read of the current hat is kept in
+  localStorage (`movieHat.hatCache`, `src/assets/javascript/hatCache.js`)
+  and shown from the first render while getHat reads the database. It is
+  shown only when its email and hat key both match, thrown away on sign-out
+  or a different account, and Draw stays disabled until the fresh read
+  lands (`hatIsFresh`). Guarded by `src/test/hatCache.test.mjs`.
 
 ## Movie requests (Radarr on the Mac mini)
 
