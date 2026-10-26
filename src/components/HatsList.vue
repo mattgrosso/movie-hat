@@ -121,6 +121,7 @@
           </div>
           <div class="modal-body" @keyup.enter="clickAddHatModalButton">
             <input
+              ref="newHatTitleInput"
               class="form-control"
               placeholder="Hat Title"
               type="text"
@@ -379,6 +380,18 @@ export default {
     async addHat () {
       this.message = null;
 
+      // Read the box itself, not just v-model: an Android keyboard holds the
+      // word it is still composing back from v-model, so a tap on Add Hat
+      // can find newHatTitle null while the box shows a name. A blank title
+      // used to save a hat called "null" whose index entry the rules then
+      // refused (no title), leaving it on nobody's list.
+      const title = String(this.$refs.newHatTitleInput?.value ?? this.newHatTitle ?? '').trim();
+      if (!title) {
+        this.showMessage('Give your hat a name.', 5000);
+        return;
+      }
+      this.newHatTitle = title;
+
       const webSafe = encodeURIComponent(this.newHatTitle);
       const email = this.$store.state.email;
       const memberKey = emailToMemberKey(email);
@@ -401,15 +414,31 @@ export default {
       // read it needed, and the hatKey is the identity now — two hats
       // sharing a title is confusing but harmless, exactly like two people
       // sharing a name.
-      const created = await dbPost(`hats/${webSafe}`, newHat);
+      let created = null;
+      try {
+        created = await dbPost(`hats/${webSafe}`, newHat);
+      } catch {
+        this.showMessage("Couldn't create that hat just now — try again.", 6000);
+        return;
+      }
 
       // "Which hats are mine", the other half of the index — keyed by the
       // hat's KEY, its actual identity.
       if (created?.name) {
-        await dbPut(`userHats/${memberKey}/${created.name}`, {
-          title: this.newHatTitle,
-          hatKey: created.name
-        });
+        try {
+          await dbPut(`userHats/${memberKey}/${created.name}`, {
+            title: this.newHatTitle,
+            hatKey: created.name
+          });
+        } catch {
+          // The list is the only way back to a hat, so one that missed it
+          // would be lost for good — take it back out rather than leave it.
+          try {
+            await dbDelete(hatPath(this.newHatTitle, created.name));
+          } catch { /* an empty orphan; the empty-hat prune removes it */ }
+          this.showMessage("Couldn't create that hat just now — try again.", 6000);
+          return;
+        }
       }
 
       this.getMemberHats();
