@@ -5,6 +5,7 @@ import { readHatCache, writeHatCache, clearHatCache, hatCacheEmail } from '../as
 import { initializeApp } from "firebase/app";
 import { siteUserState, mayRequestMovies, mayApprove, buildSiteUser, siteUserPath } from "../utils/siteAccess.js";
 import { isOwner } from "../assets/javascript/owner.mjs";
+import { isSignInDismissal, signInMessage } from "../utils/signIn.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithCustomToken, onAuthStateChanged } from "firebase/auth";
 
 // Firebase
@@ -368,8 +369,15 @@ export default createStore({
             context.commit('setName', userData.displayName);
           }
         }
+        return null;
       } catch (error) {
-        console.error(error);
+        // A closed window or a second tap is a choice, not a bug for Sentry
+        // (utils/signIn.js). A blocked window is the visitor's to fix, so it
+        // comes back as a sentence for the sign-in screen.
+        if (isSignInDismissal(error)) return null;
+        const message = signInMessage(error);
+        if (!message) console.error(error);
+        return message;
       }
     },
     /**
