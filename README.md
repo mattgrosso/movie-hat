@@ -159,6 +159,11 @@ requests/<tmdbId>: {
                         (these three: written on the service's 60s tick only when the
                         percent or heldBy changes, removed on import or give-up —
                         see downloadProgress in src/utils/requestMovie.js)
+  stage:       'searching' | 'downloading' | 'importing' | 'backorder'   on an 'added'
+                        row that hasn't landed; absent reads as downloading
+  backorderedAt: number ms, when the search first ran out and the row went on
+                        back order. Never removed, so the ready push can say "finally"
+  nextCheckAt: number   ms, when a back-ordered row is next searched for
 
   // Written by the push Lambda only:
   notifiedAt:      number   ms, when the requester was told the download finished
@@ -297,6 +302,24 @@ check. Clients cannot delete rows.
 5. `requestedBy` is always one of `REQUESTER_EMAILS`; the rules see to it.
 6. When the file is imported, set `importedAt`. That is what the
    finished-download notification keys on.
+7. **Never give up on a film nobody has a copy of — back order it**
+   (Matt, 2026-10-26: "if it doesn't find it after X number of hours, then
+   it puts it into a queue and then we just check every X days … when it
+   does, it'll be a fun surprise for whoever requested it"). When the
+   search window runs out with no copy grabbed, do NOT set `'error'` and do
+   NOT raise a `request-failed` alert. Leave the film monitored in Radarr,
+   keep `status: 'added'`, and write `stage: 'backorder'`,
+   `backorderedAt` (first time only) and `nextCheckAt` = now + 3 days
+   (`BACKORDER_RECHECK_DAYS` in `src/utils/requestMovie.js`). Past
+   `nextCheckAt`, ask Radarr to search again (its MoviesSearch command) and
+   push `nextCheckAt` on another 3 days. Once a copy is grabbed, set
+   `stage` back to `'downloading'` and carry on as usual: `importedAt`
+   brings the push, which reads "<film> is finally here!" because
+   `backorderedAt` is still on the row. A film that isn't released yet
+   (the `not-released` reason) is the same case and goes on back order too.
+   Movie Hat and Movie Requests already show "On back order" with the next
+   look date, and keep the row open; nothing on the client side needs the
+   service to do anything else.
 
 ### Draw notifications, and which hats send them
 

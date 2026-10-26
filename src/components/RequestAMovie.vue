@@ -13,7 +13,7 @@
     <section v-if="readyRow" class="request-a-movie__ready">
       <button type="button" class="request-a-movie__ready-close" aria-label="Close" @click="dismissReady">✕</button>
       <p class="request-a-movie__ready-title">
-        {{ readyRow.radarrTitle || readyRow.title }} is ready to watch
+        {{ readyHeadline(readyRow) }}
       </p>
       <a :href="plexHref" class="btn btn-lg request-a-movie__plex" @click="leaveForPlex">▶ Watch in Plex</a>
       <p class="request-a-movie__ready-hint">Opens Plex. It's under Recently Added.</p>
@@ -134,6 +134,7 @@ import {
   READY_PARAM,
   REQUESTS_HOME_EVENT,
   readyRequest,
+  readyHeadline,
   readyCardFresh,
   dismissReadyCard,
   plexUrl
@@ -211,6 +212,7 @@ export default {
     }
   },
   methods: {
+    readyHeadline,
     rowFor (tmdbId) {
       return this.rows?.[tmdbId] ?? null;
     },

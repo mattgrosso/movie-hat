@@ -341,9 +341,15 @@ const sweepFinishedRequests = async (now = Date.now()) => {
         for (const route of routes) {
           // Things that have happened since this person last opened that app.
           const unseen = (Number(await dbGet(route.badge)) || 0) + 1;
+          // A request that sat on back order (2026-10-26) arrives as a
+          // surprise, maybe weeks later: said so. `backorderedAt` is
+          // BACKORDER in requestMovie.js; the mini never removes it.
+          const surprise = typeof row.backorderedAt === 'number';
           const payload = buildPayload({
-            title: `${movieTitle} is ready to watch`,
-            body: 'Your request finished downloading. Tap to watch it in Plex.',
+            title: surprise ? `${movieTitle} is finally here!` : `${movieTitle} is ready to watch`,
+            body: surprise
+              ? 'The movie you asked for was on back order, and a copy just turned up. Tap to watch it in Plex.'
+              : 'Your request finished downloading. Tap to watch it in Plex.',
             navigate: route.navigate,
             tag: `imported-${tmdbId}`,
             appBadge: unseen,
@@ -472,9 +478,10 @@ const requestProgress = (row) => {
   switch (row.status) {
     case 'pending': return 'Waiting for Plex to be free, then it\u2019ll download.';
     case 'processing': return 'Radarr is picking it up now.';
-    case 'added': return typeof row.importedAt === 'number'
-      ? 'It has already finished downloading.'
-      : 'Radarr took it \u2014 downloading now.';
+    case 'added':
+      if (typeof row.importedAt === 'number') return 'It has already finished downloading.';
+      if (row.stage === 'backorder') return 'No copy anywhere yet, so it\u2019s on back order and gets looked for again every few days.';
+      return 'Radarr took it \u2014 downloading now.';
     case 'exists': return 'It was already in the library.';
     case 'error': return `It couldn\u2019t be added${row.error ? `: ${row.error}` : '.'}`;
     default: return 'The Mac mini has it.';

@@ -355,6 +355,7 @@ export function requestLabel (row, { requesting = false, short = false } = {}) {
       // great that it says 'downloading' when it isn't"): nothing queued
       // yet is a search, not a download.
       if (row.stage === 'searching') return short ? 'Looking…' : 'Looking for a copy…';
+      if (row.stage === 'backorder') return short ? 'Back order' : 'On back order';
       if (row.stage === 'importing') return short ? 'Adding to Plex' : 'Adding to Plex…';
       // In a list there is no room for the bar, so the number rides in the label.
       const progress = short ? downloadProgress(row) : null;
@@ -380,6 +381,7 @@ export function requestNote (row) {
     case 'added': {
       if (isSettled(row)) return null;
       if (row.stage === 'searching') return 'No copy found yet; it keeps looking. You’ll get a notification when it’s ready.';
+      if (row.stage === 'backorder') return backorderNote(row);
       if (row.stage === 'importing') return 'Downloaded. Adding it to Plex now.';
       const progress = downloadProgress(row);
       if (progress?.heldBy) return HELD_NOTES[progress.heldBy];
@@ -387,6 +389,46 @@ export function requestNote (row) {
     }
     default: return null;
   }
+}
+
+// BACK ORDER (Matt, 2026-10-26: "if it doesn't find it after X number of
+// hours, then it puts it into a queue and then we just check every X days …
+// when it does, it'll be a fun surprise for whoever requested it … Still
+// probably worth communicating that it's on back order"). Before this the
+// Mac mini gave up on a film no indexer had a copy of and ended the row in
+// 'error'. Now, once its search window runs out, it leaves the film in
+// Radarr and writes onto the still-'added' row:
+//
+//   stage          'backorder'
+//   backorderedAt  ms, when it first went on back order (kept for good, so
+//                  the "ready" push and card can say "finally")
+//   nextCheckAt    ms, when it will search again (every BACKORDER_RECHECK_DAYS)
+//
+// The row stays 'added' and unsettled, so nothing about writing or retrying
+// changes: the rules still refuse a second request over it, and the
+// "ready to watch" push still keys on `importedAt` alone.
+export const BACKORDER_RECHECK_DAYS = 3;
+
+/** "today", "tomorrow", "in 3 days" — or null with nothing honest to say. */
+export function nextCheckText (nextCheckAt, now = Date.now()) {
+  if (typeof nextCheckAt !== 'number' || !Number.isFinite(nextCheckAt)) return null;
+  const days = Math.ceil((nextCheckAt - now) / ETA_DAY_MS);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'tomorrow';
+  return `in ${days} days`;
+}
+
+/** The line under a back-ordered request. */
+export function backorderNote (row, now = Date.now()) {
+  const when = nextCheckText(row?.nextCheckAt, now);
+  const next = when ? ` The next look is ${when}.` : '';
+  return `No copy anywhere yet, so it’s on back order: it gets looked for again every few days.${next} You’ll get a notification the moment it turns up.`;
+}
+
+/** The headline when a request lands: a back-ordered one is a surprise. */
+export function readyHeadline (row) {
+  const title = row?.radarrTitle || row?.title || 'Your movie';
+  return typeof row?.backorderedAt === 'number' ? `${title} is finally here!` : `${title} is ready to watch`;
 }
 
 // Download progress (Matt, 2026-10-13: "give an actual progress bar, or at a
@@ -434,8 +476,9 @@ export function timeLeftText (etaAt, now = Date.now()) {
  */
 export function downloadProgress (row, { now = Date.now() } = {}) {
   if (row?.status !== 'added' || isSettled(row)) return null;
-  // Searching: no bar. Importing: the download is done, so the bar is full.
-  if (row.stage === 'searching') return null;
+  // Searching or on back order: no bar. Importing: the download is done,
+  // so the bar is full.
+  if (row.stage === 'searching' || row.stage === 'backorder') return null;
   if (row.stage === 'importing') return { percent: 100, heldBy: null, timeLeft: null };
   if (typeof row.progress !== 'number' || !Number.isFinite(row.progress)) return null;
   const percent = Math.max(0, Math.min(100, Math.round(row.progress)));

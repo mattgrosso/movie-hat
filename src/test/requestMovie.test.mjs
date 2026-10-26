@@ -703,3 +703,32 @@ describeStage('stage', () => {
     expectStage(labelStage({ status: 'added' })).toMatch(/^Downloading/);
   });
 });
+
+// 2026-10-26: back order — no copy anywhere yet, looked for again every few days.
+import { describe as describeBackorder, it as itBackorder, expect as expectBackorder } from 'vitest';
+import { requestLabel as labelBo, requestNote as noteBo, downloadProgress as progressBo, isSettled as settledBo, canRequestOver as canOverBo, nextCheckText, backorderNote, readyHeadline } from '../utils/requestMovie.js';
+describeBackorder('back order', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const now = 1_800_000_000_000;
+  const row = { status: 'added', stage: 'backorder', title: 'Brazil', backorderedAt: now - DAY, nextCheckAt: now + 2.5 * DAY };
+  itBackorder('says it is on back order, with no bar, and is not finished', () => {
+    expectBackorder(labelBo(row)).toBe('On back order');
+    expectBackorder(labelBo(row, { short: true })).toBe('Back order');
+    expectBackorder(noteBo(row)).toMatch(/back order/);
+    expectBackorder(progressBo(row)).toBeNull();
+    expectBackorder(settledBo(row)).toBe(false);
+    // Nobody can pile a second request on top of one that is waiting.
+    expectBackorder(canOverBo(row)).toBe(false);
+  });
+  itBackorder('says when the next look is, loosely', () => {
+    expectBackorder(backorderNote(row, now)).toMatch(/next look is in 3 days/);
+    expectBackorder(nextCheckText(now + DAY / 2, now)).toBe('tomorrow');
+    expectBackorder(nextCheckText(now - 1, now)).toBe('today');
+    expectBackorder(nextCheckText(undefined, now)).toBeNull();
+    expectBackorder(backorderNote({ ...row, nextCheckAt: undefined }, now)).not.toMatch(/next look/);
+  });
+  itBackorder('lands as a surprise', () => {
+    expectBackorder(readyHeadline({ ...row, importedAt: now })).toBe('Brazil is finally here!');
+    expectBackorder(readyHeadline({ status: 'added', title: 'Heat', importedAt: now })).toBe('Heat is ready to watch');
+  });
+});
