@@ -14,6 +14,7 @@ import Tutorial from "./components/Tutorial.vue";
 import './registerServiceWorker'
 import { setupSentry } from './sentry';
 import { trackUsage } from './utils/usage.js';
+import { browserScreenLoadHandlers } from './utils/screenLoad.js';
 
 // One anonymous ping per open → Bug Desk's Visitors tab (house module).
 trackUsage('movie-hat');
@@ -116,6 +117,12 @@ router.beforeEach(async (to) => {
 
   return store.getters[requires] ? true : '/';
 });
+
+// A lazy screen whose file didn't download: reload once into it when
+// online, otherwise stay put and say so (utils/screenLoad.js).
+const screenLoad = browserScreenLoadHandlers((message) => store.commit('setAppError', message));
+router.onError(screenLoad.onError);
+router.afterEach(screenLoad.afterEach);
 
 app.use(router);
 
