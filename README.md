@@ -314,7 +314,7 @@ check. Clients cannot delete rows.
    `nextCheckAt`, ask Radarr to search again (its MoviesSearch command) and
    push `nextCheckAt` on another 3 days. Once a copy is grabbed, set
    `stage` back to `'downloading'` and carry on as usual: `importedAt`
-   brings the push, which reads "<film> is finally here!" because
+   brings the push, which reads "Finally here: <film>" because
    `backorderedAt` is still on the row. A film that isn't released yet
    (the `not-released` reason) is the same case and goes on back order too.
    Movie Hat and Movie Requests already show "On back order" with the next
@@ -418,8 +418,10 @@ Until that exists, a `requests` row that is `exists`, or `added` with an
 second, "somebody wants into Movie Requests", is described in that repo's
 README. The first reads `requests`,
 and any row with an `importedAt` and no `notifiedAt` gets one push to
-whoever `requestedBy` names ("Little Miss Sunshine is ready to watch"), then
-a `notifiedAt` stamp. A row imported more than a day ago is stamped without
+whoever `requestedBy` names ("Ready: Little Miss Sunshine"), then
+a `notifiedAt` stamp. Every push fits Matt's Apple Watch (2026-10-26): title at most
+24 characters, body at most 60, most important word first; `buildPayload` runs both
+through `aws-lambda/pushFit.js`, which cuts anything still too long at a word with "…". A row imported more than a day ago is stamped without
 a notification, so a redeploy or an outage never announces a backlog.
 
 Tapping it opens the request screen with `?ready=<tmdbId>` (`/#/request` in

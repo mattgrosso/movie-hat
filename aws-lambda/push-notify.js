@@ -58,6 +58,7 @@
 const crypto = require('crypto');
 const webpush = require('web-push');
 const { fetchWithRetry } = require('./dbRetry.js');
+const { fitNotification } = require('./pushFit.js');
 
 const FIREBASE_PROJECT_ID = 'movie-hat-9c418';
 const DATABASE_URL = 'https://movie-hat-9c418-default-rtdb.firebaseio.com';
@@ -240,8 +241,10 @@ const dbSet = async (path, value) => {
 
 // --- Sending ----------------------------------------------------------------
 
+// Every push goes through here, so this is where it is cut to fit the watch
+// (pushFit.js: title 24, body 60, 2026-10-26).
 const buildPayload = ({ title, body, navigate = '/', tag, appBadge, appUrl = APP_URL }) => {
-  const notification = { title, body, navigate: `${appUrl}${navigate}` };
+  const notification = { ...fitNotification({ title, body }), navigate: `${appUrl}${navigate}` };
   if (tag) notification.tag = tag;
   // Icon badge — declarative web push renders this on iOS without waking the
   // service worker; push-sw.js applies it elsewhere. Absent = unchanged.
@@ -346,10 +349,10 @@ const sweepFinishedRequests = async (now = Date.now()) => {
           // BACKORDER in requestMovie.js; the mini never removes it.
           const surprise = typeof row.backorderedAt === 'number';
           const payload = buildPayload({
-            title: surprise ? `${movieTitle} is finally here!` : `${movieTitle} is ready to watch`,
+            title: surprise ? `Finally here: ${movieTitle}` : `Ready: ${movieTitle}`,
             body: surprise
-              ? 'The movie you asked for was on back order, and a copy just turned up. Tap to watch it in Plex.'
-              : 'Your request finished downloading. Tap to watch it in Plex.',
+              ? 'It was on back order and a copy turned up. Tap to watch.'
+              : 'Your request finished downloading. Tap to watch in Plex.',
             navigate: route.navigate,
             tag: `imported-${tmdbId}`,
             appBadge: unseen,
@@ -428,15 +431,15 @@ const sweepAccessRequests = async (now = Date.now()) => {
       // notifications about the same person, opening two different apps, is
       // worse than either on its own.
       const inMovieHat = buildPayload({
-        title: `${who} wants movie requests`,
-        body: 'Tap to let them in, or not.',
+        title: 'Access request',
+        body: `${who} wants movie requests. Tap to let them in, or not.`,
         navigate: '/#/access',
         tag: `access-${uid}`,
         appUrl: APP_URL
       });
       const inRequestsApp = buildPayload({
-        title: `${who} wants movie requests`,
-        body: 'Tap to let them in, or not.',
+        title: 'Access request',
+        body: `${who} wants movie requests. Tap to let them in, or not.`,
         navigate: '/#/admin',
         tag: `access-${uid}`,
         appUrl: REQUESTS_APP_URL
@@ -476,14 +479,14 @@ const REQUEST_NEWS_WINDOW_MS = 24 * 3600 * 1000;
  */
 const requestProgress = (row) => {
   switch (row.status) {
-    case 'pending': return 'Waiting for Plex to be free, then it\u2019ll download.';
+    case 'pending': return 'Downloads once Plex is free.';
     case 'processing': return 'Radarr is picking it up now.';
     case 'added':
-      if (typeof row.importedAt === 'number') return 'It has already finished downloading.';
-      if (row.stage === 'backorder') return 'No copy anywhere yet, so it\u2019s on back order and gets looked for again every few days.';
-      return 'Radarr took it \u2014 downloading now.';
+      if (typeof row.importedAt === 'number') return 'Already downloaded.';
+      if (row.stage === 'backorder') return 'No copy yet, so it\u2019s on back order.';
+      return 'Radarr took it, downloading now.';
     case 'exists': return 'It was already in the library.';
-    case 'error': return `It couldn\u2019t be added${row.error ? `: ${row.error}` : '.'}`;
+    case 'error': return `Couldn\u2019t be added${row.error ? `: ${row.error}` : '.'}`;
     default: return 'The Mac mini has it.';
   }
 };
@@ -544,8 +547,8 @@ const sweepNewRequests = async (now = Date.now()) => {
         const badgePath = `push/${admin.memberKey}/badge`;
         const unseen = (Number(await dbGet(badgePath)) || 0) + 1;
         const payload = buildPayload({
-          title: `${who} requested ${movieTitle}`,
-          body: requestProgress(row),
+          title: `Request: ${movieTitle}`,
+          body: `From ${who}. ${requestProgress(row)}`,
           navigate: '/#/request',
           tag: `requested-${tmdbId}`,
           appBadge: unseen,
@@ -619,7 +622,7 @@ const sweepAlerts = async (now = Date.now()) => {
         const payload = buildPayload({
           // A film that simply isn't out yet is news, not a fault: said so
           // (2026-10-18, the mini's `reason: 'not-released'`).
-          title: alert.kind === 'film-unrepairable' ? `${film} needs you` : alert.reason === 'not-released' ? `${film} isn't out yet` : `${film}: the request failed`,
+          title: alert.kind === 'film-unrepairable' ? `Needs you: ${film}` : alert.reason === 'not-released' ? `Not out yet: ${film}` : `Failed: ${film}`,
           body: alert.message,
           navigate: '/#/request',
           tag: `alert-${id}`,
@@ -695,9 +698,9 @@ exports.handler = async (event) => {
       // both the subscription set and the URL the notification opens.
       const fromRequestsApp = activeOrigin === REQUESTS_APP_URL;
       const payload = buildPayload({
-        title: fromRequestsApp ? 'Movie Requests can reach you here' : 'Movie Hat can reach you here',
+        title: 'Notifications are on',
         body: fromRequestsApp
-          ? 'This is what a "your movie is ready" notification will look like.'
+          ? 'This is how a \u201cyour movie is ready\u201d one will look.'
           : 'This is what a draw notification will look like.',
         tag: 'test',
         appUrl: fromRequestsApp ? REQUESTS_APP_URL : APP_URL
@@ -752,8 +755,8 @@ exports.handler = async (event) => {
           // last looked", which is what a badge means.
           const unseen = (Number(await dbGet(`push/${memberKey}/badge`)) || 0) + 1;
           const payload = buildPayload({
-            title: `${drawerName} drew ${movieTitle}`,
-            body: `From ${title}. Tap to see the pick.`,
+            title: `Drawn: ${movieTitle}`,
+            body: `${drawerName} drew it from ${title}. Tap to see.`,
             tag: `drawn-${hatKey}`,
             appBadge: unseen
           });

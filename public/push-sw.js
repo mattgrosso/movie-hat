@@ -14,7 +14,7 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data ? event.data.json() : null;
   } catch (e) {
-    data = { notification: { title: 'Cinema Roll', body: event.data ? event.data.text() : '' } };
+    data = { notification: { title: 'Movie Hat', body: event.data ? event.data.text() : '' } };
   }
   const notification = data && data.notification;
   if (!notification || !notification.title) return;
