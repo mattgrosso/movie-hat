@@ -249,7 +249,7 @@ const buildPayload = ({ title, body, navigate = '/', tag, appBadge, appUrl = APP
   // Icon badge — declarative web push renders this on iOS without waking the
   // service worker; push-sw.js applies it elsewhere. Absent = unchanged.
   if (typeof appBadge === 'number') notification.app_badge = appBadge;
-  return JSON.stringify({ web_push: 8030, notification });
+  return JSON.stringify({ notification });
 };
 
 /**
