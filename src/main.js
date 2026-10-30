@@ -15,6 +15,7 @@ import './registerServiceWorker'
 import { setupSentry } from './sentry';
 import { trackUsage } from './utils/usage.js';
 import { browserScreenLoadHandlers } from './utils/screenLoad.js';
+import './utils/screenPin.js'; // keeps the bug button at the real bottom of the screen (iOS cuts the page short)
 
 // One anonymous ping per open → Bug Desk's Visitors tab (house module).
 trackUsage('movie-hat');
