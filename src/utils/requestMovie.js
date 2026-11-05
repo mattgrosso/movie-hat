@@ -66,6 +66,28 @@ export function isSettled (row) {
   return TERMINAL_STATUSES.includes(row.status);
 }
 
+/**
+ * When this row last did something anyone would notice: landed, got its
+ * answer from Radarr, or was asked for. The request lists sort by it
+ * (report of 2026-11-04: Resident Evil, requested in October and back-
+ * ordered for weeks, landed today and was nowhere to be seen, because the
+ * list sorted by when it was ASKED for and it sat seventy rows down).
+ */
+export function requestActivityAt (row) {
+  if (!row) return 0;
+  const times = [row.importedAt, row.processedAt, row.createdAt].filter((t) => typeof t === 'number' && Number.isFinite(t));
+  return times.length ? Math.max(...times) : 0;
+}
+
+/**
+ * The order every request list uses: unfinished first (that is what anyone
+ * opening one came to check on), then the most recently active.
+ */
+export function compareRequests (a, b) {
+  const done = (row) => (isSettled(row) ? 1 : 0);
+  return done(a) - done(b) || requestActivityAt(b) - requestActivityAt(a);
+}
+
 // "Watch in Plex" (2026-10-13, report from Seth: the "ready to watch"
 // notification "takes you back into Movie Hat. Really, it should take you
 // into Plex"). A notification can't open Plex itself — on iOS a tap always

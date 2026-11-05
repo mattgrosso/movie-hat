@@ -127,6 +127,7 @@ import {
   requestLabel,
   downloadProgress,
   isSettled,
+  compareRequests,
   requestsPollDelay,
   listenForForeground,
   pageIsVisible,
@@ -189,11 +190,9 @@ export default {
      */
     queue () {
       const rows = this.isAdmin ? Object.values(this.rows || {}) : this.mine;
-      return [...rows].sort((a, b) => {
-        // Unfinished first — that is what anyone opening this wants to see.
-        const done = (row) => (isSettled(row) ? 1 : 0);
-        return done(a) - done(b) || (b.createdAt || 0) - (a.createdAt || 0);
-      });
+      // Unfinished first, then whatever happened most recently — a film
+      // that landed today belongs near the top however long ago it was asked for.
+      return [...rows].sort(compareRequests);
     },
     // Their own requests that have not landed yet — the ones a notification
     // would be about.
@@ -205,10 +204,7 @@ export default {
       const email = this.$store.state.email;
       return Object.values(this.rows || {})
         .filter((row) => row?.requestedBy && row.requestedBy === email)
-        .sort((a, b) => {
-          const done = (row) => (isSettled(row) ? 1 : 0);
-          return done(a) - done(b) || (b.createdAt || 0) - (a.createdAt || 0);
-        });
+        .sort(compareRequests);
     }
   },
   methods: {
