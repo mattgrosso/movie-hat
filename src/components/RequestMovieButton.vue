@@ -4,8 +4,8 @@
       Forcing is a SECOND tap, in the same spot (Matt, 2026-09-25: "the force
       through button should only show up after I've clicked the request
       button and should replace it"). Request first; while the Mac mini is
-      holding it for Plex, the spent "Requested" button becomes "Force it
-      through". Only for the one account the rules take a force from, and
+      holding it for Plex, the spent "Requested" button becomes "Force"
+      (Matt, 2026-11-08: "should just say force"). Only for the one account the rules take a force from, and
       not in a compact list, where it would be a second control per row.
     -->
     <button
@@ -15,7 +15,7 @@
       title="Bring the VPN up and start the download now, even if somebody is watching Plex"
       @click="force(movie.id)"
     >
-      Force it through
+      Force
     </button>
     <button
       v-else

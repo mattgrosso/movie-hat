@@ -207,7 +207,7 @@ want a way to force it."
 **Force comes AFTER the request** (2026-09-25: "the force through button
 should only show up after I've clicked the request button and should replace
 it"). The button offers only Request; once the row is `pending` (held for
-Plex), the spent "Requested" button becomes "Force it through", which writes
+Plex), the spent "Requested" button becomes "Force" (2026-11-08: the label was "Force it through"; Matt: "should just say force"), which writes
 just `requests/<tmdbId>/force: true` onto the waiting row. The rules grant
 that one write to the owner while the row is still `pending` and unforced —
 on anybody's request, leaving it theirs. **The Mac mini service must honour a

@@ -1,6 +1,6 @@
 {
   "name": "movie-hat",
-  "version": "1.12.54",
+  "version": "1.12.55",
   "private": true,
   "scripts": {
     "update-version": "node src/assets/javascript/version.js",
