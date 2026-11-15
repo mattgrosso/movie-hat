@@ -29,6 +29,8 @@
           aria-label="Search for a movie to request"
           autocomplete="off"
           enterkeyhint="search"
+          @focus="guardTyping"
+          @blur="stopGuardingTyping"
         >
         <button class="btn btn-success" type="submit" :disabled="!query.trim() || searching">
           <span v-if="searching" class="spinner-border spinner-border-sm" role="status">
@@ -141,6 +143,7 @@ import {
   plexUrl
 } from '../utils/requestMovie.js';
 import { deviceSubscribed } from '../utils/push.js';
+import { keepTypingInView } from '../utils/keepTypingInView.js';
 import RequestMovieButton from './RequestMovieButton.vue';
 
 export default {
@@ -166,7 +169,10 @@ export default {
       // the component owns its own teardown.
       pollTimer: null,
       fastUntil: 0,
-      stopListeningForForeground: null
+      stopListeningForForeground: null,
+      // While the search box has focus: puts it back on screen if the page
+      // jumps away from it (2026-11-15, see utils/keepTypingInView.js).
+      stopTypingGuard: null
     };
   },
   computed: {
@@ -209,6 +215,14 @@ export default {
   },
   methods: {
     readyHeadline,
+    guardTyping (event) {
+      this.stopGuardingTyping();
+      this.stopTypingGuard = keepTypingInView(event.target);
+    },
+    stopGuardingTyping () {
+      this.stopTypingGuard?.();
+      this.stopTypingGuard = null;
+    },
     rowFor (tmdbId) {
       return this.rows?.[tmdbId] ?? null;
     },
@@ -340,6 +354,7 @@ export default {
     this.pushOn = await deviceSubscribed();
   },
   beforeUnmount () {
+    this.stopGuardingTyping();
     clearTimeout(this.pollTimer);
     this.pollTimer = null;
     this.stopListeningForForeground?.();

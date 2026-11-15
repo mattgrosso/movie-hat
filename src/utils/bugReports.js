@@ -10,6 +10,10 @@ import { dbPost } from '../store/db.js';
 // prompted this button was a login failure, and a report box that requires
 // logging in cannot hear about those.
 
+/** The home-screen app rather than a browser tab. */
+const installedApp = () => window.navigator.standalone === true ||
+  window.matchMedia?.('(display-mode: standalone)').matches === true;
+
 /**
  * What was true when the report was filed, chosen for what would explain a
  * bug in THIS app: which hat, how much of it loaded, and — because the
@@ -39,7 +43,24 @@ function buildAppStateSummary (store, route) {
     // The error banner the reporter is probably describing.
     appError: state.appError,
 
-    online: navigator.onLine
+    online: navigator.onLine,
+
+    // The page itself (2026-11-15: "pushed all the way to the very bottom of
+    // the page" on the request screen, and the report couldn't say whether
+    // it was the installed app or Safari, or where the page was scrolled).
+    installed: installedApp(),
+    scrollY: Math.round(window.scrollY || 0),
+    pageHeight: document.documentElement?.scrollHeight || null,
+    visibleView: window.visualViewport
+      ? `${Math.round(window.visualViewport.height)}@${Math.round(window.visualViewport.offsetTop || 0)}`
+      : null,
+    // What the bug-button pinner (utils/screenPin.js) has seen: a page cut
+    // short, a phantom keyboard, which cure worked, and the scene the moment
+    // the bug button was tapped (before the report box's keyboard).
+    screenPin: window.__screenPin || null,
+    // Times a text box was put back on screen after the page jumped away
+    // (utils/keepTypingInView.js).
+    typingGuard: window.__typingGuard || null
   };
 }
 
