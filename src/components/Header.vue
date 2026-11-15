@@ -104,6 +104,11 @@
           </li>
         </ul>
       </div>
+      <!-- The bug button lives here, in the top row, since 2026-11-15. It
+           was pinned to the bottom-left corner, and on Matt's phone iOS kept
+           moving everything pinned to the bottom ("it jumps everywhere").
+           Up here nothing is pinned, so nothing can move it. -->
+      <BugReportButton/>
       <div
         v-if="$store.state.movieHatTitle"
         class="current-hat badge rounded-pill text-bg-dark"
@@ -131,6 +136,7 @@
 
 <script>
 import { getAuth, signOut } from 'firebase/auth';
+import BugReportButton from './BugReportButton.vue';
 import { buildStamp, forceRefresh } from '../utils/buildStamp.js';
 import { isOwner } from '../assets/javascript/peek.js';
 import { pushApiConfigured, deviceSubscribed, subscribeThisDevice, unsubscribeThisDevice } from '../utils/push.js';
@@ -139,6 +145,7 @@ import { dbGet } from '../store/db.js';
 import { REQUESTS_HOME_EVENT } from '../utils/requestMovie.js';
 
 export default {
+  components: { BugReportButton },
   data () {
     return {
       refreshing: false,

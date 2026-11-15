@@ -17,10 +17,27 @@
 // where the page was, or, if that wouldn't show it either, put the box near
 // the top of the visible view.
 //
+// 2026-11-15, the same day: iOS reported the visible view as -33554432 tall
+// (junk). Measured against that, the box was never on screen, so this kept
+// asking for a scroll and the page bounced. A view that is not a real
+// height is ignored: the page's own height is used instead (`visibleView`).
+//
 // `window.__typingGuard` records each rescue, for a bug report.
 
 const QUIET = 250 // ms the page must be still before we look
 const MARGIN = 12 // px between the box and the top of the visible view when we place it
+
+/**
+ * The visible part of the page, in layout-viewport pixels. iOS's own
+ * figures when they are real; the whole page when they are junk (a
+ * negative, zero, huge or missing height). Pure, for the tests.
+ */
+export function visibleView ({ vvHeight, vvTop, innerHeight }) {
+  const real = typeof vvHeight === 'number' && Number.isFinite(vvHeight) && vvHeight > 0 && vvHeight <= innerHeight * 2
+  if (!real) return { viewTop: 0, viewHeight: innerHeight }
+  const top = typeof vvTop === 'number' && Number.isFinite(vvTop) ? vvTop : 0
+  return { viewTop: top, viewHeight: vvHeight }
+}
 
 /**
  * Where to scroll so the box is visible again, or null if it already is.
@@ -57,8 +74,7 @@ export function keepTypingInView (el) {
     const to = rescueScroll({
       top: r.top,
       bottom: r.bottom,
-      viewTop: vv?.offsetTop || 0,
-      viewHeight: vv?.height || window.innerHeight,
+      ...visibleView({ vvHeight: vv?.height, vvTop: vv?.offsetTop, innerHeight: window.innerHeight }),
       scrollY: window.scrollY,
       startY
     })

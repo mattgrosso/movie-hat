@@ -3,7 +3,7 @@
 // type ... I get pushed all the way to the very bottom of the page. I can't
 // see what I'm typing.").
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { rescueScroll, keepTypingInView } from '../utils/keepTypingInView.js';
+import { rescueScroll, keepTypingInView, visibleView } from '../utils/keepTypingInView.js';
 
 describe('rescueScroll', () => {
   // A 402-wide phone, keyboard up: 409 of the page visible from the top.
@@ -30,6 +30,51 @@ describe('rescueScroll', () => {
 
   it('does nothing when the scroll it would ask for is where the page already is', () => {
     expect(rescueScroll({ ...view, top: 12, bottom: 900, scrollY: 0, startY: 0 })).toBe(null);
+  });
+});
+
+// 2026-11-15, second report: "when I tap into the search button, the screen
+// just like moves up and down every second by about 250 pixels." iOS said
+// the visible view was -33554432 tall; the box was never "on screen".
+describe('a junk visible view (the bouncing report, its own numbers)', () => {
+  it('falls back to the page itself', () => {
+    expect(visibleView({ vvHeight: -33554432, vvTop: 0, innerHeight: 812 })).toEqual({ viewTop: 0, viewHeight: 812 });
+    expect(visibleView({ vvHeight: -33554432, vvTop: 301, innerHeight: 812 })).toEqual({ viewTop: 0, viewHeight: 812 });
+    expect(visibleView({ vvHeight: undefined, vvTop: undefined, innerHeight: 812 })).toEqual({ viewTop: 0, viewHeight: 812 });
+    expect(visibleView({ vvHeight: 0, vvTop: 0, innerHeight: 812 })).toEqual({ viewTop: 0, viewHeight: 812 });
+  });
+
+  it('keeps iOS\'s figures when they are real', () => {
+    expect(visibleView({ vvHeight: 409, vvTop: 100, innerHeight: 812 })).toEqual({ viewTop: 100, viewHeight: 409 });
+  });
+
+  it('the box at 313 on an 812 page is on screen: no scroll', () => {
+    // What it did: scrolled 0 -> 301, then kept at it.
+    const view = visibleView({ vvHeight: -33554432, vvTop: 0, innerHeight: 812 });
+    expect(rescueScroll({ ...view, top: 313, bottom: 351, scrollY: 0, startY: 0 })).toBe(null);
+    expect(rescueScroll({ viewTop: 0, viewHeight: -33554432, top: 313, bottom: 351, scrollY: 0, startY: 0 })).toBe(301);
+  });
+
+  it('never scrolls in the browser when the view is junk', () => {
+    vi.useFakeTimers();
+    const box = document.createElement('input');
+    document.body.appendChild(box);
+    box.focus();
+    box.getBoundingClientRect = () => ({ top: 313, bottom: 351 });
+    const was = Object.getOwnPropertyDescriptor(window, 'visualViewport');
+    const vv = new EventTarget();
+    vv.height = -33554432; vv.offsetTop = 0;
+    Object.defineProperty(window, 'visualViewport', { value: vv, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 812, configurable: true });
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const stop = keepTypingInView(box);
+    for (let i = 0; i < 5; i++) { vv.dispatchEvent(new Event('resize')); vi.advanceTimersByTime(1000); }
+    expect(scrollTo).not.toHaveBeenCalled();
+    stop();
+    scrollTo.mockRestore();
+    if (was) Object.defineProperty(window, 'visualViewport', was); else delete window.visualViewport;
+    vi.useRealTimers();
+    document.body.innerHTML = '';
   });
 });
 

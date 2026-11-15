@@ -19,10 +19,9 @@
     <div v-else class="content">
       <router-view></router-view>
     </div>
-    <!-- Outside the login gate on purpose: the report that prompted this
-         button was a sign-in failure, which can only be reported from the
-         sign-in screen. -->
-    <BugReportButton/>
+    <!-- The bug button is in the header (Header.vue), outside the login
+         gate on purpose: the report that prompted it was a sign-in failure,
+         which can only be reported from the sign-in screen. -->
     <BugResolutionNotice/>
   </div>
 </template>
@@ -32,7 +31,6 @@ import Login from "./components/Login.vue";
 // Registered as AppHeader: "Header" is a reserved HTML element name.
 import AppHeader from "./components/Header.vue";
 import UpdateAvailableBanner from "./components/UpdateAvailableBanner.vue";
-import BugReportButton from "./components/BugReportButton.vue";
 import BugResolutionNotice from "./components/BugResolutionNotice.vue";
 import { reloadForUpdate, isSafeMomentForReload, shouldAutoAttempt, markUpdateLanded, checkWorkerOnce, runUpdateCheck } from "./utils/appUpdate.js";
 import { flushStashedBugReports } from "./utils/bugReports.js";
@@ -45,7 +43,6 @@ export default {
     AppHeader,
     Login,
     UpdateAvailableBanner,
-    BugReportButton,
     BugResolutionNotice
   },
   data () {

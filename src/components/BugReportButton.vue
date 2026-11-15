@@ -1,6 +1,5 @@
 <template>
   <button
-    v-if="!isOpen"
     type="button"
     class="bug-report-trigger"
     title="Report a bug"
@@ -9,7 +8,7 @@
   >
     <!-- bootstrap-icons is installed but its CSS is not imported anywhere, so
          the icon rides inline the way HatsList's icons do. -->
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-bug-fill" viewBox="0 0 16 16">
+    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" class="bi bi-bug-fill" viewBox="0 0 16 16">
       <path d="M4.978.855a.5.5 0 1 0-.956.29l.41 1.352A5 5 0 0 0 3 6h10a5 5 0 0 0-1.432-3.503l.41-1.352a.5.5 0 1 0-.956-.29l-.291.956Q9.1 1 8 1q-1.1 0-2.113.311z"/>
       <path d="M13 6v1H8.5v8.975A5 5 0 0 0 13 11h.5a.5.5 0 0 1 .5.5v.5a.5.5 0 1 0 1 0v-.5a1.5 1.5 0 0 0-1.5-1.5H13V9h1.5a.5.5 0 0 0 0-1H13V7h.5A1.5 1.5 0 0 0 15 5.5V5a.5.5 0 0 0-1 0v.5a.5.5 0 0 1-.5.5zm-5.5 9.975V7H3V6h-.5a.5.5 0 0 1-.5-.5V5a.5.5 0 0 0-1 0v.5A1.5 1.5 0 0 0 2.5 7H3v1H1.5a.5.5 0 0 0 0 1H3v1h-.5A1.5 1.5 0 0 0 1 11.5v.5a.5.5 0 1 0 1 0v-.5a.5.5 0 0 1 .5-.5H3a5 5 0 0 0 4.5 4.975"/>
     </svg>
@@ -117,31 +116,26 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-/* Fixed bottom-left, matching the other apps (Cinema Roll moved it there
-   from the right after a report). This app has no fixed bottom furniture,
-   so the corner is free on every screen — hat, draw, list, and the sign-in
-   page, which matters because login trouble is a thing worth reporting.
+/* In the header's top row, beside the menu, since 2026-11-15 (it was
+   fixed to the bottom-left corner, and iOS kept moving it: see
+   utils/screenPin.js). It scrolls away with the header, so it can never
+   float over the page or jump. It stays drawn while the panel is open so
+   the row doesn't shift; the backdrop covers it.
 
-   Always-visible tap target above the 40px minimum; :active rather than
-   :hover because an installed iOS PWA keeps a hover state with no pointer
-   to leave it. Respects the safe-area inset on notched phones. */
+   :active rather than :hover because an installed iOS PWA keeps a hover
+   state with no pointer to leave it. */
 .bug-report-trigger {
-  position: fixed;
-  left: 1rem;
-  bottom: calc(1rem + env(safe-area-inset-bottom, 0));
-  z-index: 1200;
-  width: 2.75rem;
-  height: 2.75rem;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
   border-radius: 50%;
-  border: 1px solid #4a7bb0;
-  background: #fff;
-  color: #46698f;
+  border: 0;
+  background: #212529;
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   cursor: pointer;
-  opacity: 0.9;
   padding: 0;
 }
 
