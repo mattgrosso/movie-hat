@@ -46,6 +46,7 @@ describe('signIn helpers', () => {
 
   it('has a sentence for a blocked window and nothing for the rest', () => {
     expect(signInMessage(failure('auth/popup-blocked'))).toMatch(/blocked the Google sign-in window/);
+    expect(signInMessage(failure('auth/network-request-failed'))).toMatch(/Couldn't reach Google/);
     expect(signInMessage(failure('auth/internal-error'))).toBeNull();
   });
 });
@@ -66,6 +67,12 @@ describe('login action', () => {
   it('returns a sentence, without logging, when the window was blocked', async () => {
     signInWithPopup.mockRejectedValue(failure('auth/popup-blocked'));
     expect(await store.dispatch('login')).toMatch(/Allow pop-ups for Movie Hat/);
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('returns a sentence, without logging, when Google could not be reached', async () => {
+    signInWithPopup.mockRejectedValue(failure('auth/network-request-failed'));
+    expect(await store.dispatch('login')).toMatch(/Check your connection/);
     expect(errorSpy).not.toHaveBeenCalled();
   });
 

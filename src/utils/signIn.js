@@ -6,6 +6,10 @@
 // as a bug. Closing the window or tapping again is a choice, not a failure:
 // those stay quiet (Cinema Roll's list, movieHatSignIn.js). A blocked window
 // gets a sentence saying what to do; anything else is still logged.
+//
+// Nor is a dropped connection (Sentry, 2026-11-21): Opera Touch on an iPhone
+// couldn't reach Google, the screen said nothing and Sentry got the error.
+// It now gets Cinema Roll's sentence for the same failure.
 
 /** Firebase's own "you closed it" answers. */
 const DISMISSALS = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request', 'auth/user-cancelled'];
@@ -15,7 +19,8 @@ export function isSignInDismissal (error) {
 }
 
 const MESSAGES = {
-  'auth/popup-blocked': 'Your browser blocked the Google sign-in window. Allow pop-ups for Movie Hat (on an iPhone: Settings, Safari, turn off Block Pop-ups) and try again.'
+  'auth/popup-blocked': 'Your browser blocked the Google sign-in window. Allow pop-ups for Movie Hat (on an iPhone: Settings, Safari, turn off Block Pop-ups) and try again.',
+  'auth/network-request-failed': 'Couldn\'t reach Google to sign in. Check your connection and try again.'
 };
 
 /** The sentence to show for a failure, or null when there is nothing to say. */
