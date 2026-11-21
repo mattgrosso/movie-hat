@@ -1,6 +1,6 @@
 {
   "name": "movie-hat",
-  "version": "1.12.57",
+  "version": "1.12.58",
   "private": true,
   "scripts": {
     "update-version": "node src/assets/javascript/version.js",
@@ -12,6 +12,8 @@
     "generate-hat-rules": "node scripts/generate-hat-rules.mjs",
     "mint-hat-token": "node scripts/mint-hat-token.mjs",
     "publish-mirror-feed": "node scripts/publish-mirror-feed.mjs",
+    "check-dist": "node scripts/check-dist.mjs",
+    "check-live": "node scripts/check-live.mjs",
     "fetch-bug-reports": "node scripts/fetch-bug-reports.mjs",
     "resolve-bug-report": "node scripts/resolve-bug-report.mjs",
     "serve": "vite",
@@ -22,7 +24,7 @@
     "test:run": "vitest run",
     "test:watch": "vitest watch",
     "predeploy": "node scripts/backup-hats.mjs --quiet --skip-if-fresh=6 || echo backup-skipped",
-    "deploy": "node scripts/preflight.mjs && node scripts/bump-and-build.mjs && ~/aws-cli/aws s3 sync dist/ s3://movie-hat --delete --profile personal-deploy && ~/aws-cli/aws cloudfront create-invalidation --distribution-id EBSAAKUEVN304 --paths '/*' --profile personal-deploy > invalidation_output.txt",
+    "deploy": "node scripts/preflight.mjs && node scripts/bump-and-build.mjs && node scripts/check-dist.mjs && ~/aws-cli/aws s3 sync dist/ s3://movie-hat --delete --profile personal-deploy && ~/aws-cli/aws cloudfront create-invalidation --distribution-id EBSAAKUEVN304 --paths '/*' --profile personal-deploy > invalidation_output.txt && node scripts/check-live.mjs",
     "preview": "vite preview",
     "test:emulated": "PATH=\"/opt/homebrew/opt/openjdk/bin:$PATH\" firebase emulators:exec --only database --project movie-hat-9c418 \"yarn vitest run --config vitest.integration.config.js\""
   },

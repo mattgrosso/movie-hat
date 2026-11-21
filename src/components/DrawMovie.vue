@@ -37,7 +37,6 @@ export default {
   methods: {
     drawMovie () {
       trackEvent('movie-drawn');
-      trackEvent('movie-drawn');
       const movies = this.$store.state.movieHat;
 
       if (!movies.length) {
