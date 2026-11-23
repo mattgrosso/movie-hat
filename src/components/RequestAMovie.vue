@@ -94,6 +94,18 @@
             </span>
           </span>
           <span class="request-a-movie__mine-state" :class="`is-${row.status}`">{{ shortLabel(row) }}</span>
+          <!-- Cancelling a back order (Matt, 2026-11-23: "There should be a
+               way for me to cancel a backorder from the UI"). Two taps, so a
+               stray one can't drop a film somebody has waited weeks for. -->
+          <span v-if="mayCancel(row)" class="request-a-movie__mine-cancel">
+            <template v-if="confirmingCancel === row.tmdbId">
+              Stop looking for it?
+              <button type="button" class="request-a-movie__mine-yes" @click="cancelRow(row)">Yes, cancel</button>
+              <button type="button" class="request-a-movie__mine-link" @click="confirmingCancel = null">Keep it</button>
+            </template>
+            <button v-else type="button" class="request-a-movie__mine-link" @click="confirmingCancel = row.tmdbId">Cancel back order</button>
+          </span>
+          <p v-if="cancelError && cancelError.tmdbId === row.tmdbId" class="request-a-movie__mine-error">{{ cancelError.message }}</p>
           <span v-if="progressFor(row)" class="request-a-movie__mine-bar" :class="{ 'is-held': progressFor(row).heldBy }" aria-hidden="true">
             <span :style="{ width: `${progressFor(row).percent}%` }"/>
           </span>
@@ -124,7 +136,7 @@
 // somebody — see `requestsPollDelay`. It used to be read exactly once, which
 // made the list under the search box a photograph of the moment you arrived.
 import { searchMovies } from '../utils/tmdb.js';
-import { dbGet } from '../store/db.js';
+import { dbGet, dbPut } from '../store/db.js';
 import {
   requestLabel,
   downloadProgress,
@@ -140,8 +152,12 @@ import {
   readyHeadline,
   readyCardFresh,
   dismissReadyCard,
-  plexUrl
+  plexUrl,
+  canCancel,
+  buildCancel,
+  CANCEL_FIELD
 } from '../utils/requestMovie.js';
+import { trackEvent } from '../utils/usage.js';
 import { deviceSubscribed } from '../utils/push.js';
 import { keepTypingInView } from '../utils/keepTypingInView.js';
 import RequestMovieButton from './RequestMovieButton.vue';
@@ -158,6 +174,10 @@ export default {
       searched: false,
       error: null,
       rows: {},
+      // The back order whose "Stop looking for it?" is showing, and a
+      // cancel that didn't save.
+      confirmingCancel: null,
+      cancelError: null,
       // Whether THIS device would actually receive the "ready to watch"
       // push. Asked of the browser, not the database — a subscription on his
       // phone says nothing about the laptop he is looking at now.
@@ -232,6 +252,27 @@ export default {
     // The label already carries the percent; this is just the bar under it.
     progressFor (row) {
       return downloadProgress(row);
+    },
+    mayCancel (row) {
+      return canCancel(row, this.email);
+    },
+    async cancelRow (row) {
+      this.confirmingCancel = null;
+      this.cancelError = null;
+      trackEvent('movie-request-cancelled');
+      try {
+        const [path, value] = buildCancel(row.tmdbId);
+        await dbPut(path, value);
+        // Show "Cancelling…" at once; the Mac mini makes it "Cancelled".
+        this.rows = { ...this.rows, [row.tmdbId]: { ...row, [CANCEL_FIELD]: Date.now() } };
+        this.fastUntil = Date.now() + POLL_FAST_WINDOW_MS;
+        this.schedulePoll();
+      } catch (error) {
+        console.error('The cancel didn’t save', error);
+        this.cancelError = { tmdbId: row.tmdbId, message: 'Couldn’t cancel it. Please try again.' };
+      }
+      // Refused or not, read what the row says now.
+      this.loadRows();
     },
     /** The local part of the address — the closest thing the data has to a name. */
     askerName (row) {
@@ -506,6 +547,44 @@ export default {
     }
 
     &.is-held span { background: rgba(255, 255, 255, 0.5); }
+  }
+
+  &__mine-cancel {
+    align-items: baseline;
+    color: rgba(255, 255, 255, 0.85);
+    display: flex;
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    font-size: 0.78rem;
+    gap: 0.6rem;
+    justify-content: flex-end;
+    margin-top: -0.35rem;
+  }
+
+  &__mine-link {
+    background: none;
+    border: 0;
+    color: #b9a3ff;
+    font-size: 0.78rem;
+    padding: 0.25rem 0;
+    text-decoration: underline;
+  }
+
+  &__mine-yes {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 4px;
+    color: white;
+    font-size: 0.78rem;
+    padding: 0.2rem 0.55rem;
+  }
+
+  &__mine-error {
+    color: #ffe08a;
+    flex-basis: 100%;
+    font-size: 0.75rem;
+    margin: 0;
+    text-align: right;
   }
 
   &__mine-name {

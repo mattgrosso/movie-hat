@@ -34,6 +34,19 @@
       </svg>
       {{ chosen && canRequest ? 'Request this version' : label }}
     </button>
+    <!-- Cancelling a back order (Matt, 2026-11-23). Two taps: the link,
+         then "Yes, cancel" — so a stray tap can't drop a film somebody has
+         been waiting weeks for. -->
+    <div v-if="canCancelNow && !compact" class="request-movie__cancel">
+      <template v-if="confirmingCancel">
+        <span>Stop looking for it?</span>
+        <button type="button" class="btn btn-sm btn-outline-light" @click="cancel(movie.id); confirmingCancel = false">Yes, cancel</button>
+        <button type="button" class="btn btn-link btn-sm" @click="confirmingCancel = false">Keep it</button>
+      </template>
+      <button v-else type="button" class="btn btn-link btn-sm request-movie__versions-link" @click="confirmingCancel = true">
+        Cancel back order
+      </button>
+    </div>
     <!-- Choose a version (2026-10-15): before requesting, see what versions
          exist and pick one instead of taking whatever Radarr chooses. On a
          film already in the library it offers a REPLACEMENT instead. -->
@@ -131,7 +144,7 @@ export default {
     // row — and the getter is the one place that knows both.
     const signedIn = computed(() => store.getters.mayRequestMovies);
 
-    const { row, requesting, error, label, note, progress, settled, canRequest, canForceNow, load, request, force, stop } = useRequestMovie({
+    const { row, requesting, error, label, note, progress, settled, canRequest, canForceNow, canCancelNow, load, request, force, cancel, stop } = useRequestMovie({
       read: dbGet,
       write: dbPut,
       source: 'movie-hat',
@@ -155,6 +168,7 @@ export default {
       const status = row.value?.status;
       if (status === 'exists' || (status === 'added' && settled.value)) return 'btn-success';
       if (status === 'error') return 'btn-danger';
+      if (status === 'cancelled') return 'btn-request';
       if (status === 'pending' || status === 'processing' || status === 'added' || requesting.value) return 'btn-secondary';
       // Solid, not outlined: on the drawn-movie page it sits beside a blue
       // Share and a green Home, and an outline on the dark page read as
@@ -173,6 +187,7 @@ export default {
     // The version panel: opened on purpose (each open asks the Mac mini for
     // a fresh search), and the pick rides on the request.
     const showVersions = ref(false);
+    const confirmingCancel = ref(false);
     const chosen = ref(null);
     const email = computed(() => store.state.email || '');
     const toggleVersions = () => { showVersions.value = !showVersions.value; };
@@ -183,11 +198,11 @@ export default {
       return r.status === 'exists' || (r.status === 'added' && typeof r.importedAt === 'number');
     });
     // A new movie forgets the last one's choice.
-    watch(() => props.movie?.id, () => { showVersions.value = false; chosen.value = null; });
+    watch(() => props.movie?.id, () => { showVersions.value = false; chosen.value = null; confirmingCancel.value = false; });
     // Once requested, the panel has done its job.
-    watch(row, (r) => { if (r && r.status !== 'error') showVersions.value = false; });
+    watch(row, (r) => { if (r && r.status !== 'error' && r.status !== 'cancelled') showVersions.value = false; });
 
-    return { signedIn, row, requesting, error, label, note, progress, settled, canRequest, canForceNow, request, force, buttonClass, tooltip, showVersions, chosen, email, toggleVersions, canReplace };
+    return { signedIn, row, requesting, error, label, note, progress, settled, canRequest, canForceNow, canCancelNow, confirmingCancel, request, force, cancel, buttonClass, tooltip, showVersions, chosen, email, toggleVersions, canReplace };
   }
 };
 </script>
@@ -239,6 +254,19 @@ export default {
     color: #b9a3ff;
     font-size: 0.8rem;
     padding: 0;
+  }
+
+  &__cancel {
+    align-items: center;
+    color: rgba(255, 255, 255, 0.85);
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    gap: 0.5rem;
+    justify-content: center;
+
+    .btn { width: auto; }
+    .btn-link { color: #b9a3ff; padding: 0; }
   }
 
   &__error {

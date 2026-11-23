@@ -732,3 +732,61 @@ describeBackorder('back order', () => {
     expectBackorder(readyHeadline({ status: 'added', title: 'Heat', importedAt: now })).toBe('Heat is ready to watch');
   });
 });
+
+// 2026-11-23: cancelling a back order — one field, Matt or the requester.
+import { describe as describeCancel, it as itCancel, expect as expectCancel } from 'vitest';
+import { canCancel, isCancelling, buildCancel, requestLabel as labelC, requestNote as noteC, isSettled as settledC, canRequestOver as canOverC } from '../utils/requestMovie.js';
+describeCancel('cancelling a back order', () => {
+  const MATT = 'mattgrosso@gmail.com';
+  const SETH = 'seth@example.com';
+  const bo = { tmdbId: 68, title: 'Brazil', status: 'added', stage: 'backorder', requestedBy: SETH };
+  itCancel('is offered to Matt and the requester, on a back order only', () => {
+    expectCancel(canCancel(bo, SETH)).toBe(true);
+    expectCancel(canCancel(bo, MATT)).toBe(true);
+    expectCancel(canCancel(bo, 'someone@example.com')).toBe(false);
+    expectCancel(canCancel(bo, null)).toBe(false);
+    expectCancel(canCancel({ ...bo, stage: 'searching' }, MATT)).toBe(false);
+    expectCancel(canCancel({ ...bo, importedAt: 1 }, MATT)).toBe(false);
+    expectCancel(canCancel({ ...bo, cancelRequestedAt: 1 }, MATT)).toBe(false);
+    expectCancel(canCancel({ ...bo, status: 'cancelled' }, MATT)).toBe(false);
+  });
+  itCancel('writes just the one field, as the server clock', () => {
+    expectCancel(buildCancel(68)).toEqual(['requests/68/cancelRequestedAt', { '.sv': 'timestamp' }]);
+    expectCancel(() => buildCancel(0)).toThrow();
+  });
+  itCancel('reads Cancelling… until the Mac mini acts, then Cancelled, which can be asked for again', () => {
+    const asked = { ...bo, cancelRequestedAt: 5 };
+    expectCancel(isCancelling(asked)).toBe(true);
+    expectCancel(labelC(asked, { short: true })).toBe('Cancelling…');
+    expectCancel(noteC(asked)).toMatch(/stops looking/);
+    expectCancel(settledC(asked)).toBe(false);
+    const done = { ...asked, status: 'cancelled' };
+    expectCancel(isCancelling(done)).toBe(false);
+    expectCancel(labelC(done, { short: true })).toBe('Cancelled');
+    expectCancel(settledC(done)).toBe(true);
+    expectCancel(canOverC(done)).toBe(true);
+  });
+  itCancel('the button writes the field and shows Cancelling…', async () => {
+    const h = harness({ email: SETH, rows: { 'requests/68': bo } });
+    await h.load(68);
+    expectCancel(h.canCancelNow.value).toBe(true);
+    await h.cancel(68);
+    expectCancel(h.write).toHaveBeenLastCalledWith('requests/68/cancelRequestedAt', { '.sv': 'timestamp' });
+    expectCancel(h.label.value).toBe('Cancelling the back order…');
+    expectCancel(h.canCancelNow.value).toBe(false);
+  });
+  itCancel('never writes for someone else, and shows where the row went if refused', async () => {
+    const other = harness({ email: 'someone@example.com', rows: { 'requests/68': bo } });
+    await other.load(68);
+    await other.cancel(68);
+    expectCancel(other.write).not.toHaveBeenCalled();
+
+    const h = harness({ email: MATT, rows: { 'requests/68': bo } });
+    await h.load(68);
+    h.store['requests/68'] = { ...bo, stage: 'downloading' };
+    h.write.mockImplementationOnce(async () => { throw Object.assign(new Error('denied'), { status: 401 }); });
+    await h.cancel(68);
+    expectCancel(h.error.value).toBe(null);
+    expectCancel(h.canCancelNow.value).toBe(false);
+  });
+});

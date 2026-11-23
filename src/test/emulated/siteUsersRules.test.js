@@ -240,6 +240,53 @@ describe('requests: forcing past the Plex hold', () => {
     });
   });
 
+  // Cancelling a back order (2026-11-23): one field, `cancelRequestedAt`,
+  // on a row the Mac mini has back-ordered; Matt or the requester only.
+  describe('cancelling a back order', () => {
+    const backorder = (email, extra = {}) => testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await set(ref(ctx.database(), 'requests/27205'), {
+        ...requestRow(email, 'movie-hat'), status: 'added', stage: 'backorder', backorderedAt: Date.now(), ...extra,
+      });
+    });
+    const cancel = (person) => set(ref(as(person), 'requests/27205/cancelRequestedAt'), { '.sv': 'timestamp' });
+
+    it('lets the requester cancel their own back order', async () => {
+      await backorder(SETH.email);
+      await assertSucceeds(cancel(SETH));
+    });
+
+    it("lets Matt cancel somebody else's back order", async () => {
+      await backorder(SETH.email);
+      await assertSucceeds(cancel(MATT));
+    });
+
+    it("refuses another requester cancelling a back order that isn't theirs", async () => {
+      await backorder(MATT.email);
+      await assertFails(cancel(SETH));
+    });
+
+    it('refuses a cancel on a row that is not on back order, or has landed', async () => {
+      await backorder(MATT.email, { stage: 'downloading' });
+      await assertFails(cancel(MATT));
+      await backorder(MATT.email, { importedAt: Date.now() });
+      await assertFails(cancel(MATT));
+      await backorder(MATT.email, { status: 'pending', stage: null });
+      await assertFails(cancel(MATT));
+    });
+
+    it('takes it once, and only as the server clock', async () => {
+      await backorder(MATT.email);
+      await assertFails(set(ref(as(MATT), 'requests/27205/cancelRequestedAt'), 12345));
+      await assertSucceeds(cancel(MATT));
+      await assertFails(cancel(MATT));
+    });
+
+    it('lets a cancelled row be requested again', async () => {
+      await backorder(SETH.email, { status: 'cancelled' });
+      await assertSucceeds(set(ref(as(MATT), 'requests/27205'), requestRow(MATT.email)));
+    });
+  });
+
   it('still takes a row with no force field at all', async () => {
     await assertSucceeds(set(ref(as(MATT), 'requests/27205'), requestRow(MATT.email)));
   });

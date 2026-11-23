@@ -54,10 +54,10 @@ export const FORCE_EMAIL = 'mattgrosso@gmail.com';
 export function canForce (email) {
   return typeof email === 'string' && email.toLowerCase() === FORCE_EMAIL;
 }
-export const REQUEST_STATUSES = ['pending', 'processing', 'added', 'exists', 'error'];
+export const REQUEST_STATUSES = ['pending', 'processing', 'added', 'exists', 'error', 'cancelled'];
 // Nothing further will happen to these; polling stops. 'added' is NOT here:
 // an added row is still downloading until it carries `importedAt`.
-export const TERMINAL_STATUSES = ['exists', 'error'];
+export const TERMINAL_STATUSES = ['exists', 'error', 'cancelled'];
 
 /** Has this row reached a state nothing further will change? */
 export function isSettled (row) {
@@ -350,9 +350,9 @@ export function formatSize (bytes) {
   return `${gb < 10 ? gb.toFixed(2).replace(/0$/, '') : gb.toFixed(1)} GB`;
 }
 
-/** May the client write a row over this one? Only nothing, or a failure. */
+/** May the client write a row over this one? Only nothing, a failure, or a cancelled back order. */
 export function canRequestOver (existing) {
-  return !existing || existing.status === 'error';
+  return !existing || existing.status === 'error' || existing.status === 'cancelled';
 }
 
 /**
@@ -377,6 +377,7 @@ export function requestLabel (row, { requesting = false, short = false } = {}) {
       // great that it says 'downloading' when it isn't"): nothing queued
       // yet is a search, not a download.
       if (row.stage === 'searching') return short ? 'Looking…' : 'Looking for a copy…';
+      if (isCancelling(row)) return short ? 'Cancelling…' : 'Cancelling the back order…';
       if (row.stage === 'backorder') return short ? 'Back order' : 'On back order';
       if (row.stage === 'importing') return short ? 'Adding to Plex' : 'Adding to Plex…';
       // In a list there is no room for the bar, so the number rides in the label.
@@ -386,6 +387,8 @@ export function requestLabel (row, { requesting = false, short = false } = {}) {
     }
     case 'exists': return short ? 'In library' : 'Already in the library';
     case 'error': return short ? 'Try again' : 'Couldn’t add — try again';
+    // A cancelled back order can be asked for again, like a failure.
+    case 'cancelled': return short ? 'Cancelled' : 'Cancelled — request again';
     default: return short ? 'Request' : 'Request this movie';
   }
 }
@@ -403,6 +406,7 @@ export function requestNote (row) {
     case 'added': {
       if (isSettled(row)) return null;
       if (row.stage === 'searching') return 'No copy found yet; it keeps looking. You’ll get a notification when it’s ready.';
+      if (isCancelling(row)) return 'The Mac mini stops looking for it the next time it checks in.';
       if (row.stage === 'backorder') return backorderNote(row);
       if (row.stage === 'importing') return 'Downloaded. Adding it to Plex now.';
       const progress = downloadProgress(row);
@@ -445,6 +449,39 @@ export function backorderNote (row, now = Date.now()) {
   const when = nextCheckText(row?.nextCheckAt, now);
   const next = when ? ` The next look is ${when}.` : '';
   return `No copy anywhere yet, so it’s on back order: it gets looked for again every few days.${next} You’ll get a notification the moment it turns up.`;
+}
+
+// CANCELLING A BACK ORDER (Matt, 2026-11-23: "There should be a way for me
+// to cancel a backorder from the UI"). Built like the late force: the client
+// writes ONE field onto the row and the Mac mini does the rest.
+//
+//   cancelRequestedAt  server timestamp, written by the client
+//
+// The rules take it only on a row that is 'added', on back order and not
+// landed, and only from Matt or whoever asked for the film. The service then
+// removes the film from Radarr (nothing has downloaded, so there is no file)
+// and sets `status: 'cancelled'`, which settles the row and, like 'error',
+// lets anyone request the film again. Until the service gets to it the row
+// reads "Cancelling…".
+export const CANCEL_FIELD = 'cancelRequestedAt';
+
+/** Has somebody asked for this back order to be cancelled, and the service not acted yet? */
+export function isCancelling (row) {
+  return row?.status === 'added' && typeof row[CANCEL_FIELD] === 'number' && typeof row.importedAt !== 'number';
+}
+
+/** May `email` cancel this row right now? The rules agree; this just decides what to draw. */
+export function canCancel (row, email) {
+  if (!row || row.status !== 'added' || row.stage !== 'backorder') return false;
+  if (typeof row.importedAt === 'number' || row[CANCEL_FIELD] !== undefined) return false;
+  if (typeof email !== 'string' || !email) return false;
+  return canForce(email) || email === row.requestedBy;
+}
+
+/** The one write that asks for the cancel: `[path, value]`. */
+export function buildCancel (tmdbId) {
+  if (!isValidTmdbId(tmdbId)) throw new Error(`Not a TMDb id: ${tmdbId}`);
+  return [`${requestPath(tmdbId)}/${CANCEL_FIELD}`, { '.sv': 'timestamp' }];
 }
 
 /** The headline when a request lands: a back-ordered one is a surprise. */
@@ -528,6 +565,8 @@ export function downloadProgress (row, { now = Date.now() } = {}) {
  *   request({ tmdbId, title }) → write 'pending', then poll for the outcome
  *   force(tmdbId)              → owner only: add `force: true` to a row
  *                                 that is still 'pending' (see canForceNow)
+ *   cancel(tmdbId)             → Matt or the requester: ask the Mac mini to
+ *                                 drop a back-ordered row (see canCancelNow)
  *   stop()                     → end polling (call on unmount)
  *
  * `now`, `setTimer`, `clearTimer`, `isVisible` and `onForeground` exist so
@@ -562,6 +601,9 @@ export function useRequestMovie ({ read, write, source, email, short = false, no
   const canForceNow = computed(() =>
     forceable.value && !requesting.value && row.value?.status === 'pending' && !row.value.force
   );
+
+  // A back order Matt or its requester may call off (see canCancel).
+  const canCancelNow = computed(() => !requesting.value && canCancel(row.value, currentEmail()));
 
   const currentEmail = () => {
     const value = typeof email === 'function' ? email() : (email?.value ?? email);
@@ -718,5 +760,32 @@ export function useRequestMovie ({ read, write, source, email, short = false, no
     }
   }
 
-  return { row, requesting, error, label, note, progress, settled, canRequest, forceable, canForceNow, load, request, force, stop };
+  // Ask the Mac mini to drop a back order: just `cancelRequestedAt`, which
+  // the rules grant on a back-ordered row to Matt and its requester.
+  async function cancel (tmdbId) {
+    if (!canCancelNow.value) return;
+    trackEvent('movie-request-cancelled');
+    error.value = null;
+    requesting.value = true;
+    try {
+      const [path, value] = buildCancel(tmdbId);
+      await write(path, value);
+      row.value = { ...row.value, [CANCEL_FIELD]: now() };
+      watch(tmdbId);
+    } catch (writeError) {
+      // Refused almost always means it turned up (or was cancelled) between
+      // our read and the tap. Show where it is now.
+      const refused = writeError?.status === 401 || writeError?.status === 403;
+      if (refused) {
+        await load(tmdbId);
+      } else {
+        console.error('The cancel didn’t save', writeError);
+        error.value = 'Couldn’t cancel it. Please try again.';
+      }
+    } finally {
+      requesting.value = false;
+    }
+  }
+
+  return { row, requesting, error, label, note, progress, settled, canRequest, forceable, canForceNow, canCancelNow, load, request, force, cancel, stop };
 }

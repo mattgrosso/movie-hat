@@ -137,13 +137,15 @@ The rules live in `scripts/generate-hat-rules.mjs` under `requests`.
 requests/<tmdbId>: {
   tmdbId:      number   integer TMDb id, same as the key (the KEY is the id of record)
   title:       string
-  status:      'pending' | 'processing' | 'added' | 'exists' | 'error'
+  status:      'pending' | 'processing' | 'added' | 'exists' | 'error' | 'cancelled'
   source:      'movie-hat' | 'cinema-roll' | 'movie-requests'
   requestedBy: string   the signed-in email (rules check it matches the token)
   createdAt:   number   server timestamp, ms
   force:       true     optional, Matt only — see "Forcing a request past the Plex hold"
   release:     { infoHash, title }   optional — a version picked in the panel;
                         see "Choosing a version"
+  cancelRequestedAt: number  server timestamp, optional — Matt or the requester
+                        asked to call off a back order; see "Cancelling a back order"
 
   // Written by the service only:
   radarrId:    number
@@ -173,7 +175,21 @@ requests/<tmdbId>: {
 
 Only requesters' accounts can read or create rows. A row can only be created
 with `status: 'pending'`, and only when no row exists for that id or the
-existing one is `'error'` (that is the retry).
+existing one is `'error'` (that is the retry) or `'cancelled'`.
+
+### Cancelling a back order
+
+Matt, 2026-11-23: "There should be a way for me to cancel a backorder from
+the UI". A back-ordered row (`status: 'added'`, `stage: 'backorder'`, no
+`importedAt`) shows **Cancel back order**, in the list on `/request` and under
+the button, with a "Stop looking for it?" step. It writes one field,
+`requests/<tmdbId>/cancelRequestedAt` (server timestamp), the same way Force
+writes `force`. The rules take that write once, only on such a row, and only
+from Matt or the row's `requestedBy`; the row's own `.validate` has a
+matching exception (`cancelOnly` in `scripts/generate-hat-rules.mjs`),
+because Firebase runs a parent's `.validate` on a child write too. Until the
+service acts, the row reads "Cancelling…". `src/test/emulated/siteUsersRules.test.js`
+pins who may and may not.
 
 ### Forcing a request past the Plex hold
 
@@ -320,6 +336,17 @@ check. Clients cannot delete rows.
    Movie Hat and Movie Requests already show "On back order" with the next
    look date, and keep the row open; nothing on the client side needs the
    service to do anything else.
+8. **Honour a cancelled back order** (2026-11-23). When a row has
+   `cancelRequestedAt` and no `importedAt` (watch for it with
+   `child_changed`, or check on the back-order recheck tick, but don't wait
+   the full 3 days), stop looking for it: delete the film from Radarr
+   (`deleteFiles: false`; nothing has downloaded) and drop anything of it
+   left in the queue, then set `status: 'cancelled'` and `cancelledAt` (ms),
+   and remove `stage`, `nextCheckAt`, `progress`, `etaAt` and `heldBy`.
+   Do not push anybody. A `'cancelled'` row is settled; anyone may request
+   the film again, which overwrites it with a fresh `'pending'` row. Until
+   the service does this, the row just says "Cancelling…" and the film
+   stays on back order.
 
 ### Draw notifications, and which hats send them
 

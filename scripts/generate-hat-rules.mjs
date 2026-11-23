@@ -87,6 +87,15 @@ const isApproved = "auth != null && root.child('siteUsers').child(auth.uid).chil
 const isSiteAdmin = "auth != null && root.child('siteUsers').child(auth.uid).child('isAdmin').val() === true";
 // Anyone who may ask the Mac mini for a download, by either route.
 const mayRequest = `(${isRequester} || ${isApproved})`;
+
+// A row's .validate runs even when only one child is written, and the row's
+// own checks (status 'pending', your own address) describe a NEW request.
+// The one other write a row can take after the service has moved it on is
+// the cancel of a back order, which the `cancelRequestedAt` rule below
+// grants. This lets that write past the row's checks: the row as it stood is
+// a back order with no cancel yet, and afterwards it has one. Nothing else
+// can reach here — no other path under an in-flight row has a .write.
+const cancelOnly = "(data.exists() && data.child('status').val() === 'added' && data.child('stage').val() === 'backorder' && !data.child('cancelRequestedAt').exists() && newData.child('cancelRequestedAt').exists() && newData.child('status').val() === 'added')";
 const isMember = `data.child('memberEmails').child(${memberKeyExpression}).exists()`;
 const becomesMember = `newData.child('memberEmails').child(${memberKeyExpression}).exists()`;
 // Deleting a whole hat: the creator's call — except legacy hats, which have
@@ -329,8 +338,8 @@ export const rules = {
         // removes the old copy (Matt, 2026-10-15: "I don't mind you
         // removing the first version when a second version replaces it").
         // Never without `release`, so a plain re-request can't be made.
-        '.write': `${mayRequest} && newData.exists() && (!data.exists() || data.child('status').val() === 'error' || ((data.child('status').val() === 'exists' || (data.child('status').val() === 'added' && data.child('importedAt').exists())) && newData.child('release').exists()))`,
-        '.validate': [
+        '.write': `${mayRequest} && newData.exists() && (!data.exists() || data.child('status').val() === 'error' || data.child('status').val() === 'cancelled' || ((data.child('status').val() === 'exists' || (data.child('status').val() === 'added' && data.child('importedAt').exists())) && newData.child('release').exists()))`,
+        '.validate': `${cancelOnly} || (` + [
           "$tmdbId.matches(/^[1-9][0-9]{0,9}$/)",
           "newData.hasChildren(['tmdbId', 'title', 'status', 'source', 'requestedBy', 'createdAt'])",
           "newData.child('tmdbId').isNumber()",
@@ -354,7 +363,7 @@ export const rules = {
           // row (the row-level .write already refuses later changes); the
           // Mac mini takes exactly this release instead of searching.
           "(!newData.hasChild('release') || (newData.child('release/infoHash').isString() && newData.child('release/infoHash').val().matches(/^[0-9a-fA-F]{40}$/) && newData.child('release/title').isString() && newData.child('release/title').val().length <= 300))"
-        ].join(' && '),
+        ].join(' && ') + ')',
         // Forcing AFTER the request (Matt, 2026-09-25: "the force through
         // button should only show up after I've clicked the request button
         // and should replace it"). The row is in flight, so the row-level
@@ -364,6 +373,17 @@ export const rules = {
         // Nothing else about the row can change this way.
         force: {
           '.write': `${isOwner} && !data.exists() && data.parent().child('status').val() === 'pending' && newData.val() === true`
+        },
+        // Cancelling a BACK ORDER (Matt, 2026-11-23: "There should be a way
+        // for me to cancel a backorder from the UI"). The same shape as the
+        // late force: one field, written once, the server's clock. Granted
+        // on a row the Mac mini has put on back order and that hasn't
+        // landed, to the owner or to whoever asked for the film. The
+        // service sees it, takes the film out of Radarr and sets status
+        // 'cancelled' — which, like 'error', may then be requested over.
+        cancelRequestedAt: {
+          '.write': `${mayRequest} && !data.exists() && data.parent().child('status').val() === 'added' && data.parent().child('stage').val() === 'backorder' && !data.parent().child('importedAt').exists() && (${isOwner} || data.parent().child('requestedBy').val() === auth.token.email)`,
+          '.validate': 'newData.val() === now'
         }
       }
     }
