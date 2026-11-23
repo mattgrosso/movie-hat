@@ -40,10 +40,10 @@
     <div v-if="canCancelNow && !compact" class="request-movie__cancel">
       <template v-if="confirmingCancel">
         <span>Stop looking for it?</span>
-        <button type="button" class="btn btn-sm btn-outline-light" @click="cancel(movie.id); confirmingCancel = false">Yes, cancel</button>
-        <button type="button" class="btn btn-link btn-sm" @click="confirmingCancel = false">Keep it</button>
+        <button type="button" class="request-movie__cancel-yes" @click="cancel(movie.id); confirmingCancel = false">Yes, cancel</button>
+        <button type="button" class="request-movie__cancel-keep" @click="confirmingCancel = false">Keep it</button>
       </template>
-      <button v-else type="button" class="btn btn-link btn-sm request-movie__versions-link" @click="confirmingCancel = true">
+      <button v-else type="button" class="request-movie__cancel-chip" @click="confirmingCancel = true">
         Cancel back order
       </button>
     </div>
@@ -250,23 +250,57 @@ export default {
     color: #212529;
   }
 
+  // White, not the request purple's light tint: that was unreadable on
+  // Movie Hat's blue (reports 2026-10-16 and 2026-11-23).
   &__versions-link {
-    color: #b9a3ff;
+    color: white;
+    text-decoration: underline;
     font-size: 0.8rem;
     padding: 0;
   }
 
   &__cancel {
     align-items: center;
-    color: rgba(255, 255, 255, 0.85);
+    color: white;
     display: flex;
     flex-wrap: wrap;
     font-size: 0.8rem;
     gap: 0.5rem;
     justify-content: center;
 
-    .btn { width: auto; }
-    .btn-link { color: #b9a3ff; padding: 0; }
+  }
+
+  // Report, 2026-11-23: the light-purple link was nearly unreadable on the
+  // blue. Same chip as the request screen's list: dark tint, white text;
+  // "Yes, cancel" solid white; "Keep it" a plain white link.
+  &__cancel-chip {
+    background: rgba(0, 0, 0, 0.22);
+    border: 0;
+    border-radius: 999px;
+    color: white;
+    font-size: 0.8rem;
+    padding: 0.3rem 0.8rem;
+
+    &:active { background: rgba(0, 0, 0, 0.35); }
+  }
+
+  &__cancel-yes {
+    background: white;
+    border: 0;
+    border-radius: 999px;
+    color: #1f1f1f;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.3rem 0.85rem;
+  }
+
+  &__cancel-keep {
+    background: none;
+    border: 0;
+    color: white;
+    font-size: 0.8rem;
+    padding: 0.25rem 0;
+    text-decoration: underline;
   }
 
   &__error {

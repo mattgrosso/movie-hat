@@ -103,7 +103,7 @@
               <button type="button" class="request-a-movie__mine-yes" @click="cancelRow(row)">Yes, cancel</button>
               <button type="button" class="request-a-movie__mine-link" @click="confirmingCancel = null">Keep it</button>
             </template>
-            <button v-else type="button" class="request-a-movie__mine-link" @click="confirmingCancel = row.tmdbId">Cancel back order</button>
+            <button v-else type="button" class="request-a-movie__mine-chip" @click="confirmingCancel = row.tmdbId">Cancel back order</button>
           </span>
           <p v-if="cancelError && cancelError.tmdbId === row.tmdbId" class="request-a-movie__mine-error">{{ cancelError.message }}</p>
           <span v-if="progressFor(row)" class="request-a-movie__mine-bar" :class="{ 'is-held': progressFor(row).heldBy }" aria-hidden="true">
@@ -550,8 +550,8 @@ export default {
   }
 
   &__mine-cancel {
-    align-items: baseline;
-    color: rgba(255, 255, 255, 0.85);
+    align-items: center;
+    color: white;
     display: flex;
     flex-basis: 100%;
     flex-wrap: wrap;
@@ -561,22 +561,38 @@ export default {
     margin-top: -0.35rem;
   }
 
+  // Report, 2026-11-23: the old light-purple link was "lavender on a blue
+  // background", nearly unreadable. The cancel is a small chip in the same
+  // dark tint as the nudge box; "Yes, cancel" is solid white so the step
+  // that does something stands out; "Keep it" is a plain white link.
+  &__mine-chip {
+    background: rgba(0, 0, 0, 0.22);
+    border: 0;
+    border-radius: 999px;
+    color: white;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.7rem;
+
+    &:active { background: rgba(0, 0, 0, 0.35); }
+  }
+
   &__mine-link {
     background: none;
     border: 0;
-    color: #b9a3ff;
+    color: white;
     font-size: 0.78rem;
     padding: 0.25rem 0;
     text-decoration: underline;
   }
 
   &__mine-yes {
-    background: none;
-    border: 1px solid rgba(255, 255, 255, 0.7);
-    border-radius: 4px;
-    color: white;
-    font-size: 0.78rem;
-    padding: 0.2rem 0.55rem;
+    background: white;
+    border: 0;
+    border-radius: 999px;
+    color: #1f1f1f;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
   }
 
   &__mine-error {
