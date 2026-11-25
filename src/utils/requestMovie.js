@@ -397,7 +397,7 @@ export function requestLabel (row, { requesting = false, short = false } = {}) {
  * A line under the button, for the states where the label alone could be
  * misread. `null` when the label says it all.
  */
-export function requestNote (row) {
+export function requestNote (row, { now = Date.now() } = {}) {
   switch (row?.status) {
     case 'pending': return row.force
       ? 'Forced past the Plex hold: the VPN comes up and the download starts now.'
@@ -406,7 +406,9 @@ export function requestNote (row) {
     case 'added': {
       if (isSettled(row)) return null;
       if (row.stage === 'searching') return 'No copy found yet; it keeps looking. You’ll get a notification when it’s ready.';
-      if (isCancelling(row)) return 'The Mac mini stops looking for it the next time it checks in.';
+      if (isCancelling(row)) return cancelStale(row, now)
+        ? 'The Mac mini hasn’t picked this up yet.'
+        : 'The Mac mini stops looking for it the next time it checks in.';
       if (row.stage === 'backorder') return backorderNote(row);
       if (row.stage === 'importing') return 'Downloaded. Adding it to Plex now.';
       const progress = downloadProgress(row);
@@ -468,6 +470,16 @@ export const CANCEL_FIELD = 'cancelRequestedAt';
 /** Has somebody asked for this back order to be cancelled, and the service not acted yet? */
 export function isCancelling (row) {
   return row?.status === 'added' && typeof row[CANCEL_FIELD] === 'number' && typeof row.importedAt !== 'number';
+}
+
+// A cancel the service should long since have acted on (Matt, 2026-11-24:
+// "it just sits there saying canceling… for days"). Past this, the note
+// stops promising and says the Mac mini hasn't got to it.
+export const CANCEL_STALE_MS = 60 * 60 * 1000;
+
+/** Has this cancel been waiting on the Mac mini for more than an hour? */
+export function cancelStale (row, now = Date.now()) {
+  return isCancelling(row) && now - row[CANCEL_FIELD] > CANCEL_STALE_MS;
 }
 
 /** May `email` cancel this row right now? The rules agree; this just decides what to draw. */
@@ -585,7 +597,7 @@ export function useRequestMovie ({ read, write, source, email, short = false, no
 
   const label = computed(() => requestLabel(row.value, { requesting: requesting.value, short }));
   const settled = computed(() => isSettled(row.value));
-  const note = computed(() => (requesting.value ? null : requestNote(row.value)));
+  const note = computed(() => (requesting.value ? null : requestNote(row.value, { now: now() })));
   // Recomputed whenever a poll replaces the row, which is often enough for
   // a number the service only moves once a minute — no timer of its own.
   const progress = computed(() => downloadProgress(row.value, { now: now() }));

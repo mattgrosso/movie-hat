@@ -758,13 +758,20 @@ describeCancel('cancelling a back order', () => {
     const asked = { ...bo, cancelRequestedAt: 5 };
     expectCancel(isCancelling(asked)).toBe(true);
     expectCancel(labelC(asked, { short: true })).toBe('Cancelling…');
-    expectCancel(noteC(asked)).toMatch(/stops looking/);
+    expectCancel(noteC(asked, { now: 10 })).toMatch(/stops looking/);
     expectCancel(settledC(asked)).toBe(false);
     const done = { ...asked, status: 'cancelled' };
     expectCancel(isCancelling(done)).toBe(false);
     expectCancel(labelC(done, { short: true })).toBe('Cancelled');
     expectCancel(settledC(done)).toBe(true);
     expectCancel(canOverC(done)).toBe(true);
+  });
+  itCancel('after an hour with no answer, the note says the Mac mini hasn’t picked it up', () => {
+    const asked = { ...bo, cancelRequestedAt: 1_000_000 };
+    expectCancel(noteC(asked, { now: 1_000_000 + 59 * 60 * 1000 })).toMatch(/stops looking/);
+    expectCancel(noteC(asked, { now: 1_000_000 + 61 * 60 * 1000 })).toBe('The Mac mini hasn’t picked this up yet.');
+    expectCancel(labelC(asked, { short: true })).toBe('Cancelling…');
+    expectCancel(noteC({ ...asked, status: 'cancelled' }, { now: 9e12 })).toBeNull();
   });
   itCancel('the button writes the field and shows Cancelling…', async () => {
     const h = harness({ email: SETH, rows: { 'requests/68': bo } });

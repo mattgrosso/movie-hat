@@ -188,7 +188,9 @@ writes `force`. The rules take that write once, only on such a row, and only
 from Matt or the row's `requestedBy`; the row's own `.validate` has a
 matching exception (`cancelOnly` in `scripts/generate-hat-rules.mjs`),
 because Firebase runs a parent's `.validate` on a child write too. Until the
-service acts, the row reads "Cancelling…". `src/test/emulated/siteUsersRules.test.js`
+service acts, the row reads "Cancelling…"; if that has gone on for more than
+an hour (`CANCEL_STALE_MS`), the line under it says "The Mac mini hasn’t
+picked this up yet." rather than promising it will. `src/test/emulated/siteUsersRules.test.js`
 pins who may and may not.
 
 ### Forcing a request past the Plex hold
